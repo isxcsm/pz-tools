@@ -1,4 +1,4 @@
--- What the status tab shows (DESIGN-terminal 2), worked out from a record as plain tables of texts and numbers: the
+-- What the helicopter and record tabs show (DESIGN-terminal 2), worked out from a record as plain tables of texts and numbers: the
 -- helicopter and this flight's waybill, the trust road and what each level opens, the flight support cards, the
 -- record of finds, and the board a field terminal shows the first time it is opened (12). The views (TabHeli,
 -- TabProgress, TabUpgrades, TabRecords, TabStatus) lay these out and draw them; nothing here draws or measures text,
@@ -274,7 +274,7 @@ function M.upgradeState(record, id, field)
     return cur, cur + 1, "avail"
 end
 
--- How many upgrades may be asked for now (of a group, or all): the sub-tab's badge and the group buttons.
+-- How many upgrades may be asked for now (of a group, or all): the group buttons and the first-boot board.
 function M.countAvail(record, field, group)
     local n = 0
     for _, u in ipairs(Support.LIST) do
@@ -507,7 +507,7 @@ function M.infectionState(record)
     return nil
 end
 
--- The status tab's dot (DESIGN-terminal 11.1): red while there is a debt, an infection or a wound not tested.
+-- The helicopter tab's dot (DESIGN-terminal 11.1): red while there is a debt, an infection or a wound not tested.
 function M.statusMark(record)
     if Trade.inDebt(record) then return "bad" end
     local inf = M.infectionState(record)
@@ -531,15 +531,27 @@ function M.roadFresh(record)
     return nil
 end
 
--- The marks of the status tab's sub-tabs, worked out when the record changes (the sub-tab on show is `sub`):
---   progress "new" (priority 4): a new level not shown yet, or on the crude terminal the field terminal can be bought;
---   avail (priority 5): how many upgrades may be asked for now (the badge `신청 가능 N`; none on the crude terminal).
-function M.subMarks(record, field, sub)
-    local marks = { avail = field and M.countAvail(record, true) or 0 }
+-- The record tab's progress sub-tab dot (priority 4), worked out when the record changes (the sub-tab on show is
+-- `sub`): a new level not shown yet, or on the crude terminal the field terminal can be bought.
+function M.progressMark(record, field, sub)
     if (not field and M.fieldTerminalBuyable(record)) or (sub ~= "progress" and M.roadFresh(record)) then
-        marks.progress = "new"
+        return "new"
     end
-    return marks
+    return nil
+end
+
+-- The support tab's dot (priority 5): an upgrade that may be asked for now at a field terminal and that a trust level
+-- opened after the tab was last looked at there (ui.seen.support). Returns the latest such level, or nil. What opens
+-- again without a new level (the next step after a request settles, a debt paid) is no news.
+function M.supportFresh(record)
+    local seen = Terminal.seenValue(record, "support") or 0
+    local fresh
+    for _, u in ipairs(Support.LIST) do
+        local _, nxt, state = M.upgradeState(record, u.id, true)
+        local s = state == "avail" and Support.step(u.id, nxt)
+        if s and s.tier > seen and (not fresh or s.tier > fresh) then fresh = s.tier end
+    end
+    return fresh
 end
 
 -- The waybill's sums (the settlement's order, Trade/Settle): the gain repays a debt first, the orders are paid when
@@ -807,9 +819,6 @@ end
 
 -- Layouts (DESIGN-terminal 1.2: the default 720x480 body is 700x408, the smallest 580x348) -------------------------
 
--- The status tab's sub-tab screens start under the strip and the sub-tab row.
-M.BODY_Y = 96
-
 -- The helicopter column's width: 250, 214 in a narrow window.
 function M.heroWidth(w)
     return w >= 680 and 250 or 214
@@ -821,28 +830,30 @@ M.GUIDE_H, M.GUIDE_GAP = 38, 6
 
 -- The hero's spacing: whether the last settlement and the crates take a label line and a value line each (roomy),
 -- the gap between the blocks, whether the four values fit (a short window with the infection box leaves them to the
--- upgrades screen) and whether the last settlement and the crates fit at all (the infection box and the card are what
+-- support tab) and whether the last settlement and the crates fit at all (the infection box and the card are what
 -- the player has to see, so they take the room first: the four values go, then the facts). `top` is the height the
 -- state, its lines, the arrival bar and the infection box take (from 46 down), `facts` how many fact blocks there are,
--- `card` whether the new-document card stands over the buttons; the buttons keep the bottom 72.
-function M.heroSpacing(h, top, facts, card)
-    local reserve = 72 + (card and M.GUIDE_H + M.GUIDE_GAP or 0)
-    local roomy = h >= 300
-    local spec, showFacts = true, true
-    local used = 46 + top + 54 + 8 + facts * 36
-    if used > h - reserve then
-        roomy = false
-        used = used - facts * 18
+-- `card` whether the new-document card stands over the buttons (the buttons keep the bottom 66), `fh` the line height
+-- (16 when not given). The room left is shared out evenly: the same gap over the four values, over the facts and under
+-- them (over the card or the buttons), so a taller window spreads the blocks rather than leaving a hole at the foot.
+function M.heroSpacing(h, top, facts, card, fh)
+    fh = fh or 16
+    local bottom = h - 66 - (card and M.GUIDE_H + M.GUIDE_GAP or 0)
+    local specH = 18 + 2 * fh + 4
+    local roomy, spec, showFacts = true, true, true
+    local function used()
+        local n = 46 + top
+        if spec then n = n + specH end
+        -- (the facts as their text runs: 4 under the rule, without the last block's own space under it)
+        if showFacts then n = n + facts * (roomy and 2 * fh + 4 or fh + 2) + (roomy and 0 or 2) end
+        return n
     end
-    if used > h - reserve then
-        spec = false
-        used = used - 54
-    end
-    if used > h - reserve then
-        showFacts = false
-        used = used - facts * 18
-    end
-    local gap = OA.clamp(math.floor((h - reserve - used) / 3), 4, 18)
+    -- (6: the least room the gaps need)
+    if used() + 6 > bottom then roomy = false end
+    if used() + 6 > bottom then spec = false end
+    if used() + 6 > bottom then showFacts = false end
+    local gaps = 1 + (spec and 1 or 0) + (showFacts and 1 or 0)
+    local gap = OA.clamp(math.floor((bottom - used()) / gaps), 4, 40)
     return roomy, gap, spec, showFacts
 end
 

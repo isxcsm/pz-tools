@@ -14,7 +14,7 @@
     "Sandbox_OperationAcorn_BonusMultiplier": "발견 추가 정산 배율",
     "Sandbox_OperationAcorn_BonusMultiplier_tooltip": "시료 대장 달성, 처음 분해한 물건 종류, 다 뒤진 건물, 처치 이정표로 받는 추가 정산의 배율입니다.",
     "Sandbox_OperationAcorn_RequestPrice": "요청 단가 (%%)",
-    "Sandbox_OperationAcorn_RequestPrice_tooltip": "이번 주 요청 품목의 고정 단가에 곱하는 비율(퍼센트)입니다. 100이 기본 단가(개당 600 / 1,500 / 4,000)이고, 개량 '요청 단가'가 그 위에 더 곱해집니다.",
+    "Sandbox_OperationAcorn_RequestPrice_tooltip": "이번 주 요청 품목의 고정 단가에 곱하는 비율(퍼센트)입니다. 100이 기본 단가(개당 600 / 1,500 / 4,000)이고, 지원 항목 '요청 단가'가 그 위에 더 곱해집니다.",
     "Sandbox_OperationAcorn_HelicopterArrivalMultiplier": "헬기 도착 시간 배율",
     "Sandbox_OperationAcorn_HelicopterArrivalMultiplier_tooltip": "호출부터 헬기가 도착하기까지 걸리는 시간에 곱합니다. 1이면 처음에 4~6시간이고, 신뢰도가 오르면 줄어듭니다.",
     "Sandbox_OperationAcorn_CallIntervalMultiplier": "호출 간격 배율",

@@ -1,4 +1,4 @@
--- The missions tab's mission screen (DESIGN-terminal 6.1, 6.2): the mission card, a card of its own under a colour band
+-- The missions tab (DESIGN-terminal 6.1, 6.2): the mission card, a card of its own under a colour band
 -- (the colour is the map's: teal for the regular and contract missions, sky blue for the story's), with what is
 -- asked, where from here, until when and what it pays; and under it the special request's slot: a locked board at
 -- the crude terminal, at the field terminal the two requests offered (one to choose), or the one taken. Everything is
@@ -147,15 +147,15 @@ function OATabMission:onChoose(button)
     UI.confirm(self:character(), string.gsub(text, "\\n", "\n"), self, OATabMission.doLaunch, button.internal)
 end
 
--- Started: a story mission's briefing plays in the comms tab (the call comes in with the record's next change).
+-- Started: a story mission's briefing plays in the comms tab's calls (the call comes in with the record's next change).
 function OATabMission:doLaunch(option)
     self:send("story_launch", { option = option })
-    if self.info and self.info.kind == "story" then self.window:activate("comms") end
+    if self.info and self.info.kind == "story" then OA.StoryTabs.openCalls(self.window) end
 end
 
--- A briefing not heard yet (the hail was left): back to the comms tab, where it plays.
+-- A briefing not heard yet (the hail was left): back to the calls, where it plays.
 function OATabMission:onComms()
-    self.window:activate("comms")
+    OA.StoryTabs.openCalls(self.window)
 end
 
 function OATabMission:onReroll()
@@ -454,21 +454,9 @@ function OATabMission:refresh()
     local info = {}
     if record.missions then info = Missions.describe(record) end
     self.info = info
-    self.results = nil
-    if info.results then
-        self.results = measure(runsOf("dim", "IGUI_OA_Story_UI_Results", info.results.done or 0, info.results.expired or 0,
-            info.results.lost or 0), self:palette())
-    end
     self.card = info.id and self:buildCard(record, info) or self:buildEmpty(record, info)
     self.special = self:buildSpecial(record, info)
     self.laidW = nil
-end
-
--- The results of the missions so far ("지금까지: 완료 3, 기한 경과 0, 분실 0"), drawn by the tab above in the row of the
--- sub-tabs, ending at x.
-function OATabMission:drawResults(el, right, y)
-    local list = self.results
-    if list then drawRuns(el, right - list.w, y, list, self:palette()) end
 end
 
 -- Where everything goes, worked out when the size changes or the record does.

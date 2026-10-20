@@ -1,5 +1,6 @@
--- The communication terminal's tabs (DESIGN-terminal 1.1): always the same five, status, shop, delivery, missions and
--- comms (the team's calls, SCENES.md 2), in that order. The window itself is the client's
+-- The communication terminal's tabs (DESIGN-terminal 1.1): always the same seven, in this order: the helicopter, shop,
+-- delivery, the flight support requests, missions, comms (the team's calls, SCENES.md 2, and the documents) and the
+-- record (the progress and the track record). The window itself is the client's
 -- (client/OperationAcorn/Trade/TerminalWindow.lua); the part that owns a tab gives its view here with addTab, from its
 -- own files, before or after the window exists.
 require "OperationAcorn/Core"
@@ -7,24 +8,26 @@ local OA = OperationAcorn
 local Terminal = OA.Terminal or {}
 OA.Terminal = Terminal
 
-Terminal.ORDER = { "status", "shop", "delivery", "missions", "comms" }
+Terminal.ORDER = { "heli", "shop", "delivery", "support", "missions", "comms", "records" }
 
--- What a tab's dot remembers as seen, in the record's ui.seen (DESIGN-terminal 1.1): numbers only. `road` is the status
--- tab's progress screen: the trust level whose entry it has shown (11.1).
-Terminal.SEEN_KEYS = { mission = true, week = true, tier = true, docs = true, market = true, road = true }
+-- What a tab's dot remembers as seen, in the record's ui.seen (DESIGN-terminal 1.1): numbers only. `road` is the record
+-- tab's progress screen: the trust level whose entry it has shown (11.1); `support` the trust level the support
+-- requests were last looked at, at a field terminal.
+Terminal.SEEN_KEYS = { mission = true, week = true, tier = true, docs = true, market = true, road = true,
+    support = true }
 
 local tabs = {}
 
 -- Gives a tab its view. `id` is one of Terminal.ORDER (a second call replaces the first). `factory(x, y, width,
 -- height, window)` returns the view (a panel; it may have `refresh(view)` for when the record changes). `opts`:
---   mark(record) -> nil | "new" | "bad": the dot by the tab's name (amber for something not seen yet, red for a
---     state to deal with);
+--   mark(record, window) -> nil | "new" | "bad": the dot by the tab's name (amber for something not seen yet, red for a
+--     state to deal with; `window` the terminal's, nil when asked without one);
 --   seen(record, window) -> key, value, or a table { key = value, ... } for a tab with more than one thing to see:
 --     what the window keeps as seen once the tab has been looked at (SEEN_KEYS keys); nil keeps nothing (a tab whose
 --     news is seen on one of its screens asks the window which is on show, window:subOn(id));
---   opens(record) -> true: the window opens on this tab (a call waiting to play), not on the status tab.
+--   opens(record) -> true: the window opens on this tab (a call waiting to play), not on the first.
 -- A view may also have wantsKeys(), consumesKey(key) and onKey(key) (the window's keys while it is on show; a view
--- that starts taking keys turns the window's key events on itself), onTabLeave() (another
+-- that starts taking keys turns the window's key events on itself), onTabShow() (it is chosen), onTabLeave() (another
 -- tab was chosen) and consoleOver() (the window's boot console is over).
 function Terminal.addTab(id, factory, opts)
     tabs[id] = { id = id, factory = factory, mark = opts and opts.mark, seen = opts and opts.seen,
@@ -36,7 +39,7 @@ function Terminal.tab(id)
     return tabs[id]
 end
 
--- The tab a window opens on for a record: the first that asks to (a failing rule does not), else the status tab.
+-- The tab a window opens on for a record: the first that asks to (a failing rule does not), else the first tab.
 function Terminal.opening(record)
     if record then
         for _, id in ipairs(Terminal.ORDER) do
@@ -47,7 +50,7 @@ function Terminal.opening(record)
             end
         end
     end
-    return "status"
+    return Terminal.ORDER[1]
 end
 
 -- The tab's title key.
@@ -55,11 +58,11 @@ function Terminal.titleKey(id)
     return "IGUI_OA_Terminal_Tab_" .. id
 end
 
--- A tab's dot for a record: nil, "new" or "bad". A failing rule shows none.
-function Terminal.mark(id, record)
+-- A tab's dot for a record (in `window`, when there is one): nil, "new" or "bad". A failing rule shows none.
+function Terminal.mark(id, record, window)
     local tab = tabs[id]
     if not (tab and tab.mark and record) then return nil end
-    local ok, mark = pcall(tab.mark, record)
+    local ok, mark = pcall(tab.mark, record, window)
     if ok then return mark end
     return nil
 end

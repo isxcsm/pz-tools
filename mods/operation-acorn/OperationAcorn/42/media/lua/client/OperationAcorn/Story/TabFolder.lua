@@ -1,4 +1,4 @@
--- The missions tab's document folder (DESIGN-terminal 6.4): a list of what the record keeps, in groups with the newest
+-- The comms tab's inbox, the document folder (DESIGN-terminal 6.4): a list of what the record keeps, in groups with the newest
 -- on top, and the document open beside it inside the terminal's own window (no window of its own to hide behind the
 -- terminal). Choosing a row reads it: the text on the right, 'previous' and 'next' step through the list, and what was
 -- new stops being new (the server is told). The list is built again only when what it lists changed (not when the
@@ -288,7 +288,7 @@ end
 function OATabFolder:onPrev() self:step(-1) end
 function OATabFolder:onNext() self:step(1) end
 
--- Show a given entry (the status tab's new-document card, the special request's copy link): by its folder key.
+-- Show a given entry (the helicopter screen's new-document card, the special request's copy link): by its folder key.
 function OATabFolder:showKey(key)
     self.key = key
     self:refresh()

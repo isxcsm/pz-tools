@@ -27,7 +27,7 @@ P4T.check(say, "notes have text", lines == 0, lines)
 OA.Story.markRead(record, "police_card", "police")
 OA.Story.markRead(record, "clinic_log", "medical")
 OA.Sync.changed("story", record.id)
-P4T.check(say, "the missions tab (with the folder) is given", OA.Terminal and OA.Terminal.tab("missions") ~= nil)
+P4T.check(say, "the comms tab (with the folder) is given", OA.Terminal and OA.Terminal.tab("comms") ~= nil)
 P4T.check(say, "the folder lists the two documents", #OA.StoryFolder.flat(OA.StoryFolder.entries(record)) >= 2)
 OA.StoryViewer.open(player, { { id = "police_card", variant = "police", noRecord = true },
                               { id = "cooler_front", noRecord = true } })

@@ -1,4 +1,4 @@
--- The status tab's helicopter screen (DESIGN-terminal 2.2). On the left the helicopter: its state and what follows
+-- The helicopter tab (DESIGN-terminal 2.2). On the left the helicopter: its state and what follows
 -- from it, the arrival bar while it flies, the infection box, the four values the upgrades raise, the last settlement,
 -- the supply crates still lying around, the card of a new guide document (DESIGN-terminal 11.1) and the buttons that
 -- call it or ask for a new delivery box. On the right this flight's waybill: what goes up, what comes down, and the
@@ -7,6 +7,8 @@
 require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Trade/StatusModel"
 require "OperationAcorn/Story/Folder"
+require "OperationAcorn/Trade/TerminalWindow"
+require "OperationAcorn/Say"
 require "PZUIKit/Confirm"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
@@ -53,7 +55,7 @@ function OATabHeli:buildHero(L, x, y, w, h)
         for _, line in ipairs(Draw.wrap(s.text, w - 20)) do subs[#subs + 1] = { line, p[s.colour] or p.text } end
     end
     local top = #subs * fh + (H.eta and 14 or 0) + (d.infection and 46 or 0)
-    local roomy, gap, showSpec, showFacts = M.heroSpacing(h, top, 3, d.guide ~= nil)
+    local roomy, gap, showSpec, showFacts = M.heroSpacing(h, top, 3, d.guide ~= nil, fh)
     local yy = y + 46
     for _, s in ipairs(subs) do
         Draw.text(L, s[1], x + 10, yy, s[2])
@@ -81,9 +83,8 @@ function OATabHeli:buildHero(L, x, y, w, h)
     end
     yy = yy + gap
     if showSpec then
-        -- 헬기 사양: the four values the upgrades sub-tab raises.
+        -- 헬기 사양: the four values the support tab raises.
         Draw.text(L, getText("IGUI_OA_Status_Spec"), x + 10, yy, p.dim)
-        Draw.fit(L, getText("IGUI_OA_Status_SpecHint"), x + 10, yy, w - 20, p.dim, nil, 0.8, "right")
         yy = yy + 18
         local cw = math.floor((w - 20) / 2)
         for i, s in ipairs(d.spec) do
@@ -306,3 +307,149 @@ end
 function OATabHeli:doReissue()
     self:send("tradeCall", { kind = "reissue" })
 end
+
+-- The first open of a field terminal (DESIGN-terminal 12) ----------------------------------------------------------
+-- Once per terminal object (its modData OA_Booted, which the window claims as it opens): the window's long boot
+-- sequence, then the board of what the field terminal opened, over the helicopter tab. The board is made with the tab
+-- and lies under the boot console; the board's button closes it, and the shop and missions tabs blink until they are
+-- looked at.
+
+-- The character's lines at the end of a field terminal's first boot (DESIGN-terminal 18: 정식 단말 첫 켬, 3 lines).
+OA.Say.define("TerminalFirst", {})
+
+function OATabHeli:startBoot()
+    if not self.window.firstBoot then return end
+    local boot = OAStatusBoot:new(0, 0, self.width, self.height, self)
+    boot:initialise()
+    boot:instantiate()
+    boot:setAnchorRight(true)
+    boot:setAnchorBottom(true)
+    self:addChild(boot)
+    self.board = boot
+end
+
+function OATabHeli:bootDone()
+    if self.board then
+        self:removeChild(self.board)
+        self.board = nil
+    end
+    self.window:blinkTab("shop")
+    self.window:blinkTab("missions")
+end
+
+-- The board hears of the record and of the console's end with the tab.
+function OATabHeli:refresh()
+    OAStatusView.refresh(self)
+    if self.board then self.board:refresh() end
+end
+
+function OATabHeli:consoleOver()
+    if self.board then self.board:consoleOver() end
+end
+
+OAStatusBoot = ISPanel:derive("OAStatusBoot")
+
+function OAStatusBoot:new(x, y, width, height, tab)
+    local o = ISPanel:new(x, y, width, height)
+    setmetatable(o, self)
+    self.__index = self
+    o.tab = tab
+    o.background = false
+    return o
+end
+
+-- The window's console is over and the tabs fade in: the board is on show, and the character says a line.
+function OAStatusBoot:consoleOver()
+    OA.Say.say(self.tab.window.character, "TerminalFirst")
+end
+
+-- The board's words, worked out again when the record changes.
+function OAStatusBoot:refresh()
+    local record = self.tab:record()
+    if record then self.news = M.news(record) end
+    self.list = nil
+end
+
+function OAStatusBoot:layoutBoard()
+    local p = self.tab:palette()
+    if not self.news then self:refresh() end
+    local L = Draw.list(p)
+    local fh = L.fh
+    local bw = math.min(400, self.width - 40)
+    -- The height first: the title, each section's head and lines, the button.
+    local lines = {}
+    for _, s in ipairs(self.news or {}) do
+        local wrapped = {}
+        for _, line in ipairs(s.lines) do
+            for _, part in ipairs(Draw.wrap(line, bw - 44)) do wrapped[#wrapped + 1] = part end
+        end
+        lines[#lines + 1] = { head = s.head, lines = wrapped }
+    end
+    local bh = 46
+    for _, s in ipairs(lines) do bh = bh + 18 + fh * #s.lines + 8 end
+    bh = bh + 40
+    local bx = math.floor((self.width - bw) / 2)
+    local by = math.max(0, math.floor((self.height - bh) / 2))
+    Draw.rect(L, -10, -10, self.width + 20, self.height + 20, { 0, 0, 0 }, 0.45)
+    Draw.box(L, bx, by, bw, bh, p.panel or p.bg, 1, p.value)
+    Draw.text(L, getText("IGUI_OA_Status_News"), bx + 16, by + 12, p.value, UIFont.Medium)
+    local yy = by + 46
+    for _, s in ipairs(lines) do
+        Draw.bullet(L, bx + 18, yy, p.value)
+        Draw.fit(L, s.head, bx + 28, yy, bw - 44, p.bright)
+        yy = yy + 18
+        for _, line in ipairs(s.lines) do
+            Draw.text(L, line, bx + 28, yy, p.text)
+            yy = yy + fh
+        end
+        yy = yy + 8
+    end
+    Draw.button(L, bx + bw - 112, by + bh - 34, 96, 24, getText("IGUI_OA_Status_Ok"), "strong", nil, "ok")
+    self.list = L
+    self.laidW, self.laidH = self.width, self.height
+end
+
+function OAStatusBoot:prerender()
+    if not self.list or self.laidW ~= self.width or self.laidH ~= self.height then self:layoutBoard() end
+    Draw.paint(self, self.list)
+end
+
+function OAStatusBoot:render()
+    if not self.list or not self:isMouseOver() then return end
+    local hit = Draw.hitAt(self.list, self:getMouseX(), self:getMouseY())
+    if hit and hit.button then
+        local p = self.tab:palette()
+        self:drawRect(hit.x + 1, hit.y + 1, hit.w - 2, hit.h - 2, 0.10, p.sel[1], p.sel[2], p.sel[3])
+    end
+end
+
+function OAStatusBoot:onMouseDown(x, y)
+    local hit = Draw.hitAt(self.list, x, y)
+    if hit and hit.id == "ok" then
+        UI.clickSound("kit.press")
+        self.tab:bootDone()
+    end
+    return true
+end
+
+function OAStatusBoot:onMouseWheel()
+    return true
+end
+
+UI.scaled(OAStatusBoot, ISPanel)
+
+-- The tab -----------------------------------------------------------------------------------------------------------
+
+-- A field terminal opened for the first time lays the board over the tab as it is made. The tab's dot: red while the
+-- balance is a debt, or there is an infection or a wound not tested (DESIGN-terminal 11.1 priority 1).
+OA.Terminal.addTab("heli", function(x, y, w, h, window)
+    local view = OATabHeli:new(x, y, w, h, window)
+    view:initialise()
+    view:instantiate()
+    view:startBoot()
+    return view
+end, {
+    mark = function(record) return M.statusMark(record) end,
+})
+
+return OATabHeli

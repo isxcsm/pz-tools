@@ -1,11 +1,13 @@
--- The terminal's comms tab (SCENES.md 2): the team's calls played and kept. Above, the record: each call under a head
--- (the tier, the regular call's hour, its name) with its replay button, the field monologues of a tier under one
--- head, the newest at the foot; only the newest open, the others folded to their heads (a click on a head opens or
--- folds it). Below, the protagonist's input line. A call plays here: the team's lines come in
--- like a signal, the protagonist's are typed on the input line (words typed and erased first) and go up into the
--- record when sent. While a call plays the game goes on (paused by the player, the call stands still with it), its
--- ambience turned down under a low static, and its button skips it (a click: no key, which the game would also take); another tab or the window closing counts as skipping. Played or
--- skipped, the server keeps it (comms_played) and the next waiting call follows after a beat.
+-- The comms tab's calls (SCENES.md 2; the tab: Story/Tabs): the team's calls played and kept. Above, the record: each
+-- call under a head (the tier, the regular call's hour, its name) with its replay button, the field monologues of a
+-- tier under one head, the newest at the foot; only the newest open, the others folded to their heads (a click on a
+-- head opens or folds it). Below, the protagonist's input line, and in it, while a call plays, what the line is doing
+-- and the button that skips the call. A call plays here: the team's lines come in like a signal, the protagonist's
+-- are typed on the input line (words typed and erased first) and go up into the record when sent. While a call plays
+-- the game goes on (paused by the player, the call stands still with it), its ambience turned down under a low
+-- static, and its button skips it (a click: no key, which the game would also take); another tab or screen, or the
+-- window closing, counts as skipping. Played or skipped, the server keeps it (comms_played) and the next waiting call
+-- follows after a beat.
 --
 -- The lines are worked out once a line starts (Story/CommsScript); a frame draws from the timeline at the clock alone.
 require "OperationAcorn/Core"
@@ -23,9 +25,7 @@ local Sound, Tape = PZUIKit.Sound, PZUIKit.Tape
 
 OATabComms = OATab:derive("OATabComms")
 
--- Layout (design units): the head row, the gap under it, the input line's height and the gap over it, the margins
--- in the record, the scroll bar, a wheel step.
-OATabComms.TOP_H = 26
+-- Layout (design units): the gap over the input line, the margins in the record, the scroll bar, a wheel step.
 OATabComms.INPUT_GAP = 8
 OATabComms.PAD = 10
 OATabComms.BAR = 6
@@ -293,7 +293,7 @@ function OATabComms:createChildren()
     self.skipButton:instantiate()
     self.skipButton:setVisible(false)
     self:addChild(self.skipButton)
-    self.log = OACommsLog:new(0, OATabComms.TOP_H, self.width, 100, self)
+    self.log = OACommsLog:new(0, 0, self.width, 100, self)
     self.log:initialise()
     self.log:instantiate()
     self:addChild(self.log)
@@ -311,11 +311,11 @@ end
 function OATabComms:layout()
     local w, h = self.width, self.height
     self.laidW, self.laidH = w, h
-    local b = self.skipButton
-    b:setX(w - b.width)
-    b:setY(math.floor((OATabComms.TOP_H - 4 - b.height) / 2))
-    local top = OATabComms.TOP_H
-    UI.place(self.log, 0, top, w, math.max(40, h - top - self:inputH() - OATabComms.INPUT_GAP))
+    -- the skip button inside the input line, at its right end
+    local b, inputH = self.skipButton, self:inputH()
+    b:setX(w - b.width - 4)
+    b:setY(h - inputH + math.floor((inputH - b.height) / 2))
+    UI.place(self.log, 0, 0, w, math.max(40, h - inputH - OATabComms.INPUT_GAP))
     self.recordKey = nil
     local record = self:record()
     if record then self:setRows(record) end
@@ -594,16 +594,7 @@ end
 
 function OATabComms:prerender()
     if self.laidW ~= self.width or self.laidH ~= self.height then self:layout() end
-    local p = self:palette()
-    local fh = UI.fontHeight()
-    local ty = math.floor((OATabComms.TOP_H - 4 - fh) / 2)
-    UI.text(self, UI.str("IGUI_OA_Comms_Record"), 0, ty, p.head)
-    if self.play then
-        -- during the hail the line is not up yet
-        local key = self.st and self.st.phase == "hail" and "IGUI_OA_Comms_Connecting" or "IGUI_OA_Comms_Receiving"
-        UI.textRight(self, UI.str(key), self.skipButton.x - 10, ty, p.warn)
-    end
-    self:drawInput(p)
+    self:drawInput(self:palette())
 end
 
 -- The characters of a text the frames draw a part of, split once.
@@ -638,6 +629,13 @@ function OATabComms:drawInput(p)
     local ty = y + (h - UI.fontHeight()) / 2
     UI.text(self, prompt, 10, ty, c.pre)
     if not st then return end
+    -- what the line is doing, left of the skip button (during the hail the line is not up yet); the typing stops
+    -- short of it
+    local key = st.phase == "hail" and "IGUI_OA_Comms_Connecting" or "IGUI_OA_Comms_Receiving"
+    local status = UI.str(key)
+    local statusX = self.skipButton.x - 10
+    UI.textRight(self, status, statusX, ty, p.warn)
+    local clipW = math.max(0, statusX - UI.textWidth(status) - 10 - 1)
     local x = 10 + UI.textWidth(prompt) + 8
     local shown = ""
     local l = st.line and self.play.lines[st.line]
@@ -645,7 +643,7 @@ function OATabComms:drawInput(p)
         local cs = charsOf((st.inputOf == "erase" and l.erase or l.text) or "")
         shown = table.concat(cs, "", 1, math.min(st.input, #cs))
     end
-    self:setStencilRect(1, y + 1, w - 2, h - 2)
+    self:setStencilRect(1, y + 1, clipW, h - 2)
     if shown ~= "" then UI.text(self, shown, x, ty, c.me) end
     -- the cursor: steady while typing, blinking while it waits
     local blink = blinking(st)
@@ -654,7 +652,7 @@ function OATabComms:drawInput(p)
             UI.fill(self, x + UI.textWidth(shown) + 1, ty + 1, 7, UI.fontHeight() - 2, c.me, 0.85)
         end
     end
-    UI.unclip(self, 1, y + 1, w - 2, h - 2)
+    UI.unclip(self, 1, y + 1, clipW, h - 2)
 end
 
 -- The record's panel: its rows drawn where they are scrolled to, a bar on the right; the heads' replay buttons.
@@ -944,17 +942,10 @@ OA.on("EveryTenMinutes", function()
                 toldReady[n] = e.id
                 window:updateMarks(record)
             end
-            local view = window.activeId == "comms" and window.views.comms
+            local view = window.activeId == "comms" and window:subOn("comms") == "calls" and window:subView("comms", "calls")
             if view and not view.play then view:follow() end
         end
     end
 end)
-
-OA.Terminal.addTab("comms", function(x, y, w, h, window)
-    return OATabComms:new(x, y, w, h, window)
-end, {
-    mark = function(record) return Comms.waiting(record) > 0 and "new" or nil end,
-    opens = function(record) return Comms.waiting(record) > 0 end,
-})
 
 return OATabComms

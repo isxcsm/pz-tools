@@ -135,8 +135,14 @@ function ST.view(id)
     return ST.win and ST.win.views[id]
 end
 
+-- The comms tab's calls screen, if made.
+function ST.calls()
+    ST.win = OATerminalWindow.instances[0]
+    return ST.win and ST.win:subView("comms", "calls")
+end
+
 function ST.skip()
-    local v = ST.view("comms")
+    local v = ST.calls()
     if v and v.play then OATabComms.skip(v) ST.say("SKIP") else ST.say("SKIP: nothing playing") end
 end
 
@@ -153,12 +159,14 @@ function ST.no()
     ST.say("NO")
 end
 
--- The missions tab's own screen (its sub-tab "missions"; "docs" the folder).
+-- The missions tab's screen; ST.missions("docs") the documents (the comms tab's inbox).
 function ST.missions(sub)
+    if sub == "docs" then
+        ST.tab("comms")
+        return ST.view("comms"):open("docs")
+    end
     ST.tab("missions")
-    local tab = ST.view("missions")
-    tab:showSub(sub or "missions")
-    return tab.subViews[sub or "missions"]
+    return ST.view("missions")
 end
 
 function ST.launch(option)
@@ -172,10 +180,8 @@ function ST.launch(option)
 end
 
 function ST.call()
-    ST.tab("status")
-    local status = ST.view("status")
-    status:showSub("heli")
-    status.subViews.heli:onCall()
+    ST.tab("heli")
+    ST.view("heli"):onCall()
 end
 
 function ST.seal()
@@ -200,7 +206,7 @@ function ST.state()
     local Comms, Missions = OA.Comms, OA.Missions
     local nextCall = Comms.next(r, "terminal")
     local m = Missions.active(r)
-    local v = ST.view("comms")
+    local v = ST.calls()
     local play = v and v.play
     ST.say("STATE stage", r.trade.stage, r.trade.milestones or 0, "next call", nextCall and nextCall.id or "-",
         "mission", m and ((m.story or m.kind or "?") .. ":" .. tostring(m.state)) or "-",

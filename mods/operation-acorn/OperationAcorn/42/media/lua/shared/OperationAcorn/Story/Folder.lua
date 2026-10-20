@@ -1,5 +1,5 @@
--- The document folder in the terminal's missions tab (DESIGN-terminal 6.4): what the record keeps there, in groups with
--- the newest on top, which of it is new, what each says, and the missions tab's and its inbox's dots (11.1). Only data: the
+-- The document folder in the terminal's comms tab (DESIGN-terminal 6.4): what the record keeps there, in groups with
+-- the newest on top, which of it is new, what each says, and the missions tab's dot (11.1). Only data: the
 -- window (client/Story/TabFolder) draws it. Nothing here is saved: the folder is worked out from the story's counters,
 -- the documents read, the manifests and the request copies, and the arrivals not opened yet (Story.markNew).
 require "OperationAcorn/Core"
@@ -290,7 +290,7 @@ local function guideId(key)
 end
 
 -- The newest guide document (the team's own notices for the terminal) not opened yet: { key, id, title } or nil. The
--- status tab's 'new document' card shows it (11.1 priority 2).
+-- helicopter screen's 'new document' card shows it (11.1 priority 2).
 function Folder.newGuide(record)
     local unread = record and record.story and record.story.unread
     local best
@@ -321,18 +321,17 @@ function Folder.freshMission(record)
     return Folder.missionSeq(record) > (Terminal.seenValue(record, "mission") or 0)
 end
 
--- The dot of the missions tab: amber for a mission not looked at yet or anything new in the folder. A guide document
--- lights it too, beside the status tab's card: opening it either way marks it read, and both go out.
-function Folder.mark(record)
+-- The dot of the missions tab: amber for a mission not looked at yet. (What is new in the folder lights the comms tab,
+-- whose documents it is: Story/Tabs. A guide document lights it beside the helicopter screen's card: opening it either
+-- way marks it read, and both go out.)
+function Folder.missionMark(record)
     if Folder.freshMission(record) then return "new" end
-    if Folder.unreadCount(record) > 0 then return "new" end
     return nil
 end
 
--- What the tab keeps as seen once it has been looked at: the mission, while the mission screen (sub-tab "missions") is
--- on show. The folder's news is kept per entry, as each is opened. Returns the ui.seen key and value, or nil.
-function Folder.seen(record, sub)
-    if sub ~= "missions" then return nil end
+-- What the missions tab keeps as seen once it has been looked at: the mission. The folder's news is kept per entry, as
+-- each is opened. Returns the ui.seen key and value, or nil.
+function Folder.seen(record)
     if Folder.freshMission(record) then return "mission", Folder.missionSeq(record) end
     return nil
 end

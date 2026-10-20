@@ -52,7 +52,7 @@ local function summary(receipt)
 end
 
 -- The number that follows `last` (nil or 0 before the first). It is worked out from the collection point number and
--- the last number, so that the number the status tab shows for the manifest being written is the one the receipt
+-- the last number, so that the number the helicopter screen shows for the manifest being written is the one the receipt
 -- gets, on the client and on the server alike, and only the last number is kept. The first is 90 to 480, each next
 -- one is 1 to 5 on.
 Ledger.FIRST_MIN, Ledger.FIRST_MAX, Ledger.STEP_MAX = 90, 480, 5

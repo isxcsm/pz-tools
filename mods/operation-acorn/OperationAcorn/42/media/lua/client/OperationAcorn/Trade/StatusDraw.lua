@@ -1,4 +1,4 @@
--- Drawing for the status tab's screens: a screen is laid out into a list of drawing steps (rectangles, borders, texts,
+-- Drawing for the helicopter and record tabs' screens: a screen is laid out into a list of drawing steps (rectangles, borders, texts,
 -- textures) when its record or its size changes, and each frame only goes through that list. Texts are measured and
 -- cut to their width while the list is made. The list also keeps the places that answer a click or show a tooltip.
 -- The steps and the places are in design units (Trade/UI.lua); the steps are made pixels once (Draw.bake), and a frame
@@ -430,7 +430,7 @@ function Draw.paintTip(el, p, tip, x, y)
     end
 end
 
--- The base of the status tab's screens -------------------------------------------------------------------------------
+-- The base of the helicopter and record tabs' screens -------------------------------------------------------------------
 -- A screen gives `build(L, w, h)` (lays its data out into the list) and may give `model()` (works the data out from
 -- the record, on refresh) and `onHit(hit)`. The list is made again when the record changes or the size does.
 OAStatusView = OATab:derive("OAStatusView")

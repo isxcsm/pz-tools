@@ -1,4 +1,4 @@
--- The status tab's upgrades screen (DESIGN-terminal 2.6, 운항 지원 신청): the group buttons (helicopter, trade), a card
+-- The support tab, the flight support requests (DESIGN-terminal 2.6, 운항 지원 신청): the group buttons (helicopter, trade), a card
 -- for each upgrade of the group with its value now, the next one and a pip for each level, the chosen upgrade's
 -- column (what it does, every level with its price and when it opens, the button that asks for the next or takes the
 -- request back) and the request form at the bottom with what was asked for and the stamp. The crude terminal shows
@@ -6,6 +6,7 @@
 require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Trade/StatusModel"
 require "OperationAcorn/Trade/TabProgress"
+require "OperationAcorn/Trade/TerminalWindow"
 require "PZUIKit/Confirm"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
@@ -337,3 +338,20 @@ end
 function OATabUpgrades:doCancel(id)
     self:send("tradeUpgradeCancel", { upgrade = id })
 end
+
+-- The tab ---------------------------------------------------------------------------------------------------------
+
+-- The dot: an upgrade a new trust level opened, until the tab is looked at on a field terminal (ui.seen.support). The
+-- crude terminal shows the requests but takes none, so it neither lights nor clears it.
+OA.Terminal.addTab("support", function(x, y, w, h, window) return OATabUpgrades:new(x, y, w, h, window) end, {
+    mark = function(record, window)
+        if window and window.tier ~= "field" then return nil end
+        return M.supportFresh(record) and "new" or nil
+    end,
+    seen = function(record, window)
+        if window and window.tier == "field" then return "support", Trust.tier(record) end
+        return nil
+    end,
+})
+
+return OATabUpgrades

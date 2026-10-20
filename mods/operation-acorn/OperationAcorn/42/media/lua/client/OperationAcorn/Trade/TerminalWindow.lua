@@ -1,7 +1,8 @@
--- The communication terminal's window (DESIGN-terminal 1): five tabs, status, shop, delivery, missions and comms, drawn in
--- the palette of the terminal it is open at (the crude one built from the kit, or the field terminal ordered from the
--- shop). The part that owns a tab gives its view with OA.Terminal.addTab. The window opens on the status tab every
--- time, when the using action completes (OA.Terminal.open), and shows the player's own record, redrawn when the
+-- The communication terminal's window (DESIGN-terminal 1): six tabs, helicopter, shop, delivery, missions, comms and
+-- record, drawn in the palette of the terminal it is open at (the crude one built from the kit, or the field terminal
+-- ordered from the shop); the trust level and the balance in short at the right end of the tabs' strip. The part that
+-- owns a tab gives its view with OA.Terminal.addTab. The window opens on the helicopter tab (or where a call waits)
+-- every time, when the using action completes (OA.Terminal.open), and shows the player's own record, redrawn when the
 -- record changes. Every open starts with a short boot sequence over the body (Trade/BootSeq, Trade/TerminalBoot)
 -- and ends with the tabs fading in; the window is usable from the start of the fade.
 require "ISUI/ISCollapsableWindow"
@@ -13,6 +14,9 @@ require "OperationAcorn/Trade/BootSeq"
 require "OperationAcorn/Trade/TerminalBoot"
 require "OperationAcorn/Trade/TerminalStatic"
 require "OperationAcorn/Trade/TerminalSound"
+require "OperationAcorn/Trade/Trade"
+require "OperationAcorn/Trade/Text"
+require "OperationAcorn/Economy/Trust"
 require "PZUIKit/Tape"
 local OA = OperationAcorn
 local Tape = PZUIKit.Tape
@@ -159,7 +163,31 @@ local function drawTab(self, id, x, tw)
     end
 end
 
--- The strip: each tab a part of it (PZUIKit.Tape), where it is kept for a click (self.slots).
+-- The trust level and the balance at the strip's right end, from `right` back to no further left than `left`: the
+-- level dropped first when there is no room, then all of it.
+local function drawHead(self, left, right)
+    local head = self.window.head
+    if not head then return end
+    local p = self.window.palette
+    local fh = UI.fontHeight()
+    local y = (self.height - fh) / 2 + 1
+    local nf = p.numberFont
+    local unit, gap = UI.creditsUnit(), UI.UNIT_GAP
+    local money = UI.textWidth(head.label) + 6 + UI.textWidth(head.balance, nf) + gap + UI.textWidth(unit)
+    local level = UI.textWidth(head.level) + 14
+    if right - money < left then return end
+    local x = right - money
+    if x - level >= left then
+        UI.text(self, head.level, x - level, y, p.text)
+        UI.fill(self, x - 7, y + fh / 2 - 1, 2, 2, p.dim)
+    end
+    UI.text(self, head.label, x, y, head.debt and p.bad or p.dim)
+    x = x + UI.textWidth(head.label) + 6
+    UI.text(self, head.balance, x, y, head.debt and p.bad or p.value, nf)
+    UI.text(self, unit, x + UI.textWidth(head.balance, nf) + gap, y, head.debt and p.bad or p.dim)
+end
+
+-- The strip: each tab a part of it (PZUIKit.Tape), where it is kept for a click (self.slots); the head after them.
 local function drawStrip(self)
     local p = self.window.palette
     local h = self.height
@@ -181,6 +209,7 @@ local function drawStrip(self)
         x = x + tw + 3
     end
     for i = #slots, n + 1, -1 do slots[i] = nil end
+    drawHead(self, x + 12, self.width - 10)
     UI.fill(self, 0, h - 1, self.width, 1, p.border)
 end
 
@@ -247,9 +276,9 @@ function OATerminalWindow:createChildren()
 end
 
 -- The tab the window opens on: the one with something waiting to play (a call), unless this is a field terminal's
--- first open (its board is on the status tab).
+-- first open (its board is on the helicopter tab).
 function OATerminalWindow:openingTab()
-    if self.firstBoot then return "status" end
+    if self.firstBoot then return "heli" end
     return Terminal.opening(OA.Client.record(self.character))
 end
 
@@ -382,7 +411,7 @@ function OATerminalWindow:startBoot()
     self.bootOverlay = overlay
 end
 
--- Each frame while the sequence lasts: when the console is over the panel comes off and the status tab hears of it,
+-- Each frame while the sequence lasts: when the console is over the panel comes off and the tabs hear of it,
 -- then the fade-in is the window's own black over the tabs, until it is done and the run is let go. What the console
 -- shows is written to it (Seq.look); gives what the window shows (the console's look, then the fade), nil when over.
 function OATerminalWindow:bootTick(now)
@@ -405,7 +434,7 @@ function OATerminalWindow:bootTick(now)
         end
         -- something came to play while the console ran (the first contact): the window goes to it
         local opening = self:openingTab()
-        if opening ~= self.activeId and self.activeId == "status" then self:activate(opening) end
+        if opening ~= self.activeId and self.activeId == Terminal.ORDER[1] then self:activate(opening) end
     end
     if phase == "fade" then
         self.bootAlpha = 1 - t
@@ -494,6 +523,7 @@ function OATerminalWindow:activate(id)
     self.activeId = id
     self:tabsChanged()
     local view = self:view(id)
+    if view.onTabShow then view:onTabShow() end
     view:setVisible(true)
     if before then self:reveal(view) end
     self:refresh()
@@ -515,6 +545,26 @@ function OATerminalWindow:subOn(id)
     return view and view.sub or nil
 end
 
+-- A screen of a tab with sub-tabs, if it has been made.
+function OATerminalWindow:subView(id, sub)
+    local view = self.views[id]
+    return view and view.subViews and view.subViews[sub] or nil
+end
+
+-- The head at the strip's right end, worked out when the record changes: the trust level, the balance (a debt in red).
+function OATerminalWindow:updateHead(record)
+    if not record then return end
+    local account = Trade.account(record)
+    local debt = account.credits < 0
+    local level = getText("IGUI_OA_Terminal_LevelPlain", OA.Trust.tier(record))
+    local balance = OA.Trade.Text.credits(math.abs(account.credits))
+    local head = self.head
+    if head and head.level == level and head.balance == balance and head.debt == debt then return end
+    self.head = { level = level, balance = balance, debt = debt,
+        label = getText(debt and "IGUI_OA_Terminal_Debt" or "IGUI_OA_Terminal_Balance") }
+    self:tabsChanged()
+end
+
 -- The shop tab opened on an entry's card (the '주문 탭에서 보기' buttons of the other tabs).
 function OATerminalWindow:showShopEntry(entryId)
     self:activate("shop")
@@ -528,7 +578,7 @@ function OATerminalWindow:updateMarks(record)
     local marks = {}
     local changed = false
     for _, id in ipairs(Terminal.ORDER) do
-        marks[id] = Terminal.mark(id, record)
+        marks[id] = Terminal.mark(id, record, self)
         if marks[id] ~= self.marks[id] then changed = true end
         if marks[id] == "new" and self.marks[id] ~= "new" then self:blinkTab(id) end
     end
@@ -553,6 +603,7 @@ function OATerminalWindow:refresh()
     self.atX, self.atY = self.character:getX(), self.character:getY()
     local record = OA.Client.record(self.character)
     self:updateMarks(record)
+    self:updateHead(record)
     local view = self.views[self.activeId]
     if view and view.refresh then view:refresh() end
     self:markSeen(record)

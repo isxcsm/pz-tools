@@ -1,6 +1,6 @@
 -- The terminal window's attention rules (client Trade/TerminalWindow, DESIGN-terminal 11.1): a tab whose dot turns new
 -- blinks until it is shown, the one API (blinkTab) the other parts use, what the tab on show keeps as seen (once per
--- value, and a screen of the status tab asks the window which it is), and which screen of a tab is on show. The game's
+-- value, and a screen of the helicopter tab asks the window which it is), and which screen of a tab is on show. The game's
 -- window and panel classes are stand-ins; the window is made without its widgets.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -59,7 +59,7 @@ local function makeWindow(record)
     OA.Client.record = function() return record end
     OA.Client.id = function() return "p1" end
     local character = { getX = function() return 0 end, getY = function() return 0 end }
-    local window = setmetatable({ marks = {}, blink = {}, told = {}, views = {}, activeId = "status", character = character },
+    local window = setmetatable({ marks = {}, blink = {}, told = {}, views = {}, activeId = "heli", character = character },
         { __index = Window })
     return window, Window
 end
@@ -72,17 +72,17 @@ local function register(marks)
 end
 
 test("a tab whose dot turns new blinks, once, until it is shown", function()
-    local marks = { missions = "new", shop = nil, status = "bad" }
+    local marks = { missions = "new", shop = nil, heli = "bad" }
     register(marks)
     local window = makeWindow({})
     window:updateMarks({})
     eq(window.blink.missions, true, "new when the window opens")
-    eq(window.blink.status, nil, "a red dot is not a blink, and the status tab is the one on show")
+    eq(window.blink.heli, nil, "a red dot is not a blink, and the helicopter tab is the one on show")
     eq(window.blink.shop, nil)
     window.views.missions = { setVisible = function() end }
     window:activate("missions")
     eq(window.blink.missions, nil, "shown: it stops")
-    window.activeId = "status"
+    window.activeId = "heli"
     window:updateMarks({})
     eq(window.blink.missions, nil, "the dot is still new, but not turned new again")
     marks.missions = nil
@@ -100,19 +100,19 @@ test("blinkTab is the one way to blink a tab, and the tab on show does not", fun
     register({})
     local window = makeWindow({})
     window:blinkTab("shop")
-    window:blinkTab("status")
+    window:blinkTab("heli")
     eq(window.blink.shop, true)
-    eq(window.blink.status, nil, "the tab on show has nothing to blink for")
+    eq(window.blink.heli, nil, "the tab on show has nothing to blink for")
     Terminal.clear()
 end)
 
 test("which screen of a tab is on show", function()
     register({})
     local window = makeWindow({})
-    eq(window:subOn("status"), nil, "not made yet")
-    window.views.status = { sub = "progress" }
+    eq(window:subOn("records"), nil, "not made yet")
+    window.views.records = { sub = "progress" }
     window.views.shop = {}
-    eq(window:subOn("status"), "progress")
+    eq(window:subOn("records"), "progress")
     eq(window:subOn("shop"), nil, "a tab without sub-tabs")
 end)
 
@@ -120,17 +120,18 @@ test("what the tab on show has seen is told to the server once a value, and by t
     local sent = {}
     OA.Sync.send = function(character, command, args) sent[#sent + 1] = { command = command, key = args.key, value = args.value } end
     Terminal.clear()
-    Terminal.addTab("status", function() end, { seen = function(record, window)
-        if window:subOn("status") == "progress" then return "road", 4 end
+    Terminal.addTab("records", function() end, { seen = function(record, window)
+        if window:subOn("records") == "progress" then return "road", 4 end
         return nil
     end })
     Terminal.addTab("shop", function() end, { seen = function() return "tier", 4 end })
     local record = {}
     local window = makeWindow(record)
-    window.views.status = { sub = "heli" }
+    window.activeId = "records"
+    window.views.records = { sub = "records" }
     window:markSeen(record)
-    eq(#sent, 0, "the heli screen shows no level")
-    window.views.status.sub = "progress"
+    eq(#sent, 0, "the track record shows no level")
+    window.views.records.sub = "progress"
     window:markSeen(record)
     eq(#sent, 1); eq(sent[1].command, "terminalSeen"); eq(sent[1].key, "road"); eq(sent[1].value, 4)
     window:markSeen(record)
@@ -157,7 +158,7 @@ local function bootWindow(first, crude)
     window.tier = crude and "crude" or "field"
     window.views = {}
     local heard = 0
-    window.views.status = { consoleOver = function() heard = heard + 1 end }
+    window.views.heli = { consoleOver = function() heard = heard + 1 end }
     window.overlay = { gone = false }
     window.bootOverlay = window.overlay
     window.removeChild = function(self, child) child.gone = true end
@@ -212,7 +213,7 @@ test("the window keeps the console up, takes it off when the fade starts, and le
     near(window:bootTick(), 0.5, 1e-9, "then the fade")
     eq(window.overlay.gone, true, "the fade started: the console is off and the tabs are usable")
     eq(window.bootOverlay, nil)
-    eq(heard(), 1, "the status tab is told")
+    eq(heard(), 1, "the helicopter tab is told")
     near(window.bootAlpha, 0.5, 1e-9)
     window:bootTick()
     eq(heard(), 1, "once")
@@ -489,4 +490,76 @@ test("places lit one at a time: the one under the mouse comes up, the one left g
     eq(k, 0); eq(f, 1)
     now = now + UI.FLASH_MS + UI.HOVER_OUT_MS
     eq(UI.fxFrame(el, now), nil, "all still: let go")
+end)
+
+-- A tab of screens under sub-tabs (Trade/TabGroup), with stand-ins for the row and the screens.
+local function makeGroup(def, record)
+    loadWindow()
+    _G.PZUISubTabs = {
+        new = function(_, x, y, w) return { x = x, y = y, width = w, height = 22 } end,
+    }
+    local row = _G.PZUISubTabs
+    local made = row.new
+    row.new = function(...)
+        local r = made(...)
+        r.initialise = function() end
+        r.setAnchorRight = function() end
+        r.setItems = function(self, items, active) self.items, self.active = items, active end
+        return r
+    end
+    require "OperationAcorn/Trade/TabGroup"
+    local window = { views = {}, reveal = function() end, refresh = function() end, palette = {},
+        activate = function(self, id) self.activeId = id end }
+    OA.Client.record = function() return record end
+    local group = OATabGroup:new(0, 0, 400, 300, window, "t", def)
+    group.addChild = function() end
+    window.views.t = group
+    return group, window
+end
+
+local function screen(log, id)
+    return function(x, y, w, h)
+        local v = { x = x, y = y, width = w, height = h, javaObject = true, shown = false }
+        v.setAnchorRight, v.setAnchorBottom = function() end, function() end
+        v.setVisible = function(self, on) self.shown = on end
+        v.onTabLeave = function() log[#log + 1] = "left " .. id end
+        v.refresh = function() log[#log + 1] = "refresh " .. id end
+        log[#log + 1] = "made " .. id
+        return v
+    end
+end
+
+test("a tab of screens makes each the first time it is shown; a screen left is told, like a tab left", function()
+    local log = {}
+    local record = { waiting = false }
+    local group, window = makeGroup({
+        subs = { { id = "a", make = screen(log, "a") }, { id = "b", make = screen(log, "b") } },
+        label = function(id) return "L" .. id end,
+        items = function(_, _, item) if item.id == "b" then item.dot = "new" end end,
+        first = function(_, r) return r.waiting and "b" or nil end,
+    }, record)
+    group:createChildren()
+    eq(table.concat(log, ", "), "made a", "the first screen alone")
+    eq(group.sub, "a")
+    eq(group.subViews.a.y, 22 + OATabGroup.GAP, "under the row")
+    group:refresh()
+    eq(group.subTabs.items[2].label, "Lb"); eq(group.subTabs.items[2].dot, "new"); eq(group.subTabs.active, "a")
+    for i = #log, 1, -1 do log[i] = nil end
+    OATabGroup.onSub(group, "b")
+    eq(log[1], "left a", "the screen left hears of it")
+    eq(log[2], "made b")
+    eq(group.subViews.a.shown, false); eq(group.subViews.b.shown, true)
+    eq(window.views.t.sub, "b")
+    -- chosen again with something waiting: it opens where its rule says
+    OATabGroup.onSub(group, "a")
+    record.waiting = true
+    group:onTabShow()
+    eq(group.sub, "b")
+    -- a link opens the tab on a screen
+    group:open("a")
+    eq(window.activeId, "t"); eq(group.sub, "a")
+    -- the tab left: the screen on show is told
+    for i = #log, 1, -1 do log[i] = nil end
+    group:onTabLeave()
+    eq(log[1], "left a")
 end)

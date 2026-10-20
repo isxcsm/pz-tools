@@ -1,4 +1,4 @@
--- The status tab's record screen (DESIGN-terminal 2.5): the codex by category on the left (kinds found, each house
+-- The record tab's track record screen (DESIGN-terminal 2.5): the codex by category on the left (kinds found, each house
 -- loot category's bar with its 50% and 90% marks and the bonus it waits for), and on the right the building sweep,
 -- the kills and the missions, each with the next milestone. The same on both terminals. Worked out when the record
 -- changes (Codex.summary, Codex.categoryProgress through Trade/StatusModel).

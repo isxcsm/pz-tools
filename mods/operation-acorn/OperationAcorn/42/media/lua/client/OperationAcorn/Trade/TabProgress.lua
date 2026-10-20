@@ -1,4 +1,4 @@
--- The status tab's progress screen (DESIGN-terminal 2.3): the trust road laid across, nine nodes (the five stages,
+-- The record tab's progress screen (DESIGN-terminal 2.3): the trust road laid across, nine nodes (the five stages,
 -- the levels 6, 7, 8 after them and every level from the ninth), filled up to where the player is. Under each node two
 -- lanes say what the level opens: on every terminal (shop goods, missions, serums) and on the field terminal only (the
 -- research team's goods, special requests, how many upgrades). The crude terminal's field lane is dimmed under a

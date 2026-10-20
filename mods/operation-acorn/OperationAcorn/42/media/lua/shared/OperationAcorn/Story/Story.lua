@@ -1031,7 +1031,7 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- What is new in the folder (DESIGN-terminal 11.1). Keys: "d:<document id>", "r:<request number>";
 -- the value is the arrival's number, so that the newest is the highest. The terminal's folder shows them with a mark
--- and the missions tab's and its inbox's dots show them; opening one clears it.
+-- and the comms tab's dot and its inbox's show them; opening one clears it.
 function Story.markNew(record, key)
     local s = Story.section(record)
     s.unread = s.unread or {}

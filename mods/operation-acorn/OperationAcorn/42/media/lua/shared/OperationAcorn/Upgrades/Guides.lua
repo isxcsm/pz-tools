@@ -1,7 +1,7 @@
 -- The papers the research team sends to the terminal's folder for the infection (DESIGN-terminal 17.6, 18): the handling
 -- notice with the first positive test, and the certificate of a cure, one of three by how long the infection lasted.
--- They are guide documents (Story/Docs): in the folder at once, new until opened, and the status tab's card and the
--- missions tab's dot lead to them (11.1). Their texts are IGUI_OA_Story_DocTitle_<id> and IGUI_OA_Story_Doc_<id>.
+-- They are guide documents (Story/Docs): in the folder at once, new until opened, and the helicopter screen's card and the
+-- comms tab's dot lead to them (11.1). Their texts are IGUI_OA_Story_DocTitle_<id> and IGUI_OA_Story_Doc_<id>.
 require "OperationAcorn/Core"
 require "OperationAcorn/Story/Docs"
 local OA = OperationAcorn
