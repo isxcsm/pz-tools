@@ -36,8 +36,6 @@ function Story.section(record)
         s.supply = {}        -- sent to the next supply crate, not yet taken by the trade part: { type =, doc = }
         s.noteQueue = {}     -- manifest notes that come before the order: ids
         s.noteIndex = {}     -- pool key -> notes used
-        s.hallucinations = 0
-        s.strangeWeek = nil  -- the week the strange request item is for
         s.sitesSeen = {}     -- drop sites the player has been near: site number -> true
         s.sitesSearched = {} -- stake numbers read
         s.manifests = {}     -- the latest manifests, { serial =, text =, tier = }
@@ -1215,17 +1213,6 @@ function Story.registeredLate()
     local vars = SandboxVars
     if vars and vars.StartMonth and vars.StartMonth ~= 7 then return true end
     return false
-end
-
--- The strange item of next week's requests after a hallucination: nil when there is none this week.
-Story.STRANGE = { "Base.Harmonica", "Base.Whistle", "Base.Thimble", "Base.Yoyo", "Base.Doll" }
-function Story.strangeItem(record)
-    local s = Story.section(record)
-    if s.strangeWeek and s.strangeWeek == OA.week() then
-        local i = OA.remainder(record.number or 0, #Story.STRANGE) + 1
-        return Story.STRANGE[i]
-    end
-    return nil
 end
 
 return Story

@@ -129,7 +129,7 @@ local function fakeDev()
         "firstSupply", "shopWeekReset", "redrawRequests", "daily", "marketEvent", "resetCodex", "resetSearch",
         "resetShred", "giveMachine", "advanceMachines", "nightSight", "points", "setRank", "clearResearch", "endAdapt",
         "resetFirstEffects", "sound", "alarmHouse", "alarmCar", "clearAlarms", "bite", "infectionAhead", "test", "cure",
-        "startMission", "finishMission", "gotoMission", "buildScene", "hallucinate", "title", "titleMore",
+        "startMission", "finishMission", "gotoMission", "buildScene", "title", "titleMore",
         "replayTake", "showroom", "clearShowroom" }) do
         record(name)
     end
@@ -292,9 +292,8 @@ test("missions page: start, finish, go, build, count, and the count shows", func
     button(page, "IGUI_OADev_Ms_Goto"):click()
     button(page, "IGUI_OADev_Ms_Build"):click()
     button(page, "IGUI_OADev_Ms_Count"):click()
-    button(page, "IGUI_OADev_Ms_HallucinationLong"):click()
     eq(table.concat(calls, " "),
-        "startMission() finishMission(expired) gotoMission() buildScene() zombiesInBuilding() hallucinate(true)")
+        "startMission() finishMission(expired) gotoMission() buildScene() zombiesInBuilding()")
     Dev.mission = function() return { place = "clinic", state = "open", scene = { built = false } },
         { placed = true, at = { x = 5, y = 6, z = 0 } } end
     Dev.missionPlace = function() return 5, 6, 0 end

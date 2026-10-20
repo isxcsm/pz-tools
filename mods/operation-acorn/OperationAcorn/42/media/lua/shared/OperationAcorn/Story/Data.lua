@@ -266,7 +266,6 @@ Data.SOIL_RANGE = 25
 Data.CASE_RANGE = 120
 Data.SEALED_LOST_DAYS = 14
 Data.STATUS_ROWS = 18
-Data.HALLUCINATION_LONG = 3
 Data.MANIFESTS_KEPT = 12
 
 -- The special requests (DESIGN-terminal 6.3): what the field terminal offers, two at a time. Each is one of the three

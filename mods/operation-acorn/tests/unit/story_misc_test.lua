@@ -4,7 +4,6 @@ require "OperationAcorn/Store"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Story/Sites"
-require "OperationAcorn/Story/Glow"
 require "OperationAcorn/Economy/Categories"
 local OA = OperationAcorn
 local Data, Story, Docs, Sites = OA.StoryData, OA.Story, OA.StoryDocs, OA.Sites
@@ -173,19 +172,6 @@ test("the roster page shares three numbers with the status table and smears the 
     local lines = 0
     for _ in string.gmatch(table_, "[^\n]+") do lines = lines + 1 end
     eq(lines, 1 + Data.STATUS_ROWS + 1 - 0, "head, rows, foot")
-end)
-
-test("the glow rises fast, holds, and falls slowly, and the edges face the right way", function()
-    local G = OA.Glow
-    eq(G.envelope(0, 1000), 0)
-    eq(G.envelope(1000, 1000), 0)
-    near(G.envelope(60, 1000), 0.5, 1e-9)
-    eq(G.envelope(500, 1000), 1)
-    truthy(G.envelope(900, 1000) < G.envelope(700, 1000))
-    eq(G.edge(10, -10), "right")
-    eq(G.edge(-10, 10), "left")
-    eq(G.edge(10, 10), "bottom")
-    eq(G.edge(-10, -10), "top")
 end)
 
 test("the compass names where a place lies from the base", function()

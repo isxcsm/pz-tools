@@ -307,30 +307,4 @@ OA.Server.on("story_stake", function(character, record, args)
     end
 end)
 
--- How far (squares) the hallucination tells the nearest drop site: the squares the game keeps loaded round the character.
-local LOADED_NEAR = 52
-
--- The serum with the adaptation node at its second point was taken (the upgrade part calls this on each dose): the
--- overlay is told how long to run and where the nearest drop site is; next week's requests get one strange item.
-function Story.onSerum(character, record)
-    local s = Story.section(record)
-    s.hallucinations = (s.hallucinations or 0) + 1
-    s.strangeWeek = OA.week() + 1
-    local detail = { long = s.hallucinations <= OA.StoryData.HALLUCINATION_LONG }
-    local x, y
-    if character then x, y = character:getX(), character:getY() end
-    if x then
-        local best, bestD
-        for _, site in ipairs(Sites.list()) do
-            if site.state == "placed" then
-                local d = Places.distance(x, y, site.x, site.y)
-                -- Only what is within the loaded squares (about six chunks around): no map, no distance told.
-                if d <= LOADED_NEAR and (not bestD or d < bestD) then best, bestD = site, d end
-            end
-        end
-        if best then detail.dx, detail.dy = best.x - x, best.y - y end
-    end
-    OA.Sync.changed("hallucinate", record.id, detail)
-end
-
 return Init

@@ -557,21 +557,6 @@ local function installGroups(count)
     R.install(R.build({}, infoOf, rows))
 end
 
-test("a group is on a week's list once, even when the strange item is of one the draw takes", function()
-    installGroups(3)
-    local record = OA.Store.ensure("p", "P")
-    R.list(record)
-    OA.Story = { strangeItem = function() return "Base.Charcoal" end }
-    TEST.hours = 24 * 7 + 1
-    local list = R.list(record)
-    eq(list[1], "base:charcoal", "the strange item's group leads")
-    local n = 0
-    for _, key in ipairs(list) do if key == "base:charcoal" then n = n + 1 end end
-    eq(n, 1)
-    eq(#list, 4, "the three other groups and charcoal: nothing twice")
-    OA.Story = nil
-end)
-
 test("charcoal from the kiln is a line of the charcoal request", function()
     installGroups(10)
     local record = OA.Store.ensure("p", "P")

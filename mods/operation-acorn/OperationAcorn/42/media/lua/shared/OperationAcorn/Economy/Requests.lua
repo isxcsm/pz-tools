@@ -3,7 +3,7 @@
 -- A request is a group one level above the item type: "charcoal" takes the looted and the kiln-made kind, "skill
 -- books" any skill book, "canned food" any sealed tin, "hats" any hat. The groups and how easy each is to come by are made from the game's files by
 -- tools/request_groups.py (RequestGroups.lua; the rules head the tool): a group's key is its id, or the item type
--- itself for a group of one. A type no group has (a strange item the story names) is a group of one with no score.
+-- itself for a group of one. A type no group has is a group of one with no score.
 -- A group's score is how many of its kinds an ordinary week turns up by every way the game has (looting, cars,
 -- foraging, farming, animals, fishing and trapping, making): the tool's availability profile.
 -- The world save (`requests` section) keeps the candidates found at the first world start:
@@ -40,7 +40,7 @@ Requests.DUE_PICKS = 2          -- items of a category that comes back after a r
 -- BAND_SHARE.common of them are common, the next BAND_SHARE.normal normal, the rest rare. A band has the price of a
 -- unit, the units a week takes (qtyMin for the least available group of the band up to qtyMax for the most, along the
 -- rank to the power QTY_CURVE, so the band's mean is about qty), and the trust a full line gives. A group that is no
--- candidate (a strange item the story names) is rare and takes qty.
+-- candidate is rare and takes qty.
 Requests.BAND_SHARE = { common = 0.50, normal = 0.35 }
 Requests.BANDS = {
     common = { price = 600, qtyMin = 5, qtyMax = 20, qty = 10, trust = 5 },
@@ -522,8 +522,7 @@ function Requests.ranks()
     return ranked
 end
 
--- The band of a group (by key) in the world's table: rare for one that is no candidate (a strange item the story
--- names).
+-- The band of a group (by key) in the world's table: rare for one that is no candidate.
 function Requests.bandOf(key)
     local r = Requests.ranks()
     return r and r.band[key] or "rare"
@@ -610,28 +609,19 @@ local function keepLines(rq)
 end
 
 -- The record's list for this week (group keys), drawn the first time the week is asked about and topped up as the
--- stage grows. The group of a strange item the story part names for this week (the week after a hallucination) goes
--- on the list in addition to the normal count.
+-- stage grows.
 function Requests.list(record)
     local codex, rq = state(record)
     local week = OA.week()
     if not rq or rq.week ~= week then
-        rq = { week = week, items = {}, used = {}, extra = 0 }
+        rq = { week = week, items = {}, used = {} }
         codex.req = rq
-        local story = OA.Story
-        local strange = story and story.strangeItem and story.strangeItem(record) or nil
-        if strange then
-            strange = Requests.keyOf(strange)
-            table.insert(rq.items, strange)
-            rq.extra = 1
-            rq.strange = strange
-        end
         -- Categories that were refused a few weeks ago come back.
         for _, cat in ipairs(OA.Market.dueRequests(OA.weekStart(week), OA.weekStart(week + 1) - 1)) do
             draw(record, rq, Requests.DUE_PICKS, cat)
         end
     end
-    local want = OA.Trust.rewards(record).requestCount + (rq.extra or 0)
+    local want = OA.Trust.rewards(record).requestCount
     if #rq.items < want then draw(record, rq, want - #rq.items) end
     keepLines(rq)
     return rq.items

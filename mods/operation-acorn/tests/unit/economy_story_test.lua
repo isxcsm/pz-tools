@@ -1,5 +1,5 @@
--- The economy's seams with the story part: the refusal title and lines, the meteorite receipt notes, and the strange
--- request after a hallucination. The story part is faked.
+-- The economy's seams with the story part: the refusal title and lines, the meteorite receipt notes. The story part is
+-- faked.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -137,54 +137,6 @@ test("the settlement turns a big meteorite away with no credits and no word of i
 end)
 
 -- 3. The strange request.
-
-test("the week after a hallucination the list holds the strange item besides the usual count", function()
-    fakeStory({ strangeItem = function(record) return "Base.Harmonica" end })
-    make(40)
-    local record = OA.Store.ensure("a", "A")
-    local list = OA.Requests.list(record)
-    eq(#list, 7, "the usual 6 and the strange one")
-    local found = 0
-    for _, t in ipairs(list) do if t == "Base.Harmonica" then found = found + 1 end end
-    eq(found, 1)
-    truthy(OA.Requests.entry(record, "Base.Harmonica"), "it is a line of the list like the others")
-    eq(#OA.Requests.list(record), 7, "still 7 when asked again")
-end)
-
-test("no strange item in an ordinary week", function()
-    fakeStory({ strangeItem = function() return nil end })
-    make(40)
-    local record = OA.Store.ensure("a", "A")
-    eq(#OA.Requests.list(record), 6)
-    OA.Story = nil
-    TEST.hours = 24 * 7
-    eq(#OA.Requests.list(record), 6, "and without the story part")
-end)
-
-test("the strange item is on the list once even if it was drawn as a candidate", function()
-    fakeStory({ strangeItem = function() return "Base.Item3" end })
-    make(40)
-    local record = OA.Store.ensure("a", "A")
-    local list = OA.Requests.list(record)
-    local found = 0
-    for _, t in ipairs(list) do if t == "Base.Item3" then found = found + 1 end end
-    eq(found, 1)
-    eq(list[1], "Base.Item3", "it comes first, drawn before the others")
-    eq(#list, 7)
-end)
-
-test("the strange item is bought like any listed item, in the rarest band", function()
-    fakeStory({ strangeItem = function() return "Base.Harmonica" end })
-    make(10)
-    local record = OA.Store.ensure("a", "A")
-    OA.Store.section(record, "trade").stage = 2
-    OA.Trust.section(record).stage = 2
-    local e = OA.Requests.entry(record, "Base.Harmonica")
-    eq(e.band, "rare", "the house loot does not hand it out")
-    eq(e.price, 4000); eq(e.left, 3)
-end)
-
--- 4. Mission items against the story part's rule.
 
 test("a mission item is worth nothing while its mission is open and in time, 1000 and 5 trust when it has expired", function()
     local open = info("OperationAcorn.Note", "Junk", 0.1, { own = "MissionItem" })

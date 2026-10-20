@@ -1,5 +1,4 @@
--- The story core: what a stage queues and sends, the order of the manifest notes, the old form, the status table, the
--- strange item.
+-- The story core: what a stage queues and sends, the order of the manifest notes, the old form, the status table.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Story/Story"
@@ -255,15 +254,6 @@ test("the registration date reads 'before the first drop' when the world did not
     eq(Story.registeredLate(), false)
     SandboxVars.StartMonth = 9
     eq(Story.registeredLate(), true)
-end)
-
-test("the strange item is for the week after a hallucination only", function()
-    local record = setup(3)
-    eq(Story.strangeItem(record), nil)
-    Story.section(record).strangeWeek = OA.week()
-    truthy(Story.strangeItem(record))
-    Story.section(record).strangeWeek = OA.week() + 1
-    eq(Story.strangeItem(record), nil)
 end)
 
 test("without the trade part the supply waits in the record", function()

@@ -47,8 +47,6 @@ Sounds.CUES = {
     ["oa.term.crude.work"] = { sound = "OA_Term_Crude_Work" },
     ["oa.term.crude.spell"] = { sound = "OA_Term_Crude_Spell" },
     -- terminal picks end
-    -- the phone the hallucination rings
-    ["oa.hallucination.ring"] = { sound = "TelevisionTestBeep" },
     -- an infection test's swab, while the result is waited for
     ["oa.serum.test"] = { sound = "FirstAidApplyAlcoholWipes" },
     -- the timed actions (Sound.timed). Done: a thing put down, one taken up (as the game's furniture). During: a

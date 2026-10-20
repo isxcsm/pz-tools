@@ -321,8 +321,6 @@ local function missionPage(page, ui)
     })
     ui.heading(page, T("Ms_Story"), 9)
     ui.buttons(page, 10, {
-        { T("Ms_Hallucination"), function() Dev.hallucinate(false) end },
-        { T("Ms_HallucinationLong"), function() Dev.hallucinate(true) end },
         { T("Ms_Fragments"), function() Dev.giveAll({ "MeteorFragment", "MeteorFragmentIron", "MeteorFragmentStonyIron" }) end },
         { T("Ms_Documents"), function()
             Dev.giveAll({ "EvidenceEnvelope", "ClinicRecord", "WeatherLog", "SerumSheet", "HandoverFile" })

@@ -440,14 +440,6 @@ function Dev.finishMission(result)
     return true
 end
 
--- A hallucination run on the screen now (the option may turn them off).
-function Dev.hallucinate(long)
-    if not OA.Hallucination then say("hallucination: not loaded") return false end
-    OA.Hallucination.start(0, { long = long == true, dx = 1, dy = 0 })
-    say("hallucination", long == true and "long" or "short")
-    return true
-end
-
 -- ---- titles --------------------------------------------------------------------------------------------------------
 
 -- More titles the mod shows, by kind: each the detail the mod's own code sends.
