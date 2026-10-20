@@ -2914,8 +2914,10 @@ end
 -- A capstone taken: once the player leaves the tab (the window closed, another tab), the character says how the body
 -- took it (the "Fixed" line of its tree), one line for each capstone taken, FIXED_GAP_S apart (a line over the head
 -- is read before the next takes its place). While the tab shows, the moment is the take's and the title's; the lines
--- come as the eye goes back to the world. Watched each tick only while one waits (three times a game).
+-- come once the eye is back on the world, FIXED_AFTER_S after the tab is left. Watched each tick only while one waits
+-- (three times a game).
 Window.FIXED_GAP_S = 4.5
+Window.FIXED_AFTER_S = 1
 local fixedTalk = {}   -- by player number: the trees, in the order taken
 Window.fixedTalk = fixedTalk
 local function talkWhenLeft()
@@ -2930,7 +2932,7 @@ local function talkWhenLeft()
                     local player = getSpecificPlayer(playerNum)
                     if player and not player:isDead() then OA.Say.say(player, "Fixed", { tree = tree }) end
                 end
-                if i == 1 then say() else OA.Trade.Later.after((i - 1) * Window.FIXED_GAP_S, say) end
+                OA.Trade.Later.after(Window.FIXED_AFTER_S + (i - 1) * Window.FIXED_GAP_S, say)
             end
         end
     end
