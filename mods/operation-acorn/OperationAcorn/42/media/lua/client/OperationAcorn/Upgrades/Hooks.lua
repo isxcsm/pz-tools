@@ -187,6 +187,8 @@ local TITLED = {
     IGUI_OA_Tree_GuideSent = { alone = true, style = "type" },
 }
 
+-- The notices that bring research points, and when the first one's hint comes (real ms: after its title).
+Hooks.HINT_MS = 6500
 -- The notices that bring research points.
 local POINTS = { IGUI_OA_Tree_Adapted = true, IGUI_OA_Tree_AdaptedShared = true, IGUI_OA_Tree_Opened = true }
 
@@ -211,10 +213,17 @@ local function onNotice(playerId, detail)
     else
         OA.Titles.brief(playerId, detail.key, args)
     end
-    -- the first research point: where the plan is made, once a character, a brief title after the point's own
+    -- the first research point: where the plan is made, once a character, a brief title once the point's own is over
+    -- (at once without the API's timers), and none when the tab is on the screen already
     if POINTS[detail.key] and not player:getModData().OA_ResearchHint then
         player:getModData().OA_ResearchHint = true
-        OA.Titles.brief(playerId, "IGUI_OA_Tree_WhereHint")
+        local function hint()
+            local Window = OA.Upgrades.Window
+            local view = Window and Window.view(0)
+            if view and view:getIsVisible() then return end
+            OA.Titles.brief(playerId, "IGUI_OA_Tree_WhereHint")
+        end
+        if not OA.timerAfter(Hooks.HINT_MS, hint) then hint() end
     end
 end
 OA.Sync.listen("notice", onNotice)

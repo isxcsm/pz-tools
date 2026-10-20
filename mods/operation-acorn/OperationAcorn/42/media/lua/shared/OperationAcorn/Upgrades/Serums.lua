@@ -19,11 +19,12 @@ local Adapt = OA.Upgrades.Adapt
 local Serums = {}
 OA.Upgrades.Serums = Serums
 
--- The side effects of an upgrade serum before 혈청 적응: the pain in the arm it went into (the game's pain units, which
--- fade by themselves within the hour; 25 is the game's second pain moodle) and the tiredness it adds (fatigue, 0 to 1),
--- at least TIRED (the game's first tired moodle, so that a rested character shows it too), never past FATIGUE_MAX (the
--- character does not drop asleep from a dose).
-Serums.PAIN = 25
+-- The side effects of an upgrade serum before 혈청 적응: the pain in the arm it went into (the game's pain units; the
+-- arm's extra pain fades by about one a game minute and the character's pain is about 0.6 of it, so 50 shows the game's
+-- pain moodle for about the half hour a dose adapts, its second level the first quarter hour) and the tiredness it adds
+-- (fatigue, 0 to 1), at least TIRED (the game's first tired moodle, so that a rested character shows it too), never past
+-- FATIGUE_MAX (the character does not drop asleep from a dose).
+Serums.PAIN = 50
 Serums.FATIGUE = 0.5
 Serums.TIRED = 0.6
 Serums.FATIGUE_MAX = 0.95
