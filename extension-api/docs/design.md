@@ -2153,7 +2153,7 @@ which override the jar's; it overrides none of the text classes):
 `color`, `subtitleColor`, `hold` (seconds), `y`, `player`, `leave` and `leaveTime` (for the title and its line alike: any style
 can leave burning), `backdrop` (0 for none), `scale` (0.4 to 2.5: the style's sizes of the title and its line times this, for a
 title that matters more or less than its style says), `dustSize`, `dustSweep`, `dustDrift` and `dustBurn` (with `leave = "burn"` or `"flare"`, the
-style's or the spec's), `emblem` (with a style whose title has a double frame: `"seal"`), `sounds` and `subtitleSounds` (below), and `now`. The line under a title takes its look's cues from it (a torch's flicker).
+style's or the spec's), `emblem` (with a style whose title has a double frame: `"seal"`), `sounds` and `subtitleSounds` (below), `now` and `after` (below). The line under a title takes its look's cues from it (a torch's flicker).
 
 A title sounds at its moments when its spec names the game's sounds for them: `sounds = { enter = ..., land = ..., hold = ..., leave = ... }` for the title
 (a struck one also `keys = { ... }`, a list of sounds: one played as each character is struck, picked by its code so that the same character is always
@@ -2198,7 +2198,10 @@ Each local player's screen has a queue of titles: one shows at a time (the title
 has gone (a flare's ash aside: the next starts as it drifts). A title for every player goes into each player's queue. `now` lets a
 title go first: the one on that screen leaves within 0.25 s and this one follows, before those waiting. At most 8 wait on a
 screen; a ninth makes the oldest waiting go. A text with `queue` waits in the same queue. `"brief"` titles have a queue of their
-own on each screen, the same way: low on the screen, they do not wait for the other titles, nor those for them.
+own on each screen, the same way: low on the screen, they do not wait for the other titles, nor those for them. `after` (the key
+of another title of the mod) makes a title wait, besides its own queue, until that one has left the screen (its ash aside): a
+brief title that follows a title of the other queue, one place to look at a time. A key of a title gone, or never shown, holds
+nothing.
 
 A text's time starts when it is first drawn, not when it is shown: one shown while nothing is drawn (a loading screen) comes
 on as the screen does. The time is the interface's (`System.nanoTime`), but it does not go on while the game is paused

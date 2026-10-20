@@ -1590,6 +1590,32 @@ final class TextsTest {
         for (double key : new double[] { stage, fitted }) FormulasTest.call(text, "hide", mod, key, true);
         render();
 
+        // after: a brief title that waits for a title of the other queue to have left; a key gone holds nothing.
+        double opened = (Double)FormulasTest.call(text, "title", mod, table("text", "Load opened", "style", "dust")).get(0);
+        double hint = (Double)FormulasTest.call(text, "title", mod, table("text", "Open the tab", "style", "brief", "after", opened)).get(0);
+        render();
+        advance(0.5);
+        render();
+        check(last("Load opened") != null && last("Open the tab") == null, "A brief title with after did not wait for its title");
+        FormulasTest.call(text, "hide", mod, opened, true);
+        render();
+        advance(0.5);
+        render();
+        check(last("Open the tab") != null, "A brief title with after did not follow once its title left");
+        FormulasTest.call(text, "hide", mod, hint, true);
+        render();
+        double late = (Double)FormulasTest.call(text, "title", mod, table("text", "Late", "style", "brief", "after", opened)).get(0);
+        render();
+        advance(0.5);
+        render();
+        check(last("Late") != null, "An after whose title is gone held its title");
+        FormulasTest.call(text, "hide", mod, late, true);
+        boolean refused = false;
+        try { FormulasTest.call(text, "title", mod, table("text", "Bad", "style", "brief", "after", 0.5)); }
+        catch (IllegalArgumentException expected) { refused = true; }
+        check(refused, "An after that is no key was taken");
+        render();
+
         // Hangul: the language's font.
         double hangul = (Double)FormulasTest.call(text, "title", mod, table("text", "수색 완료", "style", "discovery")).get(0);
         render();

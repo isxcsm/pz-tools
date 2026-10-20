@@ -39,7 +39,7 @@ import pzext.boot.Hooks;
  */
 final class Texts implements Hooks.Text {
     private static final String AREA = "PZExtAPI.text.";
-    private static final String MIRROR = "texts", FORMAT = "pzext-texts 8", FORMAT_BEFORE_PLATE = "pzext-texts 7", FORMAT_BEFORE_SOUNDS = "pzext-texts 6", FORMAT_BEFORE_LANE = "pzext-texts 5", FORMAT_BEFORE_BURN = "pzext-texts 4",
+    private static final String MIRROR = "texts", FORMAT = "pzext-texts 9", FORMAT_BEFORE_AFTER = "pzext-texts 8", FORMAT_BEFORE_PLATE = "pzext-texts 7", FORMAT_BEFORE_SOUNDS = "pzext-texts 6", FORMAT_BEFORE_LANE = "pzext-texts 5", FORMAT_BEFORE_BURN = "pzext-texts 4",
         FORMAT_BEFORE_BACKDROP = "pzext-texts 3",
         FORMAT_BEFORE_TYPING = "pzext-texts 1",
         GENERATION = "textsGeneration", HANDOVER = "textsHandover";
@@ -150,6 +150,9 @@ final class Texts implements Hooks.Text {
         // its leave, its ash still drifting (a flare's): it no longer holds its queue.
         boolean queued, waiting, ashing;
         int lane;
+        // A title that waits, besides its queue, for another title of its mod (its key) to have left that screen (its ash aside):
+        // 0 for none.
+        long after;
         // The world it was shown in.
         Object cell;
         // When it was first drawn (System.nanoTime), 0 before; when its mod hid it, 0 if it did not.
@@ -1430,6 +1433,7 @@ final class Texts implements Hooks.Text {
             scale = null, sounds = null, lineSounds = null, emblem = null;
         var dusts = new LinkedHashMap<String, Object>();
         boolean now = false;
+        long after = 0;
         for (var entry : lua.entries(spec)) {
             if (!(entry.getKey() instanceof String field)) throw new IllegalArgumentException(call + ": spec has a field that is not a name");
             Object value = entry.getValue();
@@ -1462,9 +1466,14 @@ final class Texts implements Hooks.Text {
                     if (!(value instanceof Boolean on)) throw new IllegalArgumentException(call + ": spec.now must be true or false");
                     now = on;
                 }
+                case "after" -> {
+                    if (!(value instanceof Double number) || number < 1 || number != Math.floor(number))
+                        throw new IllegalArgumentException(call + ": spec.after must be the key of a title the mod showed");
+                    after = number.longValue();
+                }
                 default -> throw new IllegalArgumentException(call + ": spec has no field " + field
                     + "; it takes text, subtitle, style, color, subtitleColor, hold, y, player, leave, leaveTime, backdrop, scale, sounds,"
-                    + " subtitleSounds, emblem, dustSize, dustSweep, dustDrift, dustBurn and now");
+                    + " subtitleSounds, emblem, dustSize, dustSweep, dustDrift, dustBurn, now and after");
             }
         }
         if (text == null) throw new IllegalArgumentException(call + ": spec.text must be a string of 1 to " + MAX_LENGTH + " characters");
@@ -1523,7 +1532,8 @@ final class Texts implements Hooks.Text {
         }
         big.queued = true;
         big.lane = chosen.lane();
-        if (small != null) { small.queued = true; small.lane = big.lane; }
+        big.after = after;
+        if (small != null) { small.queued = true; small.lane = big.lane; small.after = after; }
         int per = small == null ? 1 : 2;
         room(owner, per * (big.player < 0 ? screens() : 1), call);
         long key = next++;
@@ -1674,6 +1684,7 @@ final class Texts implements Hooks.Text {
         to.sounds = from.sounds;
         to.typed = from.typed;
         to.border = from.border; to.emblem = from.emblem; to.emblemTexture = from.emblemTexture; to.tilt = from.tilt; to.hit = from.hit;
+        to.after = from.after;
     }
 
     /** A text with a style's fields, its text to come. */
@@ -1869,8 +1880,18 @@ final class Texts implements Hooks.Text {
             if (first == 0) first = text.key;
         }
         if (first == 0) return;
+        for (Shown text : all)
+            if (text.queued && text.player == screen && text.lane == lane && text.key == first && !text.done && text.after != 0
+                && on(all, text.owner, text.after, screen)) return;
         for (Shown text : all) if (text.queued && text.player == screen && text.lane == lane && text.key == first && !text.done) text.waiting = false;
         dirty = true;
+    }
+
+    /** Whether a mod's text (its key) is on a screen or waits for it: not gone, nor past its leave (its ash drifting). */
+    private static boolean on(Shown[] all, String owner, long key, int screen) {
+        for (Shown text : all)
+            if (text.key == key && text.owner.equals(owner) && !text.done && !text.ashing && (text.player == screen || text.player < 0)) return true;
+        return false;
     }
 
     /** Draws the text on one screen as it is at {@code now}; false once it has gone. Allocates nothing. */
@@ -2783,7 +2804,7 @@ final class Texts implements Hooks.Text {
                 .append('\t').append(s.backdrop).append('\t').append(s.backdropBelow).append('\t').append(burnText(s.dustBurn)).append('\t').append(s.lane)
                 .append('\t').append(soundsText(s.sounds)).append('\t').append(s.sounded)
                 .append('\t').append(s.border.name()).append('\t').append(s.emblem == null ? "-" : escape(s.emblem)).append('\t').append(s.tilt)
-                .append('\t').append(s.hit);
+                .append('\t').append(s.hit).append('\t').append(s.after);
         }
         lua.set(meta, MIRROR, text.toString());
         dirty = false;
@@ -2856,21 +2877,22 @@ final class Texts implements Hooks.Text {
         // The format before typing has the fields up to hidden; the text of those has no markup, typing or width. The format
         // before backdrops has none; the one before burns, no burn;
         // the one before lanes, no lane (its titles are in the first queue); the one before sounds, no sounds; the one before
-        // plates, no plate, tilt or hit of its own.
+        // plates, no plate, tilt or hit of its own; the one before waits on a title, none.
         boolean before = FORMAT_BEFORE_TYPING.equals(lines[0]);
         boolean beforeBackdrop = before || FORMAT_BEFORE_BACKDROP.equals(lines[0]);
         boolean beforeBurn = beforeBackdrop || FORMAT_BEFORE_BURN.equals(lines[0]);
         boolean beforeLane = beforeBurn || FORMAT_BEFORE_LANE.equals(lines[0]);
         boolean beforeSounds = beforeLane || FORMAT_BEFORE_SOUNDS.equals(lines[0]);
         boolean beforePlate = beforeSounds || FORMAT_BEFORE_PLATE.equals(lines[0]);
-        if (!beforePlate && !FORMAT.equals(lines[0])) {
+        boolean beforeAfter = beforePlate || FORMAT_BEFORE_AFTER.equals(lines[0]);
+        if (!beforeAfter && !FORMAT.equals(lines[0])) {
             System.err.println("[PZExt] text: what was shown is kept in another format; it is not shown again");
             return;
         }
         for (int index = 1; index < lines.length; index++) {
             String[] fields = lines[index].split("\t", -1);
             if ("N".equals(fields[0])) { next = Math.max(next, Long.parseLong(fields[1])); continue; }
-            if (fields.length != (before ? 31 : beforeBackdrop ? 38 : beforeBurn ? 40 : beforeLane ? 41 : beforeSounds ? 42 : beforePlate ? 44 : 48) || !"T".equals(fields[0]))
+            if (fields.length != (before ? 31 : beforeBackdrop ? 38 : beforeBurn ? 40 : beforeLane ? 41 : beforeSounds ? 42 : beforePlate ? 44 : beforeAfter ? 48 : 49) || !"T".equals(fields[0]))
                 throw new IllegalStateException("Unknown line in the kept text: " + lines[index]);
             var s = new Shown(unescape(fields[1]), Long.parseLong(fields[2]));
             s.lines = unescape(fields[3]).split("\n", -1);
@@ -2899,6 +2921,7 @@ final class Texts implements Hooks.Text {
                     if (!"-".equals(fields[45])) { s.emblem = unescape(fields[45]); s.emblemTexture = texture(s.emblem); }
                     s.tilt = Double.parseDouble(fields[46]); s.hit = Double.parseDouble(fields[47]);
                 }
+                if (!beforeAfter) s.after = Long.parseLong(fields[48]);
                 if (s.enter == Enter.STRIKE && s.lines != null) typed(s);
                 if (s.markup || s.width > 0 || s.enter == Enter.TYPE) {
                     // Read again: the script is not kept, and gives the same as when it was shown.
