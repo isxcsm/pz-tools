@@ -205,6 +205,20 @@ function Comms.waiting(record)
     return n
 end
 
+-- Where an entry stands among its branch's calls (1 the first): its place in the log, or for one not yet played the
+-- place it takes next. An `ordered` entry's text goes by it (Story/CommsScript).
+function Comms.order(record, entry)
+    local n = 0
+    for _, item in ipairs(Comms.section(record).log) do
+        local e = Data.BY_ID[item.id]
+        if e and e.branch == entry.branch then
+            n = n + 1
+            if item.id == entry.id then return n end
+        end
+    end
+    return n + 1
+end
+
 local function addLog(s, id, tier)
     s.log[#s.log + 1] = { id = id, tier = tier }
 end

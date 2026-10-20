@@ -71,7 +71,7 @@ local chars = Script.chars
 -- How a call's lines are made for a record at a tier.
 local function context(record, tier)
     return { text = Script.text, number = OA.Story.address(record), tier = tier, late = OA.Story.lateContact(record),
-        greet = OA.Story.greets(record) }
+        greet = OA.Story.greets(record), order = function(e) return Comms.order(record, e) end }
 end
 
 -- What goes between the parts of a head (a middle dot).

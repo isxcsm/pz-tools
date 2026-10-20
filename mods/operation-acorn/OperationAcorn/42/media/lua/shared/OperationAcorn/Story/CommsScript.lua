@@ -83,11 +83,18 @@ end
 
 -- The lines of an entry as played: { who, text (plain), chars, marks, erase (plain, or nil), s (seconds, noise and
 -- mute), pause (a beat before the line, seconds), eraseStop, eraseCps, eraseAfter (the erased words' own pace) }. ctx = { text = function(key, ...), number = "0347", tier = the tier it plays at, late = the first crate was
--- late }.
+-- late, order = function(entry): where an `ordered` entry stands among its branch's calls }.
 function Script.lines(entry, ctx)
     local out = {}
     if entry.kind == "short" or entry.kind == "say" then
-        local src = ctx.text("IGUI_OA_Comms_" .. entry.id, ctx.number)
+        local k = "IGUI_OA_Comms_" .. entry.id
+        local src = ctx.text(k, ctx.number)
+        -- an ordered call that comes after others of its branch has its own words when there are some (k_2, k_3)
+        local n = entry.ordered and ctx.order and ctx.order(entry) or 1
+        if n > 1 then
+            local nth = ctx.text(k .. "_" .. tostring(n), ctx.number)
+            if nth ~= "" and nth ~= k .. "_" .. tostring(n) then src = nth end
+        end
         if entry.greet then src = Script.greeted(src, ctx) end
         local chars, marks = Script.parse(src)
         out[1] = { who = entry.kind == "say" and "say" or "oak", text = table.concat(chars), chars = chars, marks = marks }

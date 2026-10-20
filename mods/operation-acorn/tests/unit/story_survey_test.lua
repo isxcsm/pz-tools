@@ -415,3 +415,17 @@ test("the dev reset of the fragment calls: a dropped call forgotten, the capston
     eq(notices[#notices], "IGUI_OA_Story_Notice_BranchCall")
     PZExtDev = nil
 end)
+
+test("the survey calls know their order, the same when played again from the record", function()
+    local r = record(false)
+    local D = OA.CommsData.BY_ID
+    eq(Comms.order(r, D.C_load), 1, "none before it")
+    Comms.played(r, "C_scout", 3, 100)
+    Comms.played(r, "C_got_scout", 3, 101)
+    eq(Comms.order(r, D.C_load), 2, "another branch's call is not counted")
+    Comms.played(r, "C_load", 3, 102)
+    Comms.played(r, "C_survival_k", 3, 103)
+    eq(Comms.order(r, D.C_scout), 1, "played again: its own place")
+    eq(Comms.order(r, D.C_load), 2)
+    eq(Comms.order(r, D.C_survival_k), 3, "관리 7's counts with the team's")
+end)

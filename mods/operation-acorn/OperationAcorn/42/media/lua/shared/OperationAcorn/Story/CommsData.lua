@@ -163,18 +163,19 @@ Data.ENTRIES = {
         { "oak" }, { "me", erase = true, stop = 2.4, del = 5, after = 2.2 } } },
 
     -- The survey branch (Story/Survey): a tree's capstone waits only for its meteorite fragment; the team's call, or
-    -- 관리 7's after the handover, and the drop site's zone on the maps as it is played.
-    { id = "C_survival", kind = "short", trigger = "survey:survival", tier = 0, branch = "survey", survey = "survival",
+    -- 관리 7's after the handover, and the drop site's zone on the maps as it is played. Ordered: the second and the
+    -- third call of the branch have words of their own (another fall, the last one known).
+    { id = "C_survival", kind = "short", trigger = "survey:survival", tier = 0, branch = "survey", ordered = true, survey = "survival",
         greet = true, sign = "oak" },
-    { id = "C_load", kind = "short", trigger = "survey:load", tier = 0, branch = "survey", survey = "load",
+    { id = "C_load", kind = "short", trigger = "survey:load", tier = 0, branch = "survey", ordered = true, survey = "load",
         greet = true, sign = "oak" },
-    { id = "C_scout", kind = "short", trigger = "survey:scout", tier = 0, branch = "survey", survey = "scout",
+    { id = "C_scout", kind = "short", trigger = "survey:scout", tier = 0, branch = "survey", ordered = true, survey = "scout",
         greet = true, sign = "oak" },
-    { id = "C_survival_k", kind = "short", trigger = "survey:survival:admin", tier = 0, branch = "survey",
+    { id = "C_survival_k", kind = "short", trigger = "survey:survival:admin", tier = 0, branch = "survey", ordered = true,
         survey = "survival", sign = "admin" },
-    { id = "C_load_k", kind = "short", trigger = "survey:load:admin", tier = 0, branch = "survey", survey = "load",
+    { id = "C_load_k", kind = "short", trigger = "survey:load:admin", tier = 0, branch = "survey", ordered = true, survey = "load",
         sign = "admin" },
-    { id = "C_scout_k", kind = "short", trigger = "survey:scout:admin", tier = 0, branch = "survey", survey = "scout",
+    { id = "C_scout_k", kind = "short", trigger = "survey:scout:admin", tier = 0, branch = "survey", ordered = true, survey = "scout",
         sign = "admin" },
 
     -- The fragment branch (Story/Survey): a fragment that opened its tree's capstone at a settlement; the team's word on

@@ -51,6 +51,21 @@ test("the late first crate has lines of its own, an erased line its erased words
     eq(Script.lines(Data.BY_ID.s2_filter, ctx(6))[1].text, "0347, FILTER.")
 end)
 
+test("a survey call after others of its branch has its own words; without them, the first call's", function()
+    TEXTS.IGUI_OA_Comms_C_load = "%1, FIRST."
+    TEXTS.IGUI_OA_Comms_C_load_2 = "%1, ANOTHER."
+    local function at(n)
+        local c = ctx(5)
+        c.order = function() return n end
+        return Script.lines(Data.BY_ID.C_load, c)[1].text
+    end
+    eq(at(1), "0347, FIRST.")
+    eq(at(2), "0347, ANOTHER.")
+    eq(at(3), "0347, FIRST.", "no words of its own")
+    eq(Script.lines(Data.BY_ID.C_load, ctx(5))[1].text, "0347, FIRST.", "no order known: the first")
+    TEXTS.IGUI_OA_Comms_C_load, TEXTS.IGUI_OA_Comms_C_load_2 = nil, nil
+end)
+
 test("the timeline: a team line comes in, breaks up at its mark, and is left to be read", function()
     local l = Script.lines(Data.BY_ID.S1, ctx(1))[8]
     local tl = Script.timeline({ l }, 12)
