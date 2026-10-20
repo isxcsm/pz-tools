@@ -95,6 +95,8 @@ function Dev.resetSurvey(record)
     end
     forgetCalls(record, ids)
     OA.Story.section(record).surveys = nil
+    OA.Story.section(record).surveysNear = nil
+    OA.Story.section(record).surveysIn = nil
     local u = OA.Upgrades.Rules.section(record)
     for _, tree in ipairs(OA.Upgrades.Data.TREES) do
         local cap = OA.Upgrades.Data.capstone(tree)
@@ -663,6 +665,30 @@ function Dev.gotoMission()
     if not x then say("goto mission: no mission place") return false end
     getPlayer():teleportTo(x + 0.5, y + 0.5, z)
     say("at the mission", x, y, z)
+    return true
+end
+
+-- Puts the character just outside the survey zone the maps show (the first; 10 to 20 squares past its rim, on no
+-- water: the zones of the whole map are known, the squares there need not be loaded). Returns whether there was one.
+function Dev.gotoSurvey()
+    local record = Dev.record()
+    local z = record and OA.StorySurvey and OA.StorySurvey.zones(record)[1]
+    if not z then say("goto survey: no survey zone (its call not played)") return false end
+    local zones = PZExtAPI and PZExtAPI.zones
+    local p = zones and zones.points(z.x, z.y, z.r + 10, z.r + 20,
+        { count = 1, tries = 400, ["not"] = { "WaterZone", "WaterFlow", "Water" } })[1]
+    local x, y
+    if p then
+        x, y = p.x, p.y
+    else
+        -- (no API: on the line from the zone's middle through the character)
+        local player = getPlayer()
+        local dx, dy = player:getX() - z.x, player:getY() - z.y
+        local d = math.max(1, math.sqrt(dx * dx + dy * dy))
+        x, y = math.floor(z.x + dx / d * (z.r + 15)), math.floor(z.y + dy / d * (z.r + 15))
+    end
+    getPlayer():teleportTo(x + 0.5, y + 0.5, 0)
+    say("outside the survey zone", z.tree, x, y, "zone", z.x, z.y, z.r)
     return true
 end
 

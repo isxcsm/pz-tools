@@ -239,6 +239,7 @@ local function upgradesPage(page, ui)
     ui.buttons(page, 5, {
         { T("Up_Unseal"), function() Dev.unsealCapstones() fill() end },
         { T("Up_Survey"), function() Dev.resetSurvey() fill() end },
+        { T("Up_SurveyGoto"), function() Dev.gotoSurvey() end },
     })
 
     ui.heading(page, T("Up_Alarms"), 6)

@@ -1,7 +1,10 @@
 -- The drop sites' survey zones (the "survey" branch of the team's calls, Story/Branches): when a tree's capstone waits
 -- for nothing but its meteorite fragment (every other condition met: Upgrades Rules.blocked gives "sealed"), a call
 -- comes once about the fragment, and as it is played the maps mark a wide zone the tree's drop site lies in, away from
--- its middle: the last stretch is the player's to search. The zone stays until the fragment reaches the team. Before
+-- its middle: the last stretch is the player's to search. Once the player comes within NEAR of the site the zone
+-- narrows to a small one round it (NEAR_R, as far off its middle), with a title. The character says a line on first
+-- walking into the zone (SurveyIn) and after the title of its narrowing (SurveyNear). The zone stays until the fragment
+-- reaches the team. Before
 -- the handover the team calls, after it 관리 7 (each its own call; one fired before the handover and not yet played
 -- gives way to the other).
 require "OperationAcorn/Core"
@@ -10,6 +13,7 @@ require "OperationAcorn/Upgrades/Rules"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Sites"
 require "OperationAcorn/Story/Branches"
+require "OperationAcorn/Say"
 local OA = OperationAcorn
 local Survey = {}
 OA.StorySurvey = Survey
@@ -18,6 +22,19 @@ OA.StorySurvey = Survey
 -- and from anywhere on the zone's rim the player is within reach of the site's title (Sites.visit's 80) halfway in.
 Survey.R = 150
 Survey.OFFSET = 0.5
+-- How near the site the zone narrows (Sites.visit's reach), and the narrow zone's radius: the site's props are in
+-- sight from anywhere in it.
+Survey.NEAR = 80
+Survey.NEAR_R = 30
+-- Real seconds from the narrowing's title to its line (the title is read first, as Scene.ARRIVE_SAY).
+Survey.NEAR_SAY = 5
+
+-- The self-talk. SurveyIn: lines 1-2 at night, 3 by day, 4 for a site the character has stood near before, the rest
+-- any time. SurveyNear: line 1 at night, 2 by day, the rest any time.
+OA.Say.define("SurveyIn", { tags = {
+    [1] = { night = true }, [2] = { night = true }, [3] = { night = false }, [4] = { seen = true },
+} })
+OA.Say.define("SurveyNear", { tags = { [1] = { night = true }, [2] = { night = false } } })
 
 local function rules() return OA.Upgrades.Rules end
 local function data() return OA.Upgrades.Data end
@@ -39,13 +56,14 @@ function Survey.siteOf(tree)
     return found
 end
 
--- The zone of a site: { x, y, r }, its middle OFFSET * R from the site in a direction the site's place picks (the same
--- every time it is asked).
-function Survey.zone(site)
+-- The zone of a site: { x, y, r }, its middle OFFSET * its radius from the site in a direction the site's place picks
+-- (the same every time it is asked); `narrow`: the small one.
+function Survey.zone(site, narrow)
     local turn = OA.remainder(site.x * 31 + site.y * 17, 360) * math.pi / 180
-    local d = Survey.R * Survey.OFFSET
+    local r = narrow and Survey.NEAR_R or Survey.R
+    local d = r * Survey.OFFSET
     return { x = math.floor(site.x + d * math.cos(turn) + 0.5), y = math.floor(site.y + d * math.sin(turn) + 0.5),
-        r = Survey.R }
+        r = r }
 end
 
 -- Whether a tree's capstone waits only for its fragment.
@@ -60,6 +78,20 @@ local function marked(record)
     return s.surveys
 end
 
+-- The sites each tree's zone narrowed round (a lost fragment's new fall starts wide again).
+local function narrowed(record)
+    local s = OA.Story.section(record)
+    s.surveysNear = s.surveysNear or {}
+    return s.surveysNear
+end
+
+-- The sites each tree's zone was walked into.
+local function entered(record)
+    local s = OA.Story.section(record)
+    s.surveysIn = s.surveysIn or {}
+    return s.surveysIn
+end
+
 -- The zones the maps show: { { x, y, r, tree }, ... } for each tree whose call was played and whose fragment has not
 -- reached the team (round its latest fall: a lost fragment's kind fell again).
 function Survey.zones(record)
@@ -68,12 +100,40 @@ function Survey.zones(record)
     for _, tree in ipairs(data().TREES) do
         local site = marked(record)[tree] and Survey.siteOf(tree)
         if site and not rules().unsealed(u, tree) then
-            local z = Survey.zone(site)
+            local z = Survey.zone(site, narrowed(record)[tree] == site.n)
             z.tree = tree
             list[#list + 1] = z
         end
     end
     return list
+end
+
+-- Every game minute, the player at x, y (`isNight()` asked only when a line is said): a wide zone first walked into
+-- has its line; one whose site is within NEAR narrows, with a title and then its line (the site counts as seen:
+-- Sites.visit gives no title of its own for it; walked straight that near, only the narrowing's line).
+function Survey.minute(record, x, y, isNight)
+    local s = OA.Story.section(record)
+    if not s.surveys or not x then return end
+    local u = rules().section(record)
+    for _, tree in ipairs(data().TREES) do
+        local site = s.surveys[tree] and Survey.siteOf(tree)
+        if site and narrowed(record)[tree] ~= site.n and not rules().unsealed(u, tree) then
+            local seen = OA.Sites.seenOf(record)
+            if OA.Places.distance(x, y, site.x, site.y) <= Survey.NEAR then
+                narrowed(record)[tree], entered(record)[tree] = site.n, site.n
+                if seen then seen[site.n] = true end
+                OA.Sync.title(record.id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SurveyNear", style = "discovery" })
+                OA.Say.tell(record.id, "SurveyNear", { night = isNight() == true }, Survey.NEAR_SAY)
+                OA.Sync.changed("story", record.id)
+            elseif entered(record)[tree] ~= site.n then
+                local z = Survey.zone(site)
+                if OA.Places.distance(x, y, z.x, z.y) <= z.r then
+                    entered(record)[tree] = site.n
+                    OA.Say.tell(record.id, "SurveyIn", { night = isNight() == true, seen = (seen and seen[site.n]) == true })
+                end
+            end
+        end
+    end
 end
 
 -- A capstone waiting for a fragment the research team has had already (a character before this one delivered it): the

@@ -70,7 +70,8 @@ function Hud:prerender() end
 --   and strong near, wide and faint far. Without the distance rank one pale arc at one distance (nothing tells how
 --   far). One beating on a door, a window or a wall (advanced rank 2) has brackets on it, ( ( ) ), orange.
 --   Noises (advanced rank 2): a vehicle a flat line with a wheel, a machine (radio, TV, generator) a dotted cyan arc,
---   an alarm (it draws every zombie around) a row of red triangles, anything else a thin white arc.
+--   an alarm (it draws every zombie around) a row of red triangles, anything else a thin white arc; all but the alarm
+--   half as strong (no threat).
 --   A sound on the character's square: a soft red disc. A chevron on a cue for another floor, upright and white.
 -- The pictures are white, tinted as they are drawn.
 local BODY = 0.3
@@ -120,6 +121,9 @@ local LINE = { OA_Sense_Arc_Near = 0.354, OA_Sense_Arc_Mid = 0.364, OA_Sense_Arc
     OA_Sense_Noise = 0.281, OA_Sense_Alarm_L = 0.226, OA_Sense_Alarm_M = 0.183, OA_Sense_Alarm_S = 0.114 }
 local WHITE = { 1, 1, 1 }
 local CUE_TINT = { vehicle = WHITE, device = rgb(0, 186, 254), noise = WHITE, alarm = rgb(255, 0, 0) }
+-- The noises that are no threat (a vehicle, a machine, anything else but an alarm) drawn this much as strong, so that
+-- the zombies' and the alarm's stand out.
+local CALM = { vehicle = 0.5, device = 0.5, noise = 0.5 }
 -- The vehicle's wheel, the thump's brackets, the square's disc and the floor chevrons: one size each, upright.
 local WHEEL_W = 16
 local THUMP_W, THUMP_A, THUMP_TINT = 32, 224 / 255, rgb(255, 106, 0)
@@ -260,7 +264,7 @@ local function drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY)
     local list = S.sounds
     for i = 1, #list do
         local m = list[i]
-        local a = shown(m, now)
+        local a = shown(m, now) * (CALM[m.kind] or 1)
         if a > 0 then
             follow(m)
             local ux, uy, d = way(m.x, m.y, px, py, exX, exY, eyX, eyY)

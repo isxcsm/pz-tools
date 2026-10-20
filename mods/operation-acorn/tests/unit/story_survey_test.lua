@@ -93,6 +93,75 @@ test("the call played marks the site's zone: the site inside, away from the midd
     eq(#Branches.look(r, "approved"), 0, "played once, never again")
 end)
 
+test("walked into: a line once; near the site the zone narrows round it, a title and a line, once; the site seen", function()
+    local r = record(true)
+    Branches.look(r, "approved")
+    local site = Survey.siteOf("scout")
+    local titles, lines = {}, {}
+    local title, tell = OA.Sync.title, OA.Say.tell
+    OA.Sync.title = function(_, detail) titles[#titles + 1] = detail end
+    OA.Say.tell = function(_, id, ctx, delay) lines[#lines + 1] = { id = id, ctx = ctx, delay = delay } end
+    local function day() return false end
+    Survey.minute(r, site.x, site.y, day)
+    eq(#titles + #lines, 0, "nothing before the call is heard")
+    play(r, "C_scout")
+    local wide = Survey.zones(r)[1]
+    Survey.minute(r, wide.x + wide.r + 5, wide.y, day)
+    eq(#lines, 0, "outside")
+    -- in the zone, on its far side from the site (more than NEAR off it)
+    local dx, dy = wide.x - site.x, wide.y - site.y
+    local d = math.sqrt(dx * dx + dy * dy)
+    local ix, iy = math.floor(wide.x + dx / d * (wide.r - 5)), math.floor(wide.y + dy / d * (wide.r - 5))
+    truthy(OA.Places.distance(ix, iy, site.x, site.y) > Survey.NEAR)
+    Survey.minute(r, ix, iy, function() return true end)
+    eq(#lines, 1)
+    eq(lines[1].id, "SurveyIn")
+    eq(lines[1].ctx.night, true)
+    eq(lines[1].ctx.seen, false)
+    Survey.minute(r, ix, iy, day)
+    eq(#lines, 1, "once")
+    eq(Survey.zones(r)[1].r, Survey.R, "wide while far")
+    Survey.minute(r, site.x + Survey.NEAR - 5, site.y, day)
+    local z = Survey.zones(r)[1]
+    eq(z.r, Survey.NEAR_R)
+    near(OA.Places.distance(site.x, site.y, z.x, z.y), Survey.NEAR_R * Survey.OFFSET, 1)
+    eq(#titles, 1)
+    eq(titles[1].sub, "IGUI_OA_Title_SurveyNear")
+    eq(lines[2].id, "SurveyNear")
+    eq(lines[2].ctx.night, false)
+    eq(lines[2].delay, Survey.NEAR_SAY)
+    Survey.minute(r, site.x, site.y, day)
+    eq(#titles, 1, "once")
+    eq(#lines, 2)
+    eq(Sites.visit(r, site.x, site.y), false, "seen: no second title")
+    OA.Sync.title, OA.Say.tell = title, tell
+end)
+
+test("walked straight near the site: only the narrowing's line; a site stood near before tells so on entering", function()
+    local r = record(true)
+    Branches.look(r, "approved")
+    local site = Survey.siteOf("scout")
+    local lines = {}
+    local title, tell = OA.Sync.title, OA.Say.tell
+    OA.Sync.title = function() end
+    OA.Say.tell = function(_, id, ctx) lines[#lines + 1] = { id = id, ctx = ctx } end
+    play(r, "C_scout")
+    Survey.minute(r, site.x, site.y, function() return false end)
+    eq(#lines, 1)
+    eq(lines[1].id, "SurveyNear")
+    local s = record(true)
+    Branches.look(s, "approved")
+    play(s, "C_scout")
+    Sites.seenOf(s)[site.n] = true
+    local z = Survey.zones(s)[1]
+    local dx, dy = z.x - site.x, z.y - site.y
+    local d = math.sqrt(dx * dx + dy * dy)
+    Survey.minute(s, math.floor(z.x + dx / d * (z.r - 5)), math.floor(z.y + dy / d * (z.r - 5)), function() return false end)
+    eq(lines[2].id, "SurveyIn")
+    eq(lines[2].ctx.seen, true)
+    OA.Sync.title, OA.Say.tell = title, tell
+end)
+
 test("a fragment that arrives first drops the call not yet played", function()
     local r = record(true)
     Branches.look(r, "approved")

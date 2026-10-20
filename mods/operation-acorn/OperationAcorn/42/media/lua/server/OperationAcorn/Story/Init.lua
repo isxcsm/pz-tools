@@ -16,6 +16,7 @@ require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Story/Places"
 require "OperationAcorn/Story/Dense"
 require "OperationAcorn/Story/Egg"
+require "OperationAcorn/Story/Survey"
 local OA = OperationAcorn
 local Missions, Game, Sites, Story = OA.Missions, OA.StoryGame, OA.Sites, OA.Story
 local Zombies, Harvest = OA.ZombieMissions, OA.Harvest
@@ -136,6 +137,13 @@ local function denseMinute(record)
     Dense.minute(record, Game.playerPosition)
 end
 
+-- A drop site's survey zone narrows as the player comes near the site (Story/Survey).
+local function surveyMinute(record)
+    if not OA.Story.section(record).surveys then return end
+    local x, y = Game.playerPosition(record)
+    OA.StorySurvey.minute(record, x, y, OA.SceneGame.isNight)
+end
+
 -- Every game minute: a mission's circle entered, its place shown, a drop site stood at (Story/Scene; a few distances a
 -- record, and nothing more until the player is in a circle).
 local function onMinute()
@@ -143,6 +151,7 @@ local function onMinute()
     eachRecord(Scene.minute)
     -- a dense place stood at: its zombies counted, its reward given (Story/Dense; a few distances a record)
     eachRecord(denseMinute)
+    eachRecord(surveyMinute)
     -- a zombie mission's group held, brought when the player comes near (Story/Zombies)
     local ok, err = pcall(Zombies.tick, OA.hours())
     if not ok then OA.log("zombie missions failed:", tostring(err)) end
