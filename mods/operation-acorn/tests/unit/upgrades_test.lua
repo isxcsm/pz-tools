@@ -492,28 +492,30 @@ test("the reset price counts what was paid when known", function()
     eq(u.spend.scout, 10000 + Rules.serumPrice(3))
 end)
 
-test("resetting a tree with a capstone closes the 2nd board and returns its points as its own", function()
+test("resetting a tree with a capstone closes the 2nd board and gives its points back to the pools they came from", function()
     local u = fresh()
     openBoard(u)
     for _ = 1, 7 do Rules.injectShared(u) end
+    Rules.inject(u, "load")
+    Rules.inject(u, "load")
+    local load = Rules.ownPool(u, "load")
     buy(u, rep("bStiff", 6))
     eq(Rules.boardLeft(u), 0)
-    eq(u.board.total, 7)
+    local fromLoad = u.board.fromTree.load
+    truthy(fromLoad > 0, "some came from the load tree's leftover")
+    local shared = Rules.sharedPool(u) + u.board.fromShared + u.sharedUsed.scout
     truthy(Rules.reset(u, "scout", 1e9))
     eq(Rules.boardOpen(u), false)
     eq(Rules.rank(u, "bStiff"), 0)
-    eq(Rules.boardLeft(u), 7, "2nd board points left")
-    eq(Rules.sharedPool(u), 0, "they are not shared points any more")
+    eq(Rules.boardLeft(u), 0, "nothing kept for the board alone")
+    eq(Rules.ownPool(u, "load"), load, "the load tree's points back")
+    eq(Rules.sharedPool(u), shared, "the shared ones back")
     eq(Rules.rank(u, "nightEye"), 0, "the capstone is gone")
     -- the tree stays unsealed: the capstone can be taken again
     buy(u, ORDER.scout)
     eq(Rules.blocked(u, "nightEye"), nil)
     buy(u, { "nightEye" })
     eq(Rules.boardOpen(u), true, "the board is back")
-    -- the left points are spent first and need no shared ones
-    buy(u, rep("bStiff", 6))
-    eq(Rules.boardLeft(u), 0)
-    eq(u.board.total, 7, "no new points went into the board")
 end)
 
 test("cure serum: owner and shelf life", function()

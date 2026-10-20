@@ -11,9 +11,9 @@
 --   unsealed[tree]  the tree's capstone may be taken: its meteorite fragment reached the research team. Kept for good
 --                   (a reset leaves it)
 --   own[tree], sharedUsed[tree]   points spent in the tree, from its own serums and from shared ones
---   board           the 2nd board: ranks[id], total (points that went into the board, ever), spent (points in
---                   ranks now), fromTree[tree], fromShared (where the board's points came from, so the pools stay
---                   right when the board closes and gives them back as "points left")
+--   board           the 2nd board: ranks[id], total (points that went into the board), spent (points in ranks now),
+--                   fromTree[tree], fromShared (where the board's points came from: a reset that closes the board
+--                   gives each back to its pool)
 --   biteAt          the world age hour the bite shield last saved a bite
 --   adapt           doses injected and not yet adapted to, each on its own time: { doses = { { key = tree or "shared",
 --                   from = world age hour taken, endsAt = world age hour adapted }, ... } } in the order taken; a
@@ -127,7 +127,8 @@ function Rules.sharedPool(u)
     return u.sharedInjected + u.sharedBonus - used
 end
 
--- The points the 2nd board has given back (or not yet spent): usable on the board only.
+-- The points that went into the 2nd board and are in no rank of it (none: a reset that closes the board gives them back
+-- to their pools).
 function Rules.boardLeft(u)
     return u.board.total - u.board.spent
 end
@@ -531,7 +532,7 @@ function Rules.resetBlocked(u, tree, credits)
 end
 
 -- Resets a tree: every point in it comes back (shared ones as shared points), its ranks go, and the 2nd board
--- closes with its spent points returned as the board's own "points left". The serum count does not come back, and the
+-- closes with its points given back to the pools they came from (each tree's, the shared). The serum count does not come back, and the
 -- tree stays unsealed. Returns true and the credits it costs (the caller takes them), or false and the reason.
 function Rules.reset(u, tree, credits)
     local why, cost = Rules.resetBlocked(u, tree, credits)
@@ -539,9 +540,11 @@ function Rules.reset(u, tree, credits)
     for _, node in ipairs(Data.treeNodes(tree)) do u.ranks[node.id] = nil end
     u.own[tree] = 0
     u.sharedUsed[tree] = 0
-    -- The capstone is gone, so the board closed: its ranks go and what they cost is left to spend again.
-    u.board.ranks = {}
-    u.board.spent = 0
+    -- The capstone is gone, so the board closed: its ranks go and what they cost goes back where it came from.
+    local b = u.board
+    b.ranks = {}
+    b.spent, b.total, b.fromShared = 0, 0, 0
+    for _, t in ipairs(Data.TREES) do b.fromTree[t] = 0 end
     return true, cost
 end
 

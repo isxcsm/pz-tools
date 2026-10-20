@@ -738,3 +738,20 @@ test("doses taken together that pass two multiples give both points", function()
     Adapt.finish(record, 11)
     eq(u.sharedBonus, 2, "the 20th and the 40th")
 end)
+
+test("capstones taken in one plan: a title each, in the plan's order, then the board's", function()
+    local Data = OA.Upgrades.Data
+    local u = OA.Upgrades.Rules.blank()
+    local titles = {}
+    local real = OA.Sync.title
+    OA.Sync.title = function(_, detail) titles[#titles + 1] = detail end
+    for _, tree in ipairs(Data.TREES) do u.ranks[Data.capstone(tree).id] = 1 end
+    OA.Upgrades.Server.titles("p", u, { { id = "sight" }, { id = Data.capstone("scout").id },
+        { id = Data.capstone("load").id }, { id = Data.capstone("survival").id } }, false, 0)
+    eq(#titles, 4)
+    eq(titles[1].key, Data.key(Data.capstone("scout").id, "Name"))
+    eq(titles[2].key, Data.key(Data.capstone("load").id, "Name"))
+    eq(titles[3].key, Data.key(Data.capstone("survival").id, "Name"))
+    eq(titles[4].key, "IGUI_OA_Title_BoardOpened")
+    OA.Sync.title = real
+end)

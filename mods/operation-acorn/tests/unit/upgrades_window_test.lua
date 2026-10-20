@@ -1142,7 +1142,7 @@ test("a capstone taken: the character's line of its tree once the tab is left, n
     view.playerNum = 0
     local said = {}
     local md = {}
-    getSpecificPlayer = function() return { getModData = function() return md end, Say = function(_, s) said[#said + 1] = s end } end
+    getSpecificPlayer = function() return { getModData = function() return md end, Say = function(_, s) said[#said + 1] = s end, isDead = function() return false end } end
     -- (the lines are there: Say counts them by their text)
     local realNull = getTextOrNull
     getTextOrNull = function(key) return string.find(key, "^IGUI_OA_Say_Fixed_[123]$") and key or nil end
@@ -1162,5 +1162,19 @@ test("a capstone taken: the character's line of its tree once the tab is left, n
     eq(said[1], "IGUI_OA_Say_Fixed_2", "the tree's line as it is left")
     TEST.fire("OnTick")
     eq(#said, 1, "once")
+    -- two capstones in one plan: both trees' lines, the second a gap after the first
+    local later = {}
+    local realAfter = OA.Trade.Later.after
+    OA.Trade.Later.after = function(s, fn) later[#later + 1] = { s = s, fn = fn } end
+    shown = true
+    View.fixedTalk(view, { { id = "nightEye" }, { id = "armor" } })
+    shown = false
+    TEST.fire("OnTick")
+    eq(said[2], "IGUI_OA_Say_Fixed_1", "the first tree's at once")
+    eq(#later, 1)
+    eq(later[1].s, Window.FIXED_GAP_S)
+    later[1].fn()
+    eq(said[3], "IGUI_OA_Say_Fixed_2", "the second after the gap")
+    OA.Trade.Later.after = realAfter
     Window.onScreen, getSpecificPlayer, getTextOrNull = onScreen, nil, realNull
 end)

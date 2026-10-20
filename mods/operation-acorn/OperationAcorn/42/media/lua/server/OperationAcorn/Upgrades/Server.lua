@@ -53,18 +53,16 @@ function UpgradesServer.approve(character, record, rawSteps)
     return true
 end
 
--- The titles of an applied plan that took a capstone: the capstone's (Upgrades.capstoneTitle: the last one in the
--- plan), a quiet one that fades in and crumbles away (the API's "dust" style, Titles.show falls back where it has
--- none); and when that opened the 2nd board (the last capstone), the board's after it (Upgrades.boardTitle: the
--- API queues titles, one at a time).
+-- The titles of an applied plan that took capstones: each capstone's, in the plan's order (Upgrades.capstoneTitle), a
+-- quiet one that fades in and crumbles away (the API's "dust" style, Titles.show falls back where it has none); and
+-- when that opened the 2nd board (the last capstone), the board's after them (Upgrades.boardTitle). The API queues
+-- titles, one at a time.
 function UpgradesServer.titles(id, u, steps, wasOpen, capstones)
     if Rules.capstones(u) <= capstones then return end
-    local taken
     for _, step in ipairs(steps) do
         local node = Data.byId[step.id]
-        if node and node.capstone then taken = node end
+        if node and node.capstone then OA.Sync.title(id, OA.Upgrades.capstoneTitle(node)) end
     end
-    if taken then OA.Sync.title(id, OA.Upgrades.capstoneTitle(taken)) end
     if not wasOpen and Rules.boardOpen(u) then OA.Sync.title(id, OA.Upgrades.boardTitle()) end
 end
 

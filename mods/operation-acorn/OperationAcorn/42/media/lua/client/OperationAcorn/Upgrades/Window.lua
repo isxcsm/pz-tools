@@ -1511,6 +1511,8 @@ local function chip(el, right, y, h, icon, key, value)
 end
 
 local MODE_KEYS = { "mode:trees", "mode:board" }
+-- Each tree's serum (its points' picture on the board's top bar).
+local TREE_SERUM = { scout = "UpgradeSerumScout", load = "UpgradeSerumLoad", survival = "UpgradeSerumSurvival" }
 
 function View:paintTop(el)
     local hoverKey = self.hover
@@ -1553,8 +1555,12 @@ function View:paintTop(el)
         UI.text(el, t, right, y + (h - UI.fontHeight()) / 2, P.text, nil, 0.85)
         right = right - 8
     end
+    -- the board spends every tree's points left (and the shared): each tree's, by its serum
     if self.mode == "board" and Rules.boardOpen(self.sim) then
-        right = chip(el, right, y, h, nil, "IGUI_OA_Tree_BadgeBoard", Rules.boardLeft(self.sim)) - 6
+        for i = #Data.TREES, 1, -1 do
+            local tree = Data.TREES[i]
+            right = chip(el, right, y, h, TREE_SERUM[tree], "IGUI_OA_Tree_BadgeTree_" .. tree, Rules.ownPool(self.sim, tree)) - 6
+        end
     end
     local planned = self.spentPlan.board
     for _, tree in ipairs(Data.TREES) do planned = planned + self.spentPlan[tree] end
@@ -2905,33 +2911,46 @@ function View:wayUp(id)
 end
 
 -- A capstone taken: once the player leaves the tab (the window closed, another tab), the character says how the body
--- took it (the "Fixed" line of its tree). While the tab shows, the moment is the take's and the title's; the line
--- comes as the eye goes back to the world. Watched each tick only while one waits (three times a game).
-local fixedTalk = {}   -- by player number: the tree
+-- took it (the "Fixed" line of its tree), one line for each capstone taken, FIXED_GAP_S apart (a line over the head
+-- is read before the next takes its place). While the tab shows, the moment is the take's and the title's; the lines
+-- come as the eye goes back to the world. Watched each tick only while one waits (three times a game).
+Window.FIXED_GAP_S = 4.5
+local fixedTalk = {}   -- by player number: the trees, in the order taken
 Window.fixedTalk = fixedTalk
 local function talkWhenLeft()
     local any = false
-    for playerNum, tree in pairs(fixedTalk) do
+    for playerNum, trees in pairs(fixedTalk) do
         if Window.onScreen(playerNum) then
             any = true
         else
             fixedTalk[playerNum] = nil
-            OA.Say.say(getSpecificPlayer(playerNum), "Fixed", { tree = tree })
+            for i, tree in ipairs(trees) do
+                local function say()
+                    local player = getSpecificPlayer(playerNum)
+                    if player and not player:isDead() then OA.Say.say(player, "Fixed", { tree = tree }) end
+                end
+                if i == 1 then say() else OA.Trade.Later.after((i - 1) * Window.FIXED_GAP_S, say) end
+            end
         end
     end
     if not any then Events.OnTick.Remove(talkWhenLeft) end
 end
 
 function View:fixedTalk(steps)
-    local tree
+    local trees = fixedTalk[self.playerNum] or {}
+    local seen = {}
+    for _, tree in ipairs(trees) do seen[tree] = true end
     for _, step in ipairs(steps or {}) do
         local node = Data.byId[step.id]
-        if node and node.capstone then tree = node.tree end
+        if node and node.capstone and not seen[node.tree] then
+            seen[node.tree] = true
+            trees[#trees + 1] = node.tree
+        end
     end
-    if not tree then return end
+    if #trees == 0 then return end
     local waiting = false
     for _ in pairs(fixedTalk) do waiting = true end
-    fixedTalk[self.playerNum] = tree
+    fixedTalk[self.playerNum] = trees
     if not waiting then Events.OnTick.Add(talkWhenLeft) end
 end
 
