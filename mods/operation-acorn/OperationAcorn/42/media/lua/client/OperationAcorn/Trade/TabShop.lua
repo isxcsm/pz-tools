@@ -740,13 +740,23 @@ function OATabShop.cardPlace(tab, row, x, y)
     return card and card.id or nil
 end
 
+-- A click on a card chooses it; a second click on it soon after (a double click) puts one in the cart, as the add
+-- button does.
+OATabShop.DOUBLE_MS = 400
 function OATabShop.onCardRow(tab, row, x, y)
     local card = cardAt(tab, row, x, y)
-    if card and card.id ~= tab.sel then
+    if not card then return end
+    local now = getTimestampMs()
+    local last = tab.clicked
+    if card.id ~= tab.sel then
         tab.sel, tab.pick = card.id, nil
         tab:refresh()
         tab:revealCards(false)
+    elseif last and last.id == card.id and now - last.at <= OATabShop.DOUBLE_MS then
+        tab.clicked = nil
+        return tab:onAdd()
     end
+    tab.clicked = { id = card.id, at = now }
 end
 
 -- Opens the card of an entry: its section (the shelf for a shelf entry), the card chosen and scrolled to.

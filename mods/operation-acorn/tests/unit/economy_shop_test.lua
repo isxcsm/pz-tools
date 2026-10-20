@@ -3,6 +3,7 @@ require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Shop"
 require "OperationAcorn/Trade/Rules"
+require "OperationAcorn/Trade/Orders"
 local OA = OperationAcorn
 local S = OA.Shop
 
@@ -210,6 +211,19 @@ test("each tree counts its own serums", function()
     S.bought(scout, r, 3)
     eq(S.price(scout, r), S.serumPriceAt(5))
     eq(S.serumPrice("scout", r, 9), S.serumPriceAt(10))
+end)
+
+test("a cart line of serums adds up each unit's own price, as the helicopter charges them", function()
+    local r = record(0)
+    local scout = find("serum_scout")
+    eq(OA.Trade.Orders.rises(scout), true)
+    eq(S.price(scout, r, 2), S.serumPriceAt(3), "two ahead in the order")
+    local Orders, Rules = OA.Trade.Orders, OA.Trade.Rules
+    local svc = Orders.shopService(r)
+    local want = S.serumPriceAt(1) + S.serumPriceAt(2) + S.serumPriceAt(3)
+    eq(Orders.lineCost(svc, scout, { id = "serum_scout", count = 3 }), want, "8000 + 9200 + ...")
+    local _, spent = Rules.payOrders(1000000, { { id = "serum_scout", count = 3 } }, svc)
+    eq(spent, want, "the cart showed what was paid")
 end)
 
 test("serum growth scales with its option", function()

@@ -83,7 +83,6 @@ function Orders.shopService(record)
             return true
         end,
         price = function(entry, line, ahead)
-            if entry.special == "serum" then return Shop.serumPrice(entry.tree, record) end
             return Shop.price(entry, record, ahead)
         end,
         bought = function(entry, line)
@@ -147,18 +146,24 @@ function Orders.set(record, lines, crude)
     return cart, dropped
 end
 
+-- Whether an entry is dearer with each unit bought: a restock entry's price in its window (priceAt), a serum's in its
+-- tree.
+function Orders.rises(entry)
+    return entry.priceAt ~= nil or entry.special == "serum"
+end
+
 -- What a line costs with a shop service: one unit's price times the count; an entry that is dearer with each unit
--- bought in its window (priceAt) adds up the units' own prices.
+-- bought (Orders.rises) adds up the units' own prices.
 function Orders.lineCost(svc, entry, line)
     local count = line.count or 1
-    if not entry.priceAt then return OA.round(svc.price(entry, line)) * count end
+    if not Orders.rises(entry) then return OA.round(svc.price(entry, line)) * count end
     local sum = 0
     for k = 0, count - 1 do sum = sum + OA.round(svc.price(entry, line, k)) end
     return sum
 end
 
--- What the cart costs at today's prices, one unit's price times the count (prices that rise as units are bought
--- are not foreseen: the helicopter pays by the price of each unit as it comes), and what is left of the balance.
+-- What the cart costs at today's prices, each line as Orders.lineCost adds it up (the helicopter pays by the price of
+-- each unit as it comes), and what is left of the balance.
 function Orders.estimate(record, balance)
     local svc = Orders.shopService(record)
     local total = 0

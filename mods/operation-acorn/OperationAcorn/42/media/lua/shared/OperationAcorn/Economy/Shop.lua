@@ -470,13 +470,16 @@ function Shop.townDone(record, town)
 end
 
 -- The price of an entry for a record, in credits (a whole number). Serums, the box and every fixed entry (the infection
--- medicines) ignore the shop multiplier and the discount. A restock entry with `priceAt` is priced by the purchase it
--- would be in the window, `ahead` more (the units of one order before this one).
+-- medicines) ignore the shop multiplier and the discount. An entry that is dearer with each unit (Orders.rises) is priced
+-- by the purchase the unit would be, `ahead` more (the units of one order before this one): a restock entry with
+-- `priceAt` in its window, a serum in its tree.
 function Shop.price(entry, record, ahead)
     if entry.priceAt then
         return OA.round(entry.priceAt(record, Shop.restockBought(entry, record) + 1 + (ahead or 0)))
     end
-    if entry.special == "serum" then return Shop.serumPrice(entry.tree, record) end
+    if entry.special == "serum" then
+        return Shop.serumPrice(entry.tree, record, Shop.serumsBought(record, entry.tree) + (ahead or 0))
+    end
     if entry.special == "reissue" then return OA.reissueCost() end
     local base = entry.price
     if entry.special == "cure" then base = OA.scaled(base, "CureSerumPriceMultiplier") end
