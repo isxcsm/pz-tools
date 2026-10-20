@@ -72,7 +72,7 @@ test("a failing look does not stop the others, and waits its interval like them"
     eq(n.marks, 1, "a failed run waits its interval too")
 end)
 
--- Flight support requests (tradeUpgrade, tradeUpgradeCancel): the upgrade goes as args.upgrade.
+-- Support requests (tradeUpgrade, tradeUpgradeCancel): the upgrade goes as args.upgrade.
 local function supportAt(field, why)
     require "OperationAcorn/Economy/Trust"
     local heard = {}

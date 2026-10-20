@@ -1,4 +1,4 @@
--- Flight support (Economy/Support): the numbers trust used to raise by itself are upgrades bought with credits, one
+-- Support (Economy/Support): the numbers trust used to raise by itself are upgrades bought with credits, one
 -- level at a time; the steps, the rules for asking, the requests, their payment at a settlement and the words.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"

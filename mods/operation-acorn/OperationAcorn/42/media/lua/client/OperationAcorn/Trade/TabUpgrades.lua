@@ -1,4 +1,4 @@
--- The support tab, the flight support requests (DESIGN-terminal 2.6, 운항 지원 신청): the group buttons (helicopter, trade), a card
+-- The support tab, the support requests (DESIGN-terminal 2.6, 지원 신청): the group buttons (helicopter, trade, missions), a card
 -- for each upgrade of the group with its value now, the next one and a pip for each level, the chosen upgrade's
 -- column (what it does, every level with its price and when it opens, the button that asks for the next or takes the
 -- request back) and the request form at the bottom with what was asked for and the stamp. The crude terminal shows
@@ -264,7 +264,7 @@ function OATabUpgrades:buildDetail(L, x, y, w, h, c)
     end
 end
 
--- 운항 지원 신청서: the requests waiting for the next settlement, with the stamp. The crude terminal's band instead.
+-- 지원 신청서: the requests waiting for the next settlement, with the stamp. The crude terminal's band instead.
 function OATabUpgrades:buildForm(L, x, y, w, h)
     local d, p, fh, nf = self.data, L.p, L.fh, L.p.numberFont
     if not d.field then

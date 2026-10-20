@@ -1,4 +1,4 @@
--- Flight support (운항 지원, DESIGN-terminal 2.6): the numbers trust used to raise by itself are upgrades bought for
+-- Support (지원, DESIGN-terminal 2.6): the numbers trust used to raise by itself are upgrades bought for
 -- credits, one level at a time. Trust only opens the next level; the request is made at a field terminal, paid and
 -- applied at the next helicopter's settlement. The record keeps the levels it has (trade.levels) and the ones asked
 -- for (trade.pendingLevels), by upgrade id; a missing level is 0, the start.
@@ -181,7 +181,7 @@ function Support.changeText(id, from, to)
         Support.valueText(id, Support.step(id, from).value), Support.valueText(id, Support.step(id, to).value) } }
 end
 
--- The title after a settlement that applied upgrades (DESIGN-terminal 2.6): "운항 지원 반영", the changes under it
+-- The title after a settlement that applied upgrades (DESIGN-terminal 2.6): "지원 반영", the changes under it
 -- joined by " · ", from the fourth on counted ("외 N건"). nil when none was applied.
 function Support.appliedTitle(done)
     local changes = {}

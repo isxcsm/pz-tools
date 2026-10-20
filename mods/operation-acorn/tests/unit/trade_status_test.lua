@@ -145,7 +145,7 @@ test("where the road stands and the chosen level's note", function()
     eq((M.roadPosition(r)), 9, "every level past 8 stands on the last node")
 end)
 
--- Flight support ----------------------------------------------------------------------------------------------------
+-- Support -----------------------------------------------------------------------------------------------------------
 
 test("an upgrade's state at the crude and at the field terminal", function()
     local r = newRecord(3, 0)
