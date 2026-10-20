@@ -70,6 +70,43 @@ end
 -- The first dose's traces outside the research record: the research papers (the plan, the trees' memos) out of the
 -- folder, and the test serum's calls (S2, S2B) as never fired, so that the next dose brings them again.
 local FIRST_DOSE_CALLS = { S2 = true, S2B = true }
+
+-- Calls as never fired: out of the fired, played and dropped lists and the log.
+local function forgetCalls(record, ids)
+    local c = OA.Comms.section(record)
+    for id in pairs(ids) do c.fired[id], c.played[id], c.dropped[id] = nil, nil, nil end
+    local log = {}
+    for _, line in ipairs(c.log) do
+        if not ids[line.id] then log[#log + 1] = line end
+    end
+    c.log = log
+    OA.Comms.changed()
+    OA.Sync.changed("comms", record.id)
+end
+
+-- The capstones' fragment calls as never heard: the survey calls (C_<tree>, dropped for good once a capstone opened)
+-- forgotten, their map zones gone, and a capstone opened but not taken sealed again. A capstone that waits for its
+-- fragment now brings its call at once (the branch looked at as after a plan applied).
+function Dev.resetSurvey(record)
+    record = record or select(2, upgrades())
+    local ids = {}
+    for _, tree in ipairs(OA.Upgrades.Data.TREES) do
+        ids["C_" .. tree], ids["C_" .. tree .. "_k"] = true, true
+    end
+    forgetCalls(record, ids)
+    OA.Story.section(record).surveys = nil
+    local u = OA.Upgrades.Rules.section(record)
+    for _, tree in ipairs(OA.Upgrades.Data.TREES) do
+        local cap = OA.Upgrades.Data.capstone(tree)
+        if cap and OA.Upgrades.Rules.rank(u, cap.id) == 0 then u.unsealed[tree] = nil end
+    end
+    OA.Sync.changed("upgrades", record.id)
+    OA.Sync.changed("story", record.id)
+    local fired = OA.StoryBranches.look(record, "approved")
+    say("survey calls forgotten; fired now:", #fired)
+    return fired
+end
+
 local function forgetFirstDose(record)
     local Adapt = OA.Upgrades.Adapt
     local ids = { Adapt.GUIDE }
@@ -83,16 +120,8 @@ local function forgetFirstDose(record)
         if s.unread then s.unread["d:" .. id] = nil end
         if s.typed then s.typed["d:" .. id] = nil end
     end
-    local c = OA.Comms.section(record)
-    for id in pairs(FIRST_DOSE_CALLS) do c.fired[id], c.played[id], c.dropped[id] = nil, nil, nil end
-    local log = {}
-    for _, line in ipairs(c.log) do
-        if not FIRST_DOSE_CALLS[line.id] then log[#log + 1] = line end
-    end
-    c.log = log
-    OA.Comms.changed()
+    forgetCalls(record, FIRST_DOSE_CALLS)
     OA.Sync.changed("story", record.id)
-    OA.Sync.changed("comms", record.id)
 end
 
 -- Takes every rank away and empties the points: the research as before the first serum (what was bought stays, for the
@@ -105,6 +134,7 @@ function Dev.clearResearch()
     u.bought, u.spend = bought, spend
     OA.Upgrades.Rules.fill(u)
     forgetFirstDose(record)
+    Dev.resetSurvey(record)
     if OA.Upgrades.Window and OA.Upgrades.Window.hide then OA.Upgrades.Window.hide(0) end
     if OA.Upgrades.Sidebar then OA.Upgrades.Sidebar.forget(0) end
     getPlayer():getModData().OA_ResearchHint = nil

@@ -156,3 +156,32 @@ test("a fragment gone from its site that reaches nobody in LOST_DAYS: its kind f
     getWorld, PZExtAPI = nil, nil
     table.remove(Sites.list())
 end)
+
+test("the dev reset of the fragment calls: a dropped call forgotten, the capstone sealed again, the call at once", function()
+    PZExtDev = { section = function() end }
+    local debug = isDebugEnabled
+    isDebugEnabled = function() return true end
+    local real = require
+    require = function(file)
+        if file == "PZExtDev/Panel" then return true end
+        return real(file)
+    end
+    require "OperationAcorn/Dev/Dev"
+    require, isDebugEnabled = real, debug
+    local Dev = OA.Dev
+    local r = record(true)
+    local u = Rules.section(r)
+    Branches.look(r, "approved")
+    eq(Comms.section(r).fired.C_scout ~= nil, true)
+    -- the capstone opened (a dev unseal) before the call was played: the call is dropped for good
+    Rules.unseal(u, "scout")
+    Branches.look(r, "approved")
+    eq(Comms.section(r).dropped.C_scout, true)
+    notices = {}
+    local fired = Dev.resetSurvey(r)
+    eq(Rules.unsealed(u, "scout"), false, "sealed again: its capstone was not taken")
+    eq(Comms.section(r).dropped.C_scout, nil)
+    eq(fired[1], "C_scout", "the call at once")
+    eq(notices[#notices], "IGUI_OA_Story_Notice_BranchCall")
+    PZExtDev = nil
+end)
