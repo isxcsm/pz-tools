@@ -34,12 +34,12 @@ local function has(text, key)
     return string.find(text, '"' .. key .. '":', 1, true) ~= nil
 end
 
-test("every node has its name and rank text in both languages, a note on capstones only", function()
+test("every node has its name and rank text in both languages, and no node a note", function()
     for _, lang in ipairs({ "EN", "KO" }) do
         local text = file(lang, "IG_UI.json")
         for _, node in ipairs(Data.nodes) do
             truthy(has(text, Data.key(node.id, "Name")), lang .. " lacks " .. Data.key(node.id, "Name"))
-            eq(has(text, Data.key(node.id, "Note")), node.capstone == true, lang .. " note of " .. node.id)
+            eq(has(text, Data.key(node.id, "Note")), false, lang .. " note of " .. node.id)
             if node.rankText then
                 for r = 1, node.ranks do
                     truthy(has(text, Data.key(node.id, "Rank" .. r)), lang .. " lacks " .. node.id .. " rank " .. r)

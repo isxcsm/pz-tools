@@ -51,11 +51,6 @@ local function optional(key)
     return nil
 end
 
--- The research team's line under a capstone (only capstones have one), or nil.
-function Texts.note(id)
-    return optional(Data.key(id, "Note"))
-end
-
 -- What a node's rank text leaves out that a player would not expect (where it does not apply), or nil.
 function Texts.desc(id)
     return optional(Data.key(id, "Desc"))

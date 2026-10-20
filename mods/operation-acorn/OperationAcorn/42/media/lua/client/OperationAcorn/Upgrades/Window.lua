@@ -74,7 +74,6 @@ local P = UI.palette("field")
 local GOLD = { 1.0, 0.84, 0.30 }           -- a full node
 local CYAN = { 0.40, 0.95, 1.0 }           -- the selection
 local LINE_DIM = { 0.30, 0.32, 0.25 }      -- a line whose prerequisite is not met
-local NOTE = { 0.85, 0.78, 0.55 }          -- the research team's line
 local API = { 1.0, 0.6, 0.3 }              -- a node that needs the extension API
 local WHITE = { 1, 1, 1 }
 local DARK = { 0.03, 0.03, 0.03 }
@@ -1300,11 +1299,6 @@ function View:tipRows(id)
                 add({ kind = "check", ok = false, text = c.text })
             end
         end
-    end
-    local note = Texts.note(id)
-    if note then
-        add({ kind = "sep" })
-        add({ kind = "para", text = note, c = NOTE })
     end
     local api = Texts.apiNote(id)
     if api and node.kind == "api" then add({ kind = "para", text = api, c = API }) end
