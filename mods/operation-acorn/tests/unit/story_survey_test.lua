@@ -252,6 +252,26 @@ test("a fragment picked up: the zone goes, its first of a kind has a title and a
     done()
 end)
 
+test("a fragment settled that opens the capstone brings the team's word once; after the handover 관리 7's", function()
+    local r = record(true)
+    Branches.look(r, "approved")
+    play(r, "C_scout")
+    local fullType = OA.Upgrades.Data.FRAGMENTS.scout
+    OA.Story.onSettled(r, { lines = { { marks = { fragment = true }, fullType = fullType } } })
+    truthy(Rules.unsealed(Rules.section(r), "scout"))
+    eq(Comms.next(r, "terminal", 50).id, "C_got_scout")
+    play(r, "C_got_scout")
+    OA.Story.onSettled(r, { lines = { { marks = { fragment = true }, fullType = fullType } } })
+    eq(Comms.next(r, "terminal", 50), nil, "once")
+    -- (a new world's: the team had no fragment from a character before)
+    OA.Store.world("sites").received = nil
+    local k = record(true)
+    OA.Story.section(k).handover = true
+    OA.Story.onSettled(k, { lines = { { marks = { fragment = true }, fullType = fullType } } })
+    truthy(Comms.section(k).fired.C_got_scout_k ~= nil, "관리 7's")
+    eq(Comms.section(k).fired.C_got_scout, nil)
+end)
+
 test("a fragment that arrives first drops the call not yet played", function()
     local r = record(true)
     Branches.look(r, "approved")

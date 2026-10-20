@@ -350,7 +350,12 @@ function Story.onSettled(record, result)
         if line.marks and line.marks.fragment then
             s.fragmentSeen = true
             if OA.Sites then OA.Sites.receive(line.fullType) end
-            if OA.Upgrades and OA.Upgrades.fragmentReceived then OA.Upgrades.fragmentReceived(record, line.fullType) end
+            if OA.Upgrades and OA.Upgrades.fragmentReceived and OA.Upgrades.fragmentReceived(record, line.fullType) then
+                -- the team's word on it (the fragmentGot branch, Story/Survey)
+                local tree = OA.Upgrades.Data.treeOfFragment(line.fullType)
+                s.fragmentsGot = s.fragmentsGot or {}
+                if tree then s.fragmentsGot[tree] = true end
+            end
         end
     end
     s.took = not Story.handedOver(record) and Story.tookFacts(result) or nil

@@ -38,9 +38,9 @@ Value.CASH = { ["Base.Money"] = 1, ["Base.MoneyBundle"] = 100 }
 Value.OWN = {
     SampleBundle = { credits = 600, trust = 6, event = "samples" },
     SelectedSample = { credits = 1200, trust = 12, event = "samples" },
-    MeteorFragment = { credits = 0, trust = 10, fragment = true },
-    MeteorFragmentIron = { credits = 0, trust = 10, fragment = true },
-    MeteorFragmentStonyIron = { credits = 0, trust = 10, fragment = true },
+    MeteorFragment = { credits = 0, trust = 200, fragment = true },
+    MeteorFragmentIron = { credits = 0, trust = 200, fragment = true },
+    MeteorFragmentStonyIron = { credits = 0, trust = 200, fragment = true },
     ExpiredMission = { credits = 1000, trust = 5 },
     MissionItem = { credits = 0, trust = 0 },
     -- Zombie samples by grade (NUMBERS 4 '좀비 시료'). A target mission's sample is its mission's while that runs; after,

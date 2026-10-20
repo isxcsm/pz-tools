@@ -239,4 +239,34 @@ OA.StoryBranches.define("survey", {
     end,
 })
 
+-- The team's word on a fragment that opened its tree's capstone at a settlement (Story.onSettled keeps the tree in
+-- fragmentsGot): a call once a tree, the team's, or 관리 7's after the handover (one fired before it and not yet played
+-- gives way).
+function Survey.gotCallOf(tree, admin)
+    return "C_got_" .. tree .. (admin and "_k" or "")
+end
+
+OA.StoryBranches.define("fragmentGot", {
+    at = { "settled" },
+    fires = function(record)
+        local got = OA.Story.section(record).fragmentsGot or {}
+        local admin = OA.Story.handedOver(record)
+        local heard = OA.Comms.section(record).played
+        local triggers = {}
+        for _, tree in ipairs(data().TREES) do
+            if got[tree] and not (heard[Survey.gotCallOf(tree, false)] or heard[Survey.gotCallOf(tree, true)]) then
+                triggers[#triggers + 1] = "fragmentGot:" .. tree .. (admin and ":admin" or "")
+            end
+        end
+        return triggers
+    end,
+    unwanted = function(record)
+        local ids = {}
+        if OA.Story.handedOver(record) then
+            for _, tree in ipairs(data().TREES) do ids[#ids + 1] = Survey.gotCallOf(tree, false) end
+        end
+        return ids
+    end,
+})
+
 return Survey

@@ -177,6 +177,21 @@ Data.ENTRIES = {
     { id = "C_scout_k", kind = "short", trigger = "survey:scout:admin", tier = 0, branch = "survey", survey = "scout",
         sign = "admin" },
 
+    -- The fragment branch (Story/Survey): a fragment that opened its tree's capstone at a settlement; the team's word on
+    -- it, or 관리 7's after the handover.
+    { id = "C_got_survival", kind = "short", trigger = "fragmentGot:survival", tier = 0, branch = "fragmentGot",
+        greet = true, sign = "oak" },
+    { id = "C_got_load", kind = "short", trigger = "fragmentGot:load", tier = 0, branch = "fragmentGot",
+        greet = true, sign = "oak" },
+    { id = "C_got_scout", kind = "short", trigger = "fragmentGot:scout", tier = 0, branch = "fragmentGot",
+        greet = true, sign = "oak" },
+    { id = "C_got_survival_k", kind = "short", trigger = "fragmentGot:survival:admin", tier = 0, branch = "fragmentGot",
+        sign = "admin" },
+    { id = "C_got_load_k", kind = "short", trigger = "fragmentGot:load:admin", tier = 0, branch = "fragmentGot",
+        sign = "admin" },
+    { id = "C_got_scout_k", kind = "short", trigger = "fragmentGot:scout:admin", tier = 0, branch = "fragmentGot",
+        sign = "admin" },
+
     -- The egg branch (Story/Egg): the Furbert squirrel delivered before the handover; Branscomb's call about it, once.
     { id = "C_egg_furbert", kind = "short", trigger = "egg:furbert", tier = 0, branch = "egg", greet = true,
         sign = "oak" },
