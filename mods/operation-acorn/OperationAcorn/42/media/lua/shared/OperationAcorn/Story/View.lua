@@ -199,6 +199,10 @@ function View.scene(record, where)
     for _, z in ipairs(OA.StorySurvey and OA.StorySurvey.zones(record) or {}) do
         scene.circles[#scene.circles + 1] = { x = z.x + 0.5, y = z.y + 0.5, r = z.r, color = View.MAP_SURVEY, dim = true }
     end
+    -- a meteorite fragment picked up and left somewhere: a pin, as a mission's piece has
+    for _, p in ipairs(OA.StorySurvey and OA.StorySurvey.points and OA.StorySurvey.points(record) or {}) do
+        scene.points[#scene.points + 1] = { x = p.x + 0.5, y = p.y + 0.5, r = 0, color = View.MAP_SURVEY }
+    end
     for _, d in ipairs(OA.Dense and OA.Dense.shown(record) or {}) do
         scene.circles[#scene.circles + 1] = { x = d.x + 0.5, y = d.y + 0.5, r = d.r, color = View.MAP_DENSE,
             dim = true }

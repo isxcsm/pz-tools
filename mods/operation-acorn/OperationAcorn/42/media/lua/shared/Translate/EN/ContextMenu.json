@@ -34,6 +34,7 @@
     "ContextMenu_OA_Story_FieldCall": "Field call",
     "ContextMenu_OA_Story_LeaveCase": "Leave the case",
     "ContextMenu_OA_Story_Read": "Read",
+    "ContextMenu_OA_Story_GrabFragment": "Pick up %1",
     "ContextMenu_OA_Story_ReadStake": "Look at the stake",
     "ContextMenu_OA_Story_TakeSoil": "Take a soil sample",
     "ContextMenu_OA_Gear_FitVehicle": "Fit to a vehicle",

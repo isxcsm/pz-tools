@@ -105,10 +105,61 @@ local function bareGround(square)
     return OA.api().squares.test(square, BARE)
 end
 
+-- The meteorite fragments lying on the squares clicked (world items), the first of each square's list.
+local function fragmentsAt(worldobjects)
+    local found, seen = {}, {}
+    for _, o in ipairs(worldobjects) do
+        local sq = o.getSquare and o:getSquare()
+        local key = sq and (sq:getX() .. "," .. sq:getY() .. "," .. sq:getZ())
+        if key and not seen[key] then
+            seen[key] = true
+            local list = sq:getWorldObjects()
+            for i = 0, list:size() - 1 do
+                local w = list:get(i)
+                local item = w and w:getItem()
+                if item and OA.Sites and OA.Sites.kindOf(item:getFullType()) then found[#found + 1] = w end
+            end
+        end
+    end
+    return found
+end
+
+-- Whether every option of the game's Grab submenu is a fragment's (named as the fragments are): it is then taken
+-- away, the fragments having their own options.
+local function grabOnlyFragments(context, names)
+    local grab = context:getOptionFromName(getText("ContextMenu_Grab"))
+    local sub = grab and grab.subOption and context:getSubMenu(grab.subOption)
+    if not (sub and sub.options and #sub.options > 0) then return false end
+    for _, option in ipairs(sub.options) do
+        local named = false
+        for name in pairs(names) do
+            if type(option.name) == "string" and string.sub(option.name, 1, #name) == name then named = true end
+        end
+        if not named then return false end
+    end
+    return true
+end
+
+-- A fragment on the ground: "<its name> 줍기" on top of the menu, as the game's grab does it.
+local function fragmentOptions(playerNum, context, worldobjects)
+    local found = fragmentsAt(worldobjects)
+    if #found == 0 then return end
+    local names = {}
+    for i = #found, 1, -1 do
+        local w = found[i]
+        local name = w:getItem():getDisplayName()
+        names[name] = true
+        context:addOptionOnTop(getText("ContextMenu_OA_Story_GrabFragment", name), worldobjects,
+            ISWorldObjectContextMenu.onGrabWItem, w, playerNum)
+    end
+    if grabOnlyFragments(context, names) then context:removeOptionByName(getText("ContextMenu_Grab")) end
+end
+
 local function onFillWorld(playerNum, context, worldobjects, test)
     if test then return true end
     local player = getSpecificPlayer(playerNum)
     if player:getVehicle() then return end
+    OA.try("story menu: a fragment's pick-up", fragmentOptions, playerNum, context, worldobjects)
     local m = activeMission(player)
 
     -- the stake is the first of the two options and the soil sample the second, so the stake is added last

@@ -20,6 +20,7 @@ require "OperationAcorn/Sprites"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Places"
 require "OperationAcorn/Story/Game"
+require "OperationAcorn/Say"
 local OA = OperationAcorn
 local Game = OA.StoryGame
 local Sites = {}
@@ -298,11 +299,102 @@ end
 -- The anchors of a fit are tried in a random order.
 local RANDOM_ORDER = { order = "random" }
 
+-- The clearing the fall made round a site: within CLEAR_IN squares of its middle every tree, bush and tuft of grass is
+-- gone; out to CLEAR_OUT fewer of them the further out (trees most, grass least), so that a forest thins into it and a
+-- site in the woods shows from afar. A tree knocked down leaves a stump at times (STUMP, the one the world's own forests
+-- have; never on the middle's squares, where the props go) and a log at times. Only plants are taken, never on a floor
+-- above the ground or in a building. A square not loaded when the site is built is cleared when its chunk loads.
+Sites.CLEAR_IN, Sites.CLEAR_OUT = 3, 7
+Sites.STUMP = "crafted_02_86"
+Sites.STUMP_CHANCE, Sites.LOG_CHANCE = 0.4, 0.3
+
+-- The share of each plant taken at `d` squares from the middle (1: every one): trees, bushes, grass.
+function Sites.clearShare(d)
+    if d <= Sites.CLEAR_IN then return 1, 1, 1 end
+    if d > Sites.CLEAR_OUT then return 0, 0, 0 end
+    local t = (d - Sites.CLEAR_IN) / (Sites.CLEAR_OUT - Sites.CLEAR_IN)
+    return 1 - 0.75 * t, 1 - 0.85 * t, 0.9 - 0.8 * t
+end
+
+-- What plant an object of a square is: "tree", "bush" (what the game's bush removal cuts), "grass" (what its grass
+-- removal takes) or nil.
+local function plantOf(obj)
+    if instanceof(obj, "IsoTree") then return "tree" end
+    local props = obj:getProperties()
+    if props and props:has(IsoFlagType.canBeRemoved) then return "grass" end
+    local sprite = obj:getSprite()
+    local own = sprite and sprite:getProperties()
+    if own and own:has(IsoFlagType.canBeCut) then return "bush" end
+    return nil
+end
+
+-- Clears one square `d` squares from the middle (see CLEAR_IN).
+local function clearSquare(sq, d)
+    if sq:getZ() ~= 0 or sq:getBuilding() then return end
+    local tree, bush, grass = Sites.clearShare(d)
+    local share = { tree = tree, bush = bush, grass = grass }
+    local objects = sq:getObjects()
+    local felled = false
+    for i = objects:size() - 1, 0, -1 do
+        local obj = objects:get(i)
+        local kind = obj and plantOf(obj)
+        if kind and OA.randomFloat(0, 1) < share[kind] then
+            sq:transmitRemoveItemFromSquare(obj)
+            felled = felled or kind == "tree"
+        end
+    end
+    if not felled then return end
+    OA.try("sites: a cleared square's light", function() sq:RecalcAllWithNeighbours(true) end)
+    if d >= 2 and OA.randomFloat(0, 1) < Sites.STUMP_CHANCE then
+        OA.try("sites: a stump", function()
+            local stump = IsoObject.new(getCell(), sq, Sites.STUMP)
+            sq:AddTileObject(stump)
+            if isServer() then stump:transmitCompleteItemToClients() end
+        end)
+    end
+    if d >= 1 and OA.randomFloat(0, 1) < Sites.LOG_CHANCE then
+        sq:AddWorldInventoryItem("Base.Log", OA.randomFloat(0.1, 0.9), OA.randomFloat(0.1, 0.9), 0)
+    end
+end
+
+-- Clears the squares of the clearing round x, y that lie in the rectangle x1..x2, y1..y2 (all of them when it is nil)
+-- and are loaded; returns the chunks (their first squares, by key) that hold squares not loaded.
+local function clearIn(x, y, x1, y1, x2, y2)
+    local c = getCell()
+    local out = Sites.CLEAR_OUT
+    local waiting = {}
+    for dx = -out, out do
+        for dy = -out, out do
+            local d = math.sqrt(dx * dx + dy * dy)
+            local sx, sy = x + dx, y + dy
+            if d <= out and (not x1 or (sx >= x1 and sx <= x2 and sy >= y1 and sy <= y2)) then
+                local sq = c:getGridSquare(sx, sy, 0)
+                if sq then
+                    OA.try("sites: clearing a square", clearSquare, sq, d)
+                else
+                    local size = OA.Chunks.SIZE
+                    local cx, cy = math.floor(sx / size) * size, math.floor(sy / size) * size
+                    waiting[OA.Chunks.key(cx, cy)] = { x = cx, y = cy }
+                end
+            end
+        end
+    end
+    return waiting
+end
+
+-- The clearing round a site's middle: now where it is loaded, the rest as its chunks load.
+function Sites.clear(site, x, y)
+    for _, at in pairs(clearIn(x, y)) do
+        OA.Chunks.add({ kind = "oa_clear", site = site.n, x = at.x, y = at.y, z = 0, mx = x, my = y })
+    end
+end
+
 -- The props and the fragment of one site at the chosen square.
 local function build(site, sq)
     local c = getCell()
     local squares = OA.api().squares
     local x, y, z = sq:getX(), sq:getY(), sq:getZ()
+    OA.try("sites: the clearing", Sites.clear, site, x, y)
     for i = 1, scorchOf(site.kind) do
         local o = SCORCH_AROUND[i]
         addObject(c:getGridSquare(x + o[1], y + o[2], z), OA.Sprites.SCORCHED_GROUND)
@@ -463,6 +555,108 @@ function Sites.kick(now)
             if site.left and now - site.left >= Sites.LOST_DAYS * 24 then Sites.relay(site) end
         end
     end
+end
+
+-- LoadChunk work: the part of a site's clearing in a chunk that was not loaded when the site was built.
+OA.Chunks.handle("oa_clear", function(entry)
+    local size = OA.Chunks.SIZE
+    OA.try("sites: the clearing's rest", clearIn, entry.mx, entry.my, entry.x, entry.y, entry.x + size - 1, entry.y + size - 1)
+    return true
+end)
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- A fragment taken from its site: followed for the maps (Story/Survey shows where it lies when the character does not
+-- carry it), and the first of each kind a character picks up has its title and line.
+
+-- The self-talk on a kind's first fragment picked up: lines 1-2 the stony one, 3-4 the iron one, 5-6 the stony-iron
+-- one, the rest any kind.
+OA.Say.define("FragmentTaken", { tags = {
+    [1] = { kind = "stony" }, [2] = { kind = "stony" }, [3] = { kind = "iron" }, [4] = { kind = "iron" },
+    [5] = { kind = "stonyIron" }, [6] = { kind = "stonyIron" },
+} })
+-- Real seconds from the title to its line (the title is read first).
+Sites.TAKEN_SAY = 5
+
+-- The latest site of a kind (one whose fragment was lost has another), or nil.
+function Sites.current(kind)
+    local found
+    for _, site in ipairs(Sites.list()) do
+        if site.kind == kind and not site.relaid then found = site end
+    end
+    return found
+end
+
+-- The fragment item each site's is (by site number), as long as the game runs; and the inventory signature a search
+-- of the character's things found none at (searched again only once it changed: OA.signature).
+local followed, missed = {}, {}
+local FIND_DEPTH = { depth = 8, limit = 1 }
+
+-- A fragment came into a character's things (Economy's pickup hook, through Missions.pickedUp): its site's fragment
+-- has left the site and is followed; a kind's first for the record has its title, then its line.
+function Sites.pickedUp(record, item)
+    local kind = item and item.getFullType and Sites.kindOf(item:getFullType())
+    if not kind then return end
+    local site = Sites.current(kind)
+    if site then
+        site.taken, site.left = true, nil
+        followed[site.n], missed[site.n] = item, nil
+        OA.Sync.changed("sites", nil)
+    end
+    local s = OA.Story.section(record)
+    s.fragmentsTaken = s.fragmentsTaken or {}
+    if not s.fragmentsTaken[kind] then
+        s.fragmentsTaken[kind] = true
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Fragment", sub = "IGUI_OA_Title_FragmentSub_" .. kind, style = "stamp" })
+        OA.Say.tell(record.id, "FragmentTaken", { kind = kind }, Sites.TAKEN_SAY)
+    end
+    OA.Sync.changed("story", record.id)
+end
+
+-- Where a taken site's fragment is now: x, y, z, carried (Game.whereIs), or nil when not known (not followed, as after
+-- a load, and not in the record's character's things).
+function Sites.whereFragment(record, site)
+    local item = followed[site.n]
+    if item then
+        local x, y, z, carried = Game.whereIs(item)
+        if x then return x, y, z, carried end
+        followed[site.n] = nil
+    end
+    local p = Game.character(record)
+    if not p then return nil end
+    local inventory = p:getInventory()
+    local signature = OA.signature(inventory)
+    if missed[site.n] == signature then return nil end
+    local fullType = OA.StoryData.fullType(Sites.FRAGMENT[site.kind])
+    item = OA.api().items.find(inventory, { type = { fullType } }, FIND_DEPTH)[1]
+    if not item then
+        missed[site.n] = signature
+        return nil
+    end
+    followed[site.n] = item
+    return Game.whereIs(item)
+end
+
+-- Every game minute: where each taken fragment not had by the team is, kept on its site as `at` = { x, y, z, carried }
+-- (the last place known stays while it is not known: a fragment left on the floor before a load). A fragment known to
+-- be somewhere is not lost (Sites.kick). True when a place changed.
+function Sites.lookFragments(record)
+    local got = section().received or {}
+    local changed = false
+    for _, site in ipairs(Sites.list()) do
+        if site.taken and not site.relaid and not got[site.kind] then
+            local x, y, z, carried = Sites.whereFragment(record, site)
+            if x then
+                site.left = nil
+                local at = site.at
+                if not at or at.x ~= x or at.y ~= y or at.z ~= z or (at.carried == true) ~= (carried == true) then
+                    site.at = { x = x, y = y, z = z, carried = carried == true or nil }
+                    changed = true
+                end
+            end
+        end
+    end
+    if changed then OA.Sync.changed("sites", nil) end
+    return changed
 end
 
 OA.Chunks.handle("oa_site", function(entry, chunk)

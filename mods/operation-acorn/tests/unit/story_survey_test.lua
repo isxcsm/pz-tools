@@ -195,6 +195,63 @@ test("the site lies at different shares of the radius and ways from the middle, 
     truthy(same < 40, "the next stage's way is its own: " .. same)
 end)
 
+test("the clearing: all of it within CLEAR_IN, thinning out to CLEAR_OUT, trees most and grass least", function()
+    local t, b, g = Sites.clearShare(0)
+    eq(t, 1); eq(b, 1); eq(g, 1)
+    t, b, g = Sites.clearShare(Sites.CLEAR_IN)
+    eq(t, 1)
+    local lt, lb, lg = 1, 1, 1
+    for d = Sites.CLEAR_IN + 0.5, Sites.CLEAR_OUT, 0.5 do
+        t, b, g = Sites.clearShare(d)
+        truthy(t <= lt and b <= lb and g <= lg, "thinning at " .. d)
+        truthy(t >= b and b >= g - 0.1, "trees most at " .. d)
+        lt, lb, lg = t, b, g
+    end
+    truthy(lt > 0, "some trees go at the edge")
+    t, b, g = Sites.clearShare(Sites.CLEAR_OUT + 0.5)
+    eq(t + b + g, 0)
+end)
+
+-- A fragment item of the scout tree's kind.
+local function fragmentItem()
+    local fullType = OA.Upgrades.Data.FRAGMENTS.scout
+    return { getFullType = function() return fullType end }
+end
+
+test("a fragment picked up: the zone goes, its first of a kind has a title and a line once; left somewhere, a pin", function()
+    local r = record(true)
+    Branches.look(r, "approved")
+    play(r, "C_scout")
+    local site = Survey.siteOf("scout")
+    local titles, lines, done = caught()
+    eq(#Survey.zones(r), 1)
+    OA.Sites.pickedUp(r, { getFullType = function() return "Base.Axe" end })
+    eq(#titles, 0, "not a fragment")
+    OA.Sites.pickedUp(r, fragmentItem())
+    truthy(site.taken)
+    eq(#Survey.zones(r), 0, "the zone goes")
+    eq(#titles, 1)
+    eq(titles[1].key, "IGUI_OA_Title_Fragment")
+    eq(titles[1].sub, "IGUI_OA_Title_FragmentSub_" .. site.kind)
+    eq(lines[1].id, "FragmentTaken"); eq(lines[1].ctx.kind, site.kind); eq(lines[1].delay, Sites.TAKEN_SAY)
+    OA.Sites.pickedUp(r, fragmentItem())
+    eq(#titles, 1, "once a kind")
+    -- carried: no pin; left on the floor: a pin where it lies
+    site.at = { x = site.x + 40, y = site.y, z = 0, carried = true }
+    eq(#Survey.points(r), 0)
+    site.at = { x = site.x + 40, y = site.y, z = 0 }
+    local points = Survey.points(r)
+    eq(#points, 1); eq(points[1].x, site.x + 40); eq(points[1].tree, "scout")
+    local scene = OA.StoryView.scene(r, nil)
+    eq(#scene.circles, 0)
+    eq(#scene.points, 1)
+    eq(scene.points[1].color, OA.StoryView.MAP_SURVEY)
+    -- the team has it: no pin
+    Rules.unseal(Rules.section(r), "scout")
+    eq(#Survey.points(r), 0)
+    done()
+end)
+
 test("a fragment that arrives first drops the call not yet played", function()
     local r = record(true)
     Branches.look(r, "approved")

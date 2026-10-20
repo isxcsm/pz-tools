@@ -5,7 +5,8 @@
 -- and away from its middle again, so each step has the next place to go to, and the last one (the site's props in
 -- sight from anywhere in it) is the player's to search. Into the first: a title as a mission's circle has ("unveil")
 -- and a line after it (SurveyIn); into the next: a title and its line (SurveyNear). The zone stays until the fragment
--- reaches the team. Before the handover the team calls, after it 관리 7 (each its own call; one fired before the
+-- reaches the team; once its fragment is picked up the zone goes, and the maps mark where the fragment lies whenever the
+-- character does not carry it (Survey.points; Sites.lookFragments follows it). Before the handover the team calls, after it 관리 7 (each its own call; one fired before the
 -- handover and not yet played gives way to the other).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -106,7 +107,7 @@ function Survey.zones(record)
     local list = {}
     for _, tree in ipairs(data().TREES) do
         local site = surveyed(record, tree)
-        if site then
+        if site and not site.taken then
             local z = Survey.zone(site, stageOf(record, tree, site))
             z.tree, z.stage = tree, stageOf(record, tree, site)
             list[#list + 1] = z
@@ -120,10 +121,11 @@ end
 -- deepest, with that one's title and line alone.
 function Survey.minute(record, x, y, isNight)
     if not OA.Story.section(record).surveys or not x then return end
+    if OA.Sites.lookFragments(record) then OA.Sync.changed("story", record.id) end
     local last = #Survey.STAGES
     for _, tree in ipairs(data().TREES) do
         local site = surveyed(record, tree)
-        local at = site and stageOf(record, tree, site)
+        local at = site and not site.taken and stageOf(record, tree, site)
         if at and at < last then
             local to = at
             for stage = last - 1, at, -1 do
@@ -149,6 +151,18 @@ function Survey.minute(record, x, y, isNight)
             end
         end
     end
+end
+
+-- Where the fragments of the zones shown lie when the character does not carry them: { { x, y, tree }, ... } (the
+-- last place known: Sites.lookFragments).
+function Survey.points(record)
+    local list = {}
+    for _, tree in ipairs(data().TREES) do
+        local site = surveyed(record, tree)
+        local at = site and site.taken and site.at
+        if at and not at.carried then list[#list + 1] = { x = at.x, y = at.y, tree = tree } end
+    end
+    return list
 end
 
 -- A site a record searches by its zone has no title of its own when first come near (Sites.visit): the zone's titles

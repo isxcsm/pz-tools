@@ -1370,6 +1370,8 @@ end
 -- An item came into a character's things (the economy's pickup hook, as it happens): the sample cooler's clock
 -- starts now, whatever the rate of the ten-minute look below.
 function Missions.pickedUp(record, item)
+    -- A meteorite fragment (Story/Sites): followed, and a kind's first has its moment.
+    if OA.Sites and OA.Sites.pickedUp then OA.try("sites: a fragment picked up", OA.Sites.pickedUp, record, item) end
     -- A survivor's things (Story/Scene): the first one taken says a line.
     if OA.Scene then OA.Scene.pickedUp(record, item) end
     Missions.lookForPiece(record, item)

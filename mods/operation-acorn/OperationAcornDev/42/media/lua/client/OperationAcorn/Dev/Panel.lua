@@ -240,6 +240,7 @@ local function upgradesPage(page, ui)
         { T("Up_Unseal"), function() Dev.unsealCapstones() fill() end },
         { T("Up_Survey"), function() Dev.resetSurvey() fill() end },
         { T("Up_SurveyGoto"), function() Dev.gotoSurvey() end },
+        { T("Up_SiteClear"), function() Dev.clearSite() end },
     })
 
     ui.heading(page, T("Up_Alarms"), 6)

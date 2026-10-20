@@ -667,6 +667,21 @@ function Dev.gotoMission()
     return true
 end
 
+-- Makes the clearing round the nearest placed meteor site within 60 squares (a site placed before clearings were made;
+-- once more on one that has it thins it further). Returns whether there was one.
+function Dev.clearSite()
+    local p = getPlayer()
+    local best, bestD
+    for _, site in ipairs(OA.Sites.list()) do
+        local d = OA.Places.distance(p:getX(), p:getY(), site.x, site.y)
+        if site.state == "placed" and d <= 60 and (not bestD or d < bestD) then best, bestD = site, d end
+    end
+    if not best then say("clear site: no placed site within 60 squares") return false end
+    OA.Sites.clear(best, best.x, best.y)
+    say("cleared round site", best.n, best.x, best.y)
+    return true
+end
+
 -- Puts the character just outside the survey zone the maps show (the first; 10 to 20 squares past its rim, on no
 -- water: the zones of the whole map are known, the squares there need not be loaded). Returns whether there was one.
 function Dev.gotoSurvey()
