@@ -21,6 +21,7 @@
 require "ISUI/ISPanel"
 require "PZUIKit/UI"
 require "PZUIKit/RichText"
+require "PZUIKit/Tape"
 require "BuildingUtilities/Geometry"
 require "BuildingUtilities/PanelUi"
 require "BuildingUtilities/Relays"
@@ -28,7 +29,7 @@ require "BuildingUtilities/PanelSchematic"
 require "BuildingUtilities/Job"
 local BU = BuildingUtilities
 local Geometry, Job = BU.Geometry, BU.Job
-local UI = PZUIKit.UI
+local UI, Tape = PZUIKit.UI, PZUIKit.Tape
 local P = BU.PanelUi.PALETTE
 
 local FONT_HGT_SMALL = BU.PanelUi.FONT_HGT_SMALL
@@ -705,7 +706,7 @@ function ISBUPlan:dataTasks(data, verified)
             return
         end
         -- Another utility shown: the plan fades in anew.
-        if plan.data and plan.data.utility ~= data.utility then plan.switchedAt = getTimestampMs() end
+        if plan.data and plan.data.utility ~= data.utility then plan:switchFade() end
         plan.data = data
         for _, field in ipairs({ "levels", "floor", "floorOn", "floorLoad", "floorProducers" }) do
             local value = rawget(copy, field)
@@ -990,32 +991,58 @@ function ISBUPlan:layoutTop()
     self.topH = FONT_HGT_SMALL + PAD * 2 + row * rowH
 end
 
+-- Whether a switch of the top bar is on.
+local function toggleOn(plan, toggle)
+    local name = toggle.name
+    return name == "zone" and plan.data.zoneEdit or name == "range" and plan.window.rangeShown == true
+        or name == "scheme" and plan:schemeShown() or name == "pipe" and plan.data.pipePaint ~= nil
+end
+
+-- A switch in the window's buttons' look: an on one in the accent, lit under the mouse (toggle.k), flashing on a click
+-- (toggle.f); unlit while a tape records.
+local function drawToggle(plan, toggle)
+    local h = FONT_HGT_SMALL + 2
+    local on = toggleOn(plan, toggle)
+    local k, f = 0, 0
+    if not PZUIKit.taping then k, f = toggle.k or 0, toggle.f or 0 end
+    UI.fill(plan, toggle.x, toggle.y, toggle.w, h, on and P.sel or P.panel, on and 0.75 or 0.6)
+    if k > 0 or f > 0 then UI.fill(plan, toggle.x, toggle.y, toggle.w, h, P.bright, 0.1 * k + 0.25 * f) end
+    UI.frame(plan, toggle.x, toggle.y, toggle.w, h, (on or k > 0.5) and P.value or P.border, 1)
+    local textX = toggle.x + toggle.w / 2
+    if toggle.swatch then
+        UI.fill(plan, toggle.x + 5, toggle.y + math.floor((h - SWATCH) / 2), SWATCH, SWATCH, toggle.swatch, 1)
+        textX = textX + (SWATCH + 4) / 2
+    end
+    UI.textCentre(plan, toggle.text, textX, toggle.y + 1, (on or k > 0.5) and P.bright or P.text)
+end
+
+-- The top bar: the floor's name and the switches, each a part of the bar's tape.
+local function drawTop(plan)
+    plan:drawText(plan.floorTitle, plan.titleX, PAD, 0.85, 0.85, 0.85, 1, UIFont.Small)
+    for _, toggle in ipairs(plan.toggles) do
+        Tape.part(toggle, toggle)
+        drawToggle(plan, toggle)
+        Tape.partEnd()
+    end
+end
+
+local function toggleLit(_, toggle) return toggle.k > 0 or toggle.f > 0 end
+local function drawTogglePart(plan, toggle) drawToggle(plan, toggle) end
+
 function ISBUPlan:prerender()
     ISPanel.prerender(self)
     -- (zoomed by the wheel since the last frame: laid out once for all its steps)
     if self.relayout then self:layout() end
     if not self.floorTitle then self:layoutTop() end
-    -- The top bar: the floor's name and the switches, in the window's buttons' look: on ones in the accent, the one
-    -- under the mouse lit, a click flashing.
+    -- The top bar kept (until it is laid out again or a switch turns on or off), the lit switches drawn over it.
     local over = self:isMouseOver() and self:toggleAt(self:getMouseX(), self:getMouseY()) or nil
-    self:drawText(self.floorTitle, self.titleX, PAD, 0.85, 0.85, 0.85, 1, UIFont.Small)
-    local h = FONT_HGT_SMALL + 2
-    for _, toggle in ipairs(self.toggles) do
-        local on = toggle.name == "zone" and self.data.zoneEdit or toggle.name == "range" and self.window.rangeShown == true
-            or toggle.name == "scheme" and self:schemeShown() or toggle.name == "pipe" and self.data.pipePaint ~= nil
-        local k = UI.hoverLight(self, toggle.fx, over == toggle.name)
-        local f = UI.flashLevel(self, toggle.fx)
-        UI.fill(self, toggle.x, toggle.y, toggle.w, h, on and P.sel or P.panel, on and 0.75 or 0.6)
-        if k > 0 or f > 0 then UI.fill(self, toggle.x, toggle.y, toggle.w, h, P.bright, 0.1 * k + 0.25 * f) end
-        UI.frame(self, toggle.x, toggle.y, toggle.w, h, (on or k > 0.5) and P.value or P.border, 1)
-        local textX = toggle.x + toggle.w / 2
-        if toggle.swatch then
-            local s = toggle.swatch
-            UI.fill(self, toggle.x + 5, toggle.y + math.floor((h - SWATCH) / 2), SWATCH, SWATCH, s, 1)
-            textX = textX + (SWATCH + 4) / 2
-        end
-        UI.textCentre(self, toggle.text, textX, toggle.y + 1, (on or k > 0.5) and P.bright or P.text)
+    local onKey = 0
+    for i, toggle in ipairs(self.toggles) do
+        toggle.k = UI.hoverLight(self, toggle.fx, over == toggle.name)
+        toggle.f = UI.flashLevel(self, toggle.fx)
+        if toggleOn(self, toggle) then onKey = onKey + 2 ^ i end
     end
+    Tape.keep(self, drawTop, nil, self.toggles, onKey, toggleLit, drawTogglePart)
 end
 
 -- Which part of the top bar is under the mouse: a switch's name, "title" (the floor's name) or nil.
@@ -1061,6 +1088,19 @@ function ISBUPlan:zoomAt(x, y, factor)
 end
 
 
+-- Followed while the plan fades in after a switch of utility or floor.
+local function switchFrame(plan, now)
+    local at = plan.switchedAt
+    if not at or now - at >= BU.PanelUi.SWITCH_MS then return nil end
+    return now
+end
+
+-- The fade in after a switch, from now: followed while it goes (the drawing reads the plan's frame time).
+function ISBUPlan:switchFade()
+    self.switchedAt = getTimestampMs()
+    UI.live(self, switchFrame)
+end
+
 -- Followed while the legend folds or opens.
 local function legendFrame(plan, now)
     local anim = plan.legendAnim
@@ -1096,58 +1136,83 @@ end
 
 -- The legend: a box rising from the status line, its header (a fold mark and the title) lit under the mouse and
 -- flashing on a click; it grows or shrinks over LEGEND_MS as it opens or folds, the entries showing as it uncovers
--- them. The entry under the mouse is lit, and marks on the plan the dots or squares it names (legendHover).
-function ISBUPlan:drawLegend(now, mx, my, px)
+-- them. The entry under the mouse is lit, and marks on the plan the dots or squares it names (legendHover). Where it
+-- is and its lights worked out each frame (legendLights); drawn from them, unlit while a tape records.
+function ISBUPlan:legendLights(now, mx, my)
     local box = self.legendBox
     self.legendHover = nil
     if not box then return end
     local anim = self.legendAnim
-    local e = anim and BU.PanelUi.ease(math.min(1, (now - anim.at) / LEGEND_MS)) or 1
+    local e = anim and BU.PanelUi.ease(math.max(0, math.min(1, (now - anim.at) / LEGEND_MS))) or 1
     local h = anim and anim.fromH + (box.h - anim.fromH) * e or box.h
     local w = anim and anim.fromW + (box.w - anim.fromW) * e or box.w
     local top = box.y + box.h - h
-    box.top, box.drawnW = top, w
-    local headerH = box.headerH
-    local overHeader = mx >= box.x and mx < box.x + w and my >= top and my < top + headerH
-    local k = UI.hoverLight(self, "legend", overHeader)
-    local f = UI.flashLevel(self, "legend")
-    UI.fill(self, box.x, top, w, h, P.panel, 0.88)
-    if k > 0 or f > 0 then UI.fill(self, box.x + 1, top + 1, w - 2, headerH - 2, P.sel, 0.25 * k + 0.35 * f) end
-    UI.frame(self, box.x, top, w, h, k > 0.5 and P.value or P.border, 1)
-    local open = box.shown and e or 1 - e
-    local head = P.head
-    local c = { head[1] + (1 - head[1]) * 0.4 * k, head[2] + (1 - head[2]) * 0.4 * k, head[3] + (1 - head[3]) * 0.4 * k }
-    drawChevron(self, box.x + PAD + 3, top + headerH / 2, open, px, c)
-    self:drawText(box.header, box.x + PAD + CHEVRON_W, top + 2, c[1], c[2], c[3], 1, UIFont.Small)
-    if h > headerH + 1 then UI.fill(self, box.x + 1, top + headerH - 1, w - 2, 1, P.border, 0.8) end
+    box.top, box.drawnW, box.drawnH = top, w, h
+    box.open = box.shown and e or 1 - e
+    local overHeader = mx >= box.x and mx < box.x + w and my >= top and my < top + box.headerH
+    box.k, box.f = UI.hoverLight(self, "legend", overHeader), UI.flashLevel(self, "legend")
     -- The entries: those laid out while it is open, or, while it folds, the ones it had.
     local entries, alpha = self.legend, box.shown and e or 1
     if anim and not box.shown then entries, alpha = anim.entries, 1 - e end
+    box.entries, box.alpha = entries, alpha
     for _, entry in ipairs(entries) do
-        if entry.y >= top + headerH - 1 then
-            local over = box.shown and not anim and mx >= entry.x - 3 and mx < entry.x - 3 + entry.w and my >= entry.y
-                and my < entry.y + LEGEND_ROW
-            if over then self.legendHover = entry end
-            local lit = UI.hoverLight(self, entry.fx, over)
-            if lit > 0 then UI.fill(self, entry.x - 3, entry.y, entry.w, LEGEND_ROW, P.sel, 0.22 * lit) end
-            local middle = entry.y + LEGEND_ROW / 2
-            if entry.square == "line" then
-                self:drawRect(entry.x, middle, 10, 1, alpha, entry.r, entry.g, entry.b)
-            elseif entry.square then
-                local size = evenSize(SQUARE, px)
-                local x, y = snap(entry.x, px), snap(middle, px) - size / 2
-                self:drawRect(x, y, size, size, alpha, entry.r, entry.g, entry.b)
-                local second, half = entry.second, snap(size / 2, px)
-                if second then self:drawRect(x + half, y, size - half, size, alpha, second[1], second[2], second[3]) end
-                if entry.relay then relayMark(self, x, y, size, alpha, px) end
-            else
-                -- (on the middle of a square's place, as the squares' entries above and below it)
-                local size = evenSize(DOT, px)
-                local x = snap(entry.x, px) + (evenSize(SQUARE, px) - size) / 2
-                self:drawRect(x, snap(middle, px) - size / 2, size, size, alpha, entry.r, entry.g, entry.b)
-            end
-            local shade = 0.8 + 0.2 * lit
-            self:drawText(entry.text, entry.x + 14, entry.y + 1, shade, shade, shade, alpha, UIFont.Small)
+        local over = box.shown and not anim and mx >= entry.x - 3 and mx < entry.x - 3 + entry.w and my >= entry.y
+            and my < entry.y + LEGEND_ROW
+        if over then self.legendHover = entry end
+        entry.k = UI.hoverLight(self, entry.fx, over)
+    end
+end
+
+local function drawLegendHead(plan, box, px)
+    local taping = PZUIKit.taping
+    local k, f = taping and 0 or box.k, taping and 0 or box.f
+    local top, w, h, headerH = box.top, box.drawnW, box.drawnH, box.headerH
+    UI.fill(plan, box.x, top, w, h, P.panel, 0.88)
+    if k > 0 or f > 0 then UI.fill(plan, box.x + 1, top + 1, w - 2, headerH - 2, P.sel, 0.25 * k + 0.35 * f) end
+    UI.frame(plan, box.x, top, w, h, k > 0.5 and P.value or P.border, 1)
+    local head = P.head
+    local c = { head[1] + (1 - head[1]) * 0.4 * k, head[2] + (1 - head[2]) * 0.4 * k, head[3] + (1 - head[3]) * 0.4 * k }
+    drawChevron(plan, box.x + PAD + 3, top + headerH / 2, box.open, px, c)
+    plan:drawText(box.header, box.x + PAD + CHEVRON_W, top + 2, c[1], c[2], c[3], 1, UIFont.Small)
+    if h > headerH + 1 then UI.fill(plan, box.x + 1, top + headerH - 1, w - 2, 1, P.border, 0.8) end
+end
+
+local function drawLegendEntry(plan, entry, alpha, px)
+    local lit = PZUIKit.taping and 0 or entry.k or 0
+    if lit > 0 then UI.fill(plan, entry.x - 3, entry.y, entry.w, LEGEND_ROW, P.sel, 0.22 * lit) end
+    local middle = entry.y + LEGEND_ROW / 2
+    if entry.square == "line" then
+        plan:drawRect(entry.x, middle, 10, 1, alpha, entry.r, entry.g, entry.b)
+    elseif entry.square then
+        local size = evenSize(SQUARE, px)
+        local x, y = snap(entry.x, px), snap(middle, px) - size / 2
+        plan:drawRect(x, y, size, size, alpha, entry.r, entry.g, entry.b)
+        local second, half = entry.second, snap(size / 2, px)
+        if second then plan:drawRect(x + half, y, size - half, size, alpha, second[1], second[2], second[3]) end
+        if entry.relay then relayMark(plan, x, y, size, alpha, px) end
+    else
+        -- (on the middle of a square's place, as the squares' entries above and below it)
+        local size = evenSize(DOT, px)
+        local x = snap(entry.x, px) + (evenSize(SQUARE, px) - size) / 2
+        plan:drawRect(x, snap(middle, px) - size / 2, size, size, alpha, entry.r, entry.g, entry.b)
+    end
+    local shade = 0.8 + 0.2 * lit
+    plan:drawText(entry.text, entry.x + 14, entry.y + 1, shade, shade, shade, alpha, UIFont.Small)
+end
+
+-- The legend as legendLights left it: its head and its entries, each a part of a tape.
+function ISBUPlan:drawLegend(px)
+    local box = self.legendBox
+    if not box or not box.drawnW then return end
+    Tape.part(box, "head")
+    drawLegendHead(self, box, px)
+    Tape.partEnd()
+    local edge = box.top + box.headerH - 1
+    for _, entry in ipairs(box.entries) do
+        if entry.y >= edge then
+            Tape.part(entry, "entry")
+            drawLegendEntry(self, entry, box.alpha, px)
+            Tape.partEnd()
         end
     end
 end
@@ -1189,50 +1254,114 @@ function ISBUPlan:placeScheme()
     self.scheme:refresh(self.window.panel)
 end
 
-function ISBUPlan:render()
-    ISPanel.render(self)
-    -- the schematic in the map's place: nothing of the map is drawn
-    if self.scheme and self.scheme:isVisible() then return end
-    local window = self.window
-    local hoverRoom = self.hoverRoom or window.listHoverRoom
-    local hoverKey = self.hoverKey or window.listHoverKey
-    local filter = self.data and self.data.filter
-    local map = self.map
-    local now = getTimestampMs()
-    -- (the plan dragged since it was laid out is drawn this much further along: ISBUPlan:drag)
+-- The map's drawing, kept on a tape (PZUIKit.Tape) until it is laid out again (a new layout makes its rooms anew, a
+-- drag its grid) and drawn from it each frame. What lies under the mouse (a room coming up, its walls bright, a line
+-- over a casing, the frames of the squares and dots it names) is not kept: the tape is the map with nothing under the
+-- mouse (hover nil), each room a part and, between the layers, places where the rest is drawn as it is over it
+-- (mapLit, drawMapPart). Drawn as it is (hover given) while the window fades or a tape cannot be kept.
+
+-- A room's wash: what its devices do, the one under the mouse coming up (k, its light).
+local function drawCell(self, cell, k, filter)
+    local a = (cell.dim and 0.14 or 0.3) + (cell.room == filter and 0.2 or 0) + 0.25 * k
+    self:drawRect(cell.x + self.dragX, cell.y + self.dragY, cell.w, cell.h, a, cell.r, cell.g, cell.b)
+end
+
+local function brightWalls(self, room)
     local shiftX, shiftY = self.dragX, self.dragY
+    for _, wall in ipairs(self.walls) do
+        if wall.room == room then UI.fill(self, wall.x + shiftX, wall.y + shiftY, wall.w, wall.h, P.bright, 1) end
+    end
+end
+
+-- The line of the thing under the mouse over a dark casing, in a light tint of its colour.
+local function hoverLine(self, hover)
     local px = 1 / (UI.S or 1)
-    local mx, my = -1, -1
-    if self:isMouseOver() then mx, my = self:getMouseX(), self:getMouseY() end
-    if map then
-        self:setStencilRect(map.left, map.top, map.w, map.h)
-        for _, line in ipairs(self.grid) do
-            UI.fill(self, line.x, line.y, line.w, line.h, P.border, line.major and 0.2 or 0.09)
+    local lw, cw = LINE_PX * px, CASING_PX * px
+    local shiftX, shiftY = self.dragX, self.dragY
+    local r, g, b = hover.r + (1 - hover.r) * 0.45, hover.g + (1 - hover.g) * 0.45, hover.b + (1 - hover.b) * 0.45
+    local p = hover.points
+    for i = 2, #p do
+        self:drawLine(WHITE, p[i - 1][1] + shiftX, p[i - 1][2] + shiftY, p[i][1] + shiftX, p[i][2] + shiftY, cw, 0.7, 0.02, 0.03, 0.05)
+    end
+    for i = 2, #p do
+        self:drawLine(WHITE, p[i - 1][1] + shiftX, p[i - 1][2] + shiftY, p[i][1] + shiftX, p[i][2] + shiftY, lw, 1, r, g, b)
+    end
+end
+
+-- Whether a square or a dot is named by what is under the mouse (hover: { key, marked }, the legend's entry).
+local function squareNamed(square, hover)
+    local marked = hover.marked
+    return square.key and square.key == hover.key or marked and marked.square and marked.square ~= "line"
+        and marked.r == square.r and marked.g == square.g and marked.b == square.b
+end
+
+local function dotNamed(dot, hover)
+    local marked = hover.marked
+    return dot.key == hover.key or marked and not marked.square and marked.r == dot.r and marked.g == dot.g
+        and marked.b == dot.b
+end
+
+-- (a square's place and size, on whole pixels)
+local function squarePlace(self, square, px)
+    local size = evenSize(square.size, px)
+    local x = snap(square.x + self.dragX + square.size / 2, px) - size / 2
+    local y = snap(square.y + self.dragY + square.size / 2, px) - size / 2
+    return x, y, size
+end
+
+local function squareFrames(self, hover)
+    local px = 1 / (UI.S or 1)
+    local frame = snap(4, px)
+    for _, square in ipairs(self.squares) do
+        if squareNamed(square, hover) then
+            local x, y, size = squarePlace(self, square, px)
+            UI.frame(self, x - frame, y - frame, size + frame * 2, size + frame * 2, P.bright, 1)
         end
     end
-    -- The rooms: a wash of what their devices do, the one under the mouse coming up.
+end
+
+local function dotFrames(self, hover)
+    local px = 1 / (UI.S or 1)
+    local dotRing = snap(DOT + 1, px)
+    for _, dot in ipairs(self.dots) do
+        if dotNamed(dot, hover) then
+            local x, y = snap(dot.x + self.dragX, px), snap(dot.y + self.dragY, px)
+            UI.frame(self, x - dotRing, y - dotRing, dotRing * 2, dotRing * 2, P.bright, 1)
+        end
+    end
+end
+
+-- The map under its clip: the grid, the rooms' washes, their walls and names, the edges, the lines, the squares and
+-- the dots. hover: { room, key, marked, line } of what is under the mouse, nil for nothing (the tape's).
+local function drawMap(self, hover)
+    local filter = self.data and self.data.filter
+    local hoverRoom = hover and hover.room
+    local shiftX, shiftY = self.dragX, self.dragY
+    local px = 1 / (UI.S or 1)
+    for _, line in ipairs(self.grid) do
+        UI.fill(self, line.x, line.y, line.w, line.h, P.border, line.major and 0.2 or 0.09)
+    end
     for _, cell in ipairs(self.cells) do
-        local k = UI.hoverLight(self, cell.fx, cell.room == hoverRoom)
-        local a = (cell.dim and 0.14 or 0.3) + (cell.room == filter and 0.2 or 0) + 0.25 * k
-        self:drawRect(cell.x + shiftX, cell.y + shiftY, cell.w, cell.h, a, cell.r, cell.g, cell.b)
+        Tape.part(cell, cell)
+        drawCell(self, cell, hover and cell.k or 0, filter)
+        Tape.partEnd()
     end
     -- The rooms' outlines in a light tint of their colour; the room under the mouse or filtered drawn last, bright.
-    local brightWalls = {}
     for _, wall in ipairs(self.walls) do
-        if wall.room == hoverRoom or wall.room == filter then
-            brightWalls[#brightWalls + 1] = wall
-        else
+        if wall.room ~= hoverRoom and wall.room ~= filter then
             self:drawRect(wall.x + shiftX, wall.y + shiftY, wall.w, wall.h, wall.dim and 0.35 or 0.8, wall.r, wall.g, wall.b)
         end
     end
-    for _, wall in ipairs(brightWalls) do UI.fill(self, wall.x + shiftX, wall.y + shiftY, wall.w, wall.h, P.bright, 1) end
+    if filter then brightWalls(self, filter) end
+    if hoverRoom and hoverRoom ~= filter then brightWalls(self, hoverRoom) end
+    Tape.part("walls")
+    Tape.partEnd()
     for _, label in ipairs(self.labels) do
         self:drawTextCentre(label.text, label.x + shiftX, label.y + shiftY, P.text[1], P.text[2], P.text[3], label.dim and 0.35 or 0.8, UIFont.Small)
     end
     for _, edge in ipairs(self.edges) do self:drawRect(edge.x + shiftX, edge.y + shiftY, edge.w, edge.h, 0.7, edge.r, edge.g, edge.b) end
-    -- The lines, at their fixed width under the squares; the one of the thing under the mouse over a dark casing in a
-    -- light tint of its colour.
-    local lw, cw = LINE_PX * px, CASING_PX * px
+    -- The lines, at their fixed width under the squares.
+    local lw = LINE_PX * px
     for _, line in ipairs(self.lines) do
         local second, p = line.second, line.points
         for i = 2, #p do
@@ -1248,26 +1377,14 @@ function ISBUPlan:render()
             end
         end
     end
-    local hover = self.hoverLine
-    if hover then
-        local r, g, b = hover.r + (1 - hover.r) * 0.45, hover.g + (1 - hover.g) * 0.45, hover.b + (1 - hover.b) * 0.45
-        local p = hover.points
-        for i = 2, #p do
-            self:drawLine(WHITE, p[i - 1][1] + shiftX, p[i - 1][2] + shiftY, p[i][1] + shiftX, p[i][2] + shiftY, cw, 0.7, 0.02, 0.03, 0.05)
-        end
-        for i = 2, #p do
-            self:drawLine(WHITE, p[i - 1][1] + shiftX, p[i - 1][2] + shiftY, p[i][1] + shiftX, p[i][2] + shiftY, lw, 1, r, g, b)
-        end
-    end
-    -- The legend's entry under the mouse marks what it names.
-    local marked = self.legendHover
+    if hover and hover.line then hoverLine(self, hover.line) end
+    Tape.part("lines")
+    Tape.partEnd()
     -- (marks, their dark edges, rings and frames on whole pixels, each as many pixels round its mark on every side;
     -- a mark round its middle on a pixel's edge, where a line through it lies)
     local edge, ring, frame = math.max(px, snap(1, px)), snap(3, px), snap(4, px)
     for _, square in ipairs(self.squares) do
-        local size = evenSize(square.size, px)
-        local x = snap(square.x + shiftX + square.size / 2, px) - size / 2
-        local y = snap(square.y + shiftY + square.size / 2, px) - size / 2
+        local x, y, size = squarePlace(self, square, px)
         self:drawRect(x - edge, y - edge, size + edge * 2, size + edge * 2, 0.9, 0.02, 0.03, 0.05)
         self:drawRect(x, y, size, size, 1, square.r, square.g, square.b)
         local second, half = square.second, snap(size / 2, px)
@@ -1278,11 +1395,12 @@ function ISBUPlan:render()
             self:drawRectBorder(x - ring, y - ring, size + ring * 2, size + ring * 2, 0.9,
                 math.min(1, square.r + 0.3), math.min(1, square.g + 0.3), math.min(1, square.b + 0.3))
         end
-        if square.key and square.key == hoverKey or marked and marked.square and marked.square ~= "line"
-                and marked.r == square.r and marked.g == square.g and marked.b == square.b then
+        if hover and squareNamed(square, hover) then
             UI.frame(self, x - frame, y - frame, size + frame * 2, size + frame * 2, P.bright, 1)
         end
     end
+    Tape.part("squares")
+    Tape.partEnd()
     -- a dot's frame DOT + 1 out from its middle
     local dotHalf = evenSize(DOT, px) / 2
     local dotRing, fresh = snap(DOT + 1, px), snap(3, px)
@@ -1291,22 +1409,108 @@ function ISBUPlan:render()
         self:drawRect(x - half - edge, y - half - edge, (half + edge) * 2, (half + edge) * 2, 0.85, 0.02, 0.03, 0.05)
         self:drawRect(x - half, y - half, half * 2, half * 2, 1, dot.r, dot.g, dot.b)
         if dot.fresh then self:drawRect(x + half, y - half - fresh, fresh, fresh, 1, 0.3, 0.9, 1) end
-        if dot.key == hoverKey or marked and not marked.square and marked.r == dot.r
-                and marked.g == dot.g and marked.b == dot.b then
+        if hover and dotNamed(dot, hover) then
             UI.frame(self, x - dotRing, y - dotRing, dotRing * 2, dotRing * 2, P.bright, 1)
         end
     end
+    Tape.part("dots")
+    Tape.partEnd()
+end
+
+-- What of the map is drawn as it is over its tape: a room lit (its light up or coming), the hovered room's walls, the
+-- hovered line, the frames of the squares and dots named.
+local function mapLit(self, key)
+    local hover = self.mapHover
+    if key == "walls" then return hover.room ~= nil and hover.room ~= (self.data and self.data.filter) end
+    if key == "lines" then return hover.line ~= nil end
+    if key == "squares" or key == "dots" then return hover.key ~= nil or hover.marked ~= nil end
+    return key.k > 0 or key.room == hover.room
+end
+
+local function drawMapPart(self, key)
+    local hover = self.mapHover
+    if key == "walls" then return brightWalls(self, hover.room) end
+    if key == "lines" then return hoverLine(self, hover.line) end
+    if key == "squares" then return squareFrames(self, hover) end
+    if key == "dots" then return dotFrames(self, hover) end
+    drawCell(self, key, key.k, self.data and self.data.filter)
+end
+
+-- (recorded with nothing under the mouse; drawn as it is, without a tape, with what is)
+local function drawMapKept(self) drawMap(self, not PZUIKit.taping and self.mapHover or nil) end
+
+-- A floor of the strip, lit under the mouse (cell.k; unlit while a tape records).
+local function drawStripCell(plan, cell)
+    local current = cell.level ~= nil and cell.level == plan.floor
+    local k = PZUIKit.taping and 0 or cell.k or 0
+    UI.fill(plan, cell.x, cell.y, cell.w, cell.h, current and P.sel or P.panel, current and 0.55 or 0.5 + 0.3 * k)
+    UI.frame(plan, cell.x, cell.y, cell.w, cell.h, current and P.value or P.border, 1)
+    if cell.on then plan:drawRect(cell.x + 1, cell.y + 1, 3, cell.h - 2, 1, 0.4, 0.9, 0.4) end
+    -- Water: a floor with a fixture no tank reaches (red), along its foot.
+    if cell.supply == "dry" then plan:drawRect(cell.x + 5, cell.y + cell.h - 3, cell.w - 12, 2, 1, 0.9, 0.3, 0.25) end
+    -- The box's floor, so the player finds the way back.
+    if cell.box then plan:drawRect(cell.x + cell.w - 5, cell.y + 2, 3, 3, 1, 1, 1, 1) end
+    -- Its producers, in their colour.
+    local producer = cell.producer
+    if producer then plan:drawRect(cell.x + cell.w - 5, cell.y + cell.h - 5, 3, 3, 1, producer[1], producer[2], producer[3]) end
+    local shade = cell.arrow and (cell.enabled and 1 or 0.35) or current and 1 or cell.far and 0.4 or 0.75 + 0.25 * k
+    plan:drawTextCentre(cell.text, cell.x + cell.w / 2, cell.y + 1, 1, 1, 1, shade, UIFont.Small)
+end
+
+-- The plan's frame round the map: the floor strip and the legend, each floor and the legend's head and entries a part
+-- of its tape (`px`: a pixel in design units).
+local function drawChrome(plan, px)
+    for _, cell in ipairs(plan.strip) do
+        Tape.part(cell, "strip")
+        drawStripCell(plan, cell)
+        Tape.partEnd()
+    end
+    plan:drawLegend(px)
+end
+
+local function chromeLit(_, thing) return (thing.k or 0) > 0 or (thing.f or 0) > 0 end
+
+local function drawChromePart(plan, thing, kind)
+    if kind == "strip" then return drawStripCell(plan, thing) end
+    local box, px = plan.legendBox, 1 / (UI.S or 1)
+    if kind == "head" then drawLegendHead(plan, box, px) else drawLegendEntry(plan, thing, box.alpha, px) end
+end
+
+function ISBUPlan:render()
+    ISPanel.render(self)
+    -- the schematic in the map's place: nothing of the map is drawn
+    if self.scheme and self.scheme:isVisible() then return end
+    local window = self.window
+    local map = self.map
+    -- (the plan's frame time: its motions, the focus, the fade and the legend, are followed while they go; the drawing
+    -- reads no clock, which PZ Optimization's retained interface would draw afresh every frame)
+    local now = self.liveNow or 0
+    -- (the plan dragged since it was laid out is drawn this much further along: ISBUPlan:drag)
+    local shiftX, shiftY = self.dragX, self.dragY
+    local px = 1 / (UI.S or 1)
+    local mx, my = -1, -1
+    if self:isMouseOver() then mx, my = self:getMouseX(), self:getMouseY() end
+    -- What is under the mouse, here or on the list; the legend's entry under the mouse marks what it names. The rooms'
+    -- lights worked out here, each frame (a tape keeps none).
+    local hover = self.mapHover or {}
+    self.mapHover = hover
+    hover.room = self.hoverRoom or window.listHoverRoom
+    hover.key = self.hoverKey or window.listHoverKey
+    hover.marked, hover.line = self.legendHover, self.hoverLine
+    for _, cell in ipairs(self.cells) do cell.k = UI.hoverLight(self, cell.fx, cell.room == hover.room) end
+    if map then self:setStencilRect(map.left, map.top, map.w, map.h) end
+    Tape.keep(self, drawMapKept, nil, self.cells, self.grid, mapLit, drawMapPart)
     -- A square shown from the window: a frame closing in on it as the mark fades.
     local focus = self.focus
     if focus and map and map.ox and focus.z == self.floor then
-        local t = math.min(1, (now - focus.at) / FOCUS_MS)
+        local t = math.max(0, math.min(1, (now - focus.at) / FOCUS_MS))
         local fx = map.ox + shiftX + (focus.x + 0.5 - map.minX) * map.scale
         local fy = map.oy + shiftY + (focus.y + 0.5 - map.minY) * map.scale
         local half = snap(SQUARE + 10 * (1 - BU.PanelUi.ease(math.min(1, t * 2))), px)
         UI.frame(self, snap(fx, px) - half, snap(fy, px) - half, half * 2, half * 2, P.warn, 1 - t)
     end
     -- Fading in after a switch of utility or floor.
-    local t = self.switchedAt and (now - self.switchedAt) / BU.PanelUi.SWITCH_MS or 1
+    local t = self.switchedAt and math.max(0, (now - self.switchedAt) / BU.PanelUi.SWITCH_MS) or 1
     if t >= 1 then self.switchedAt = nil end
     if map and t < 1 then
         self:drawRect(map.left, map.top, map.w, map.h, (1 - BU.PanelUi.ease(t)) * 0.9, 0.04, 0.04, 0.05)
@@ -1317,24 +1521,19 @@ function ISBUPlan:render()
         self:clearStencilRect()
         self:repaintStencilRect(map.left, map.top, map.w, map.h)
     end
+    -- The floor strip and the legend: kept (until the plan is laid out again), their lit parts drawn over the tape;
+    -- drawn as they are while the legend folds or opens.
     for _, cell in ipairs(self.strip) do
         local current = cell.level ~= nil and cell.level == self.floor
-        local k = UI.hoverLight(self, cell.fx, not current and mx >= cell.x and mx <= cell.x + cell.w and my >= cell.y
+        cell.k = UI.hoverLight(self, cell.fx, not current and mx >= cell.x and mx <= cell.x + cell.w and my >= cell.y
             and my <= cell.y + cell.h)
-        UI.fill(self, cell.x, cell.y, cell.w, cell.h, current and P.sel or P.panel, current and 0.55 or 0.5 + 0.3 * k)
-        UI.frame(self, cell.x, cell.y, cell.w, cell.h, current and P.value or P.border, 1)
-        if cell.on then self:drawRect(cell.x + 1, cell.y + 1, 3, cell.h - 2, 1, 0.4, 0.9, 0.4) end
-        -- Water: a floor with a fixture no tank reaches (red), along its foot.
-        if cell.supply == "dry" then self:drawRect(cell.x + 5, cell.y + cell.h - 3, cell.w - 12, 2, 1, 0.9, 0.3, 0.25) end
-        -- The box's floor, so the player finds the way back.
-        if cell.box then self:drawRect(cell.x + cell.w - 5, cell.y + 2, 3, 3, 1, 1, 1, 1) end
-        -- Its producers, in their colour.
-        local producer = cell.producer
-        if producer then self:drawRect(cell.x + cell.w - 5, cell.y + cell.h - 5, 3, 3, 1, producer[1], producer[2], producer[3]) end
-        local shade = cell.arrow and (cell.enabled and 1 or 0.35) or current and 1 or cell.far and 0.4 or 0.75 + 0.25 * k
-        self:drawTextCentre(cell.text, cell.x + cell.w / 2, cell.y + 1, 1, 1, 1, shade, UIFont.Small)
     end
-    self:drawLegend(now, mx, my, px)
+    self:legendLights(now, mx, my)
+    if self.legendAnim then
+        drawChrome(self, px)
+    else
+        Tape.keep(self, drawChrome, px, self.strip, self.legendBox, chromeLit, drawChromePart)
+    end
     -- The status line; a text too long for it shows whole in a tooltip at the mouse instead (measured once a text).
     local status = self.status or (self.data and self.data.zoneEdit and getText("IGUI_BU_ZoneHint"))
         or (self.data and self.data.pipePaint and getText("IGUI_BU_PlanPipeHint"))
@@ -1450,7 +1649,7 @@ end
 function ISBUPlan:showFloor(level)
     if level == nil or level == self.floor then return end
     self.floor = level
-    self.switchedAt = getTimestampMs()
+    self:switchFade()
     -- The strip centres on it again.
     self.stripFirst = nil
     self:layout()

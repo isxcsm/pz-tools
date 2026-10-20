@@ -6,11 +6,13 @@
 require "ISUI/ISScrollingListBox"
 require "ISUI/ISPanel"
 require "PZUIKit/RichText"
+require "PZUIKit/Tape"
 require "BuildingUtilities/PanelUi"
 local BU = BuildingUtilities
 local Store = BU.Store
 local Ui = BU.PanelUi
 local UI = Ui.UI
+local Tape = PZUIKit.Tape
 local FONT_HGT_SMALL, ROW, PAD, SCROLLBAR, ROOM_TICK_X, rowObjects, outline, unoutline = Ui.FONT_HGT_SMALL, Ui.ROW,
     Ui.PAD, Ui.SCROLLBAR, Ui.ROOM_TICK_X, Ui.rowObjects, Ui.outline, Ui.unoutline
 local ACCENT, ease, approach, P = Ui.ACCENT, Ui.ease, Ui.approach, Ui.PALETTE
@@ -64,12 +66,10 @@ function ISBUPanelList:new(x, y, width, height, window, utility)
     o.backgroundColor = { r = P.inset[1], g = P.inset[2], b = P.inset[3], a = 0.9 }
     o.borderColor = { r = P.border[1], g = P.border[2], b = P.border[3], a = 1 }
     o.highlighted = {}
+    -- (the rows on a tape, ISBUPanelList:doDrawItem; their content is the items', made anew as the list is filled.
+    -- Set here: the game's list makes no children, its createChildren never runs.)
+    UI.tapeRows(o, nil, ISBUPanelList.rowLit)
     return o
-end
-
-function ISBUPanelList:createChildren()
-    ISScrollingListBox.createChildren(self)
-    UI.rowHeight(self, ROW)
 end
 
 -- The buttons at the end of a device's row, from the right: a water fixture's pipe chip (with more than one pipe); for
@@ -240,14 +240,15 @@ local TIMED, UNTIMED = { 0.6, 0.8, 1 }, { 0.8, 0.8, 0.8 }
 local ROOM_RIGHT, FLOOR_BG, FLOOR_LINE = { 0.9, 0.85, 0.6 }, { 0.12, 0.2, 0.3 }, { 0.35, 0.5, 0.65 }
 local WHITE = { 1, 1, 1 }
 
-function ISBUPanelList:doDrawItem(y, item, alt)
+local function drawItem(self, y, item, alt)
     local row = item.item
     local design = row.kind == "graph" and GRAPH_H or ROW
     item.height = UI.px(design)
-    -- Out of view: only its place, as the game's list does (y and the height in the list's pixels).
+    -- Out of view: only its place, as the game's list does (y and the height in the list's pixels); on a tape all of
+    -- them (UI.tapeRows).
     local nextY = y + item.height
     local top = y + self:getYScroll()
-    if top + item.height < 0 or top >= self:getHeight() then return nextY end
+    if not PZUIKit.taping and (top + item.height < 0 or top >= self:getHeight()) then return nextY end
     local c = UI.designCanvas(self)
     local yd = c == self and y or UI.dp(y)
     local width = c == self and self:getWidth() or c.width
@@ -270,8 +271,8 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     self.rowMouseX = (index == self.hoverIndex or row.options and index == self.overIndex) and self.mouseDX or nil
     -- What the mouse is over on the plan.
     local window = self.window
-    local planned = row.key ~= nil and row.key == window.planHoverKey
-        or row.kind == "room" and window.planHoverRoom ~= nil and row.id == window.planHoverRoom
+    local planned = not PZUIKit.taping and (row.key ~= nil and row.key == window.planHoverKey
+        or row.kind == "room" and window.planHoverRoom ~= nil and row.id == window.planHoverRoom)
     -- (on the row as it shows: inside the list's border, up to the scrollbar's own background, three pixels into it,
     -- when the list is long enough for the game to draw one)
     if planned then
@@ -405,6 +406,73 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     return nextY
 end
 
+-- The rows are kept on a tape (UI.tapeRows: until the rows, the one chosen, the width or the scale change); each row a
+-- part, drawn as it is over the tape while it lights (rowLit).
+function ISBUPanelList:doDrawItem(y, item, alt)
+    if not PZUIKit.taping then return drawItem(self, y, item, alt) end
+    Tape.part(item.index, { y = y, item = item, alt = alt })
+    local nextY = drawItem(self, y, item, alt)
+    Tape.partEnd()
+    return nextY
+end
+
+-- The row a light of a row's button or tick is keyed by (index .. name), worked out once a key.
+local rowOfKey = {}
+local function keyRow(key)
+    local index = rowOfKey[key]
+    if index == nil then
+        index = type(key) == "string" and tonumber(string.match(key, "^%d+")) or false
+        rowOfKey[key] = index
+    end
+    return index
+end
+
+-- The rows whose buttons or ticks light now (a light coming, held or going, a click's flash), looked at once a frame
+-- (prerender) while the list has any light: list.litRows by index, or nil.
+local function litRows(list)
+    local fx, flashes = list.fx, list.fxFlash
+    if not (fx or flashes) then return nil end
+    local rows
+    if fx then
+        for key, f in pairs(fx) do
+            local index = keyRow(key)
+            -- (a light heading down read without turning it: hoverLight leaves a light going its way alone)
+            if index and (f.to == 1 or UI.hoverLight(list, key, false) > 0) then
+                rows = rows or {}
+                rows[index] = true
+            end
+        end
+    end
+    if flashes then
+        for key in pairs(flashes) do
+            local index = keyRow(key)
+            if index and UI.flashLevel(list, key) > 0 then
+                rows = rows or {}
+                rows[index] = true
+            end
+        end
+    end
+    return rows
+end
+
+-- Whether a row is drawn as it is over the tape: under the mouse, lit (its own light, a button's or a tick's), or
+-- what the mouse is over on the plan.
+-- (asked for each row each frame: the usual answer, none lit, found in a few looks)
+local function rowLit(list, index)
+    if index == list.hoverIndex or index == list.overIndex then return true end
+    local rows = list.litRows
+    if rows and rows[index] then return true end
+    if (list.fx or list.fxFlash) and UI.placeLit(list, index) then return true end
+    local window = list.window
+    local key, room = window.planHoverKey, window.planHoverRoom
+    if key == nil and room == nil then return false end
+    local item = list.items[index]
+    local row = item and item.item
+    if not row then return false end
+    return row.key ~= nil and row.key == key or row.kind == "room" and room ~= nil and row.id == room
+end
+ISBUPanelList.rowLit = rowLit
+
 -- The list's content slides in from the side it came from as its tab opens (dir: 1 from the right, -1 from the
 -- left), fading in; followed each frame while it moves (UI.live).
 local function slideFrame(list, now)
@@ -432,6 +500,7 @@ function ISBUPanelList:prerender()
     self.overIndex = index
     self.hoverIndex = lit
     UI.placeLight(self, lit)
+    self.litRows = litRows(self)
     -- over a button that says what it does, its own tooltip; else the row's
     local tip = row and row.tip
     for _, button in ipairs(row and row.buttons or {}) do
@@ -450,10 +519,10 @@ function ISBUPanelList:prerender()
             outline(self.window.playerObj:getPlayerNum(), rowObjects(row), colour, self.highlighted)
         end
     end
-    local now = getTimestampMs()
     -- Its content slid by the game's scroll across (its drawing moves, its scroll bar and its clip stay); the
-    -- background and the border drawn here in place meanwhile.
-    local t = self.switchedAt and (now - self.switchedAt) / Ui.SWITCH_MS or 1
+    -- background and the border drawn here in place meanwhile. By the list's frame time (followed while it slides,
+    -- slideFrame): the drawing reads no clock.
+    local t = self.switchedAt and math.max(0, (UI.frameNow(self) - self.switchedAt) / Ui.SWITCH_MS) or 1
     if t >= 1 then self.switchedAt = nil end
     local slide = t < 1 and math.floor((1 - ease(t)) * UI.px(Ui.SLIDE) * (self.switchDir or 1)) or 0
     -- straight on the game's element: the list's own setXScroll keeps it within what it can scroll (none)
@@ -546,6 +615,8 @@ function ISBUTabs:activateView(name)
                 if self.activeView then self.activeView.view:setVisible(false) end
                 self.activeView = entry
                 entry.view:setVisible(true)
+                -- (the glide's first frame steps nothing: its time counts from there)
+                self.frameAt = nil
                 UI.live(self, ISBUTabs.glideFrame)
             end
             return true
@@ -589,7 +660,8 @@ function ISBUTabs.glideFrame(self, now)
     local slot = index and self.slots[index]
     if not (slot and self.lineX) then return nil end
     if math.abs(self.lineX - slot.x) < 0.5 and math.abs(self.lineW - slot.w) < 0.5 then return nil end
-    return math.floor(self.lineX * 10)
+    -- (each frame's own look while it moves: the line steps by the frame time, which moves with the look)
+    return now
 end
 
 function ISBUTabs:prerender()
@@ -599,8 +671,9 @@ function ISBUTabs:prerender()
     local mx = self:isMouseOver() and self:getMouseY() < h and self:getMouseX() or -1
     local x = 4
     local slots = self.slots
-    local now = getTimestampMs()
-    local ms = math.min(100, now - (self.frameAt or now))
+    -- (the strip's frame time, followed while the line glides: the drawing reads no clock)
+    local now = self.liveNow or 0
+    local ms = math.min(100, math.max(0, now - (self.frameAt or now)))
     self.frameAt = now
     for index, entry in ipairs(self.viewList) do
         local on = entry == self.activeView

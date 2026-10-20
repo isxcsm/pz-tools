@@ -13,7 +13,8 @@ local function load()
         local c = {}
         c.__index = c
         return c
-    end, new = function(self, x, y, w, h) return setmetatable({ x = x, y = y, width = w, height = h }, self) end }
+    end, new = function(self, x, y, w, h) return setmetatable({ x = x, y = y, width = w, height = h }, self) end,
+        update = function() end }
     local body = {}
     function body:new() return setmetatable({}, { __index = self }) end
     function body:paginate() self.paginated = true end
@@ -89,7 +90,8 @@ test("the recipes' buttons wrap in rows over the tab's bottom, the last row lowe
     local manual, character = tab(Store.newPanel(40, 10, 0, "box"))
     function character:isRecipeKnown() return false end
     getItemNameFromFullType = function(t) return t end
-    manual.key = "connect"
+    -- (a chapter open, as show opens it)
+    manual.key, manual.buttonsStale = "connect", true
     local buttons = manual:recipeButtons()
     eq(#buttons, 4)
     eq(buttons[1].x, ISBUManual.CHAPTER_W + 16, "each row starts at the text's side")
@@ -127,7 +129,9 @@ test("the recipes' buttons are kept between frames, made again when a chapter op
     truthy(manual:recipeButtons() ~= buttons, "learned")
     buttons = manual:recipeButtons()
     now = now + 999
+    manual:update()
     eq(manual:recipeButtons(), buttons)
     now = now + 2
-    truthy(manual:recipeButtons() ~= buttons, "a second on: what the character knows is looked at again")
+    manual:update()
+    truthy(manual:recipeButtons() ~= buttons, "a second on, as the tab ticks: what the character knows is looked at again")
 end)

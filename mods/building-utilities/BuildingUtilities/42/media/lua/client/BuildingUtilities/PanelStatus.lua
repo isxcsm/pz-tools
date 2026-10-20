@@ -233,6 +233,7 @@ end
 -- (it ends at reasonEnd), else only in the tooltip, which has the utilities that are on in full. Measured here, not
 -- each frame. None with both off.
 function ISBUPanelWindow:updateStatus()
+    self:bodyChanged()
     self.statusUtility = self:activeUtility()
     if not self.statusUtility then
         self.status = nil

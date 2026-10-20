@@ -39,6 +39,8 @@ local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, BATTERIES, LIST_W, MIN_L
     Ui.ROOM_TICK_X, Ui.load2, Ui.percent, Ui.nextSchedule
 local deviceButtons = Ui.deviceButtons
 local UI, P, ease, approach = Ui.UI, Ui.PALETTE, Ui.ease, Ui.approach
+require "PZUIKit/Tape"
+local Tape = PZUIKit.Tape
 
 local PanelWindow = {}
 BU.PanelWindow = PanelWindow
@@ -150,7 +152,17 @@ function ISBUBody:new(x, y, width, height, window)
     return o
 end
 
-function ISBUBody:prerender() self.window:drawBody(self) end
+-- (kept on a tape until what it shows changes, ISBUPanelWindow:bodyChanged, or the bar's fill moves; a breathing banner
+-- drawn as it is: it changes with the time)
+local function drawBodyKept(body) body.window:drawBody(body) end
+
+function ISBUBody:prerender()
+    local window = self.window
+    window:stepLoad()
+    local banner = window.banner
+    if banner and banner.pulse then return window:drawBody(self) end
+    Tape.keep(self, drawBodyKept, nil, window.bodyRev, window.loadShown)
+end
 function ISBUBody:render() self.window:drawBodyOver(self) end
 
 UI.scaled(ISBUBody, ISPanel)
@@ -211,17 +223,22 @@ function ISBULever:prerender()
     local w, h = self.width, self.height
     local up = Panels.leverUp(panel)
     local over = self:isMouseOver()
-    -- the handle's place, 0 up to 1 down, sliding to where the lever is
-    local now = getTimestampMs()
+    -- the handle's place, 0 up to 1 down, sliding to where the lever is (by the lever's frame time, followed while it
+    -- slides: the drawing reads no clock while it stands)
     local target = up and 0 or 1
     self.target = target
     local pos = self.pos or target
     if pos ~= target then
-        local step = math.min(100, now - (self.movedAt or now)) / ISBULever.LEVER_MS
+        -- (the slide's first frame from the clock: the lever's frame time may be an old one's)
+        local now = self.movedAt and UI.frameNow(self) or getTimestampMs()
+        local step = math.min(100, math.max(0, now - (self.movedAt or now))) / ISBULever.LEVER_MS
         pos = pos < target and math.min(target, pos + step) or math.max(target, pos - step)
         UI.live(self, leverFrame)
+        self.movedAt = now
+    else
+        self.movedAt = nil
     end
-    self.pos, self.movedAt = pos, now
+    self.pos = pos
     -- the housing and its slot
     UI.fill(self, 0, 0, w, h, P.bg)
     UI.frame(self, 0, 0, w, h, over and P.value or P.border)
@@ -370,6 +387,7 @@ function ISBUPanelWindow:bodyWidth() return UI.dp(self:getWidth()) end
 -- across the body).
 function ISBUPanelWindow:layoutPanes()
     if not (self.tabs and self.plan) then return end
+    self:bodyChanged()
     local bw = self:bodyWidth()
     local planW = math.floor((bw - PAD) * PanelWindow.planShare)
     planW = math.max(MIN_PLAN, math.min(planW, bw - PAD - MIN_LIST))
@@ -401,6 +419,7 @@ end
 -- The row under the load's card: its buttons shown left to right and the banner after them to the list's end; the
 -- tabs right under the card while the row has nothing (laid out again only when that changes).
 function ISBUPanelWindow:placeRows()
+    self:bodyChanged()
     local x = PAD
     local shown = self.upgradeButton
     if shown:getIsVisible() then
@@ -425,6 +444,7 @@ end
 function ISBUPanelWindow:placeHead()
     local tabs = self.tabs
     if not (tabs and self.statusArea and self.tabsY) then return end
+    self:bodyChanged()
     local view = tabs.activeView and tabs.activeView.view
     local shown = view and view.utility
     local gap = PanelWindow.HEAD_GAP
@@ -496,8 +516,7 @@ end
 -- by frame only while it moves (the kit's UI.live).
 ISBUPanelWindow.REVEAL_MS, ISBUPanelWindow.LOAD_TAU = 300, 90
 
-local function bodyFrame(body, now)
-    local window = body.window
+local function bodyLook(window, now)
     local moving = false
     if window.revealAt and now - window.revealAt < ISBUPanelWindow.REVEAL_MS then moving = true end
     if window.load and math.abs((window.loadShown or 0) - window:loadShare()) > 0.002 then moving = true end
@@ -506,6 +525,16 @@ local function bodyFrame(body, now)
     local banner = window.banner
     if banner and banner.pulse then return math.floor(now / 66) end
     return nil
+end
+
+-- The body's look for UI.live, and the time since the last followed frame for the bar's glide (window.bodyMs: 0 for
+-- the first of a run), so that the drawing reads no clock.
+local function bodyFrame(body, now)
+    local window = body.window
+    local look = bodyLook(window, now)
+    window.bodyMs = (look and window.bodyAt) and math.min(100, now - window.bodyAt) or 0
+    window.bodyAt = look and now or nil
+    return look
 end
 
 function ISBUPanelWindow:prerender()
@@ -557,6 +586,7 @@ end
 -- within the box's share, blue drawing on the bank, red over the limit), the text under the bar in parts, the
 -- breaker's gauge (shown while it is not full) and the tooltips of the lever and the gauge.
 function ISBUPanelWindow:measureLoad(panel, power)
+    self:bodyChanged()
     self.capacity = Panels.capacity(panel)
     local bank = Energy.bank(panel)
     -- (false: none; the status line and the source rows take it from here)
@@ -622,6 +652,7 @@ end
 -- BAR_W); the area of the load's tooltip over the left part. Placed again as the left column's width changes
 -- (layoutPanes).
 function ISBUPanelWindow:placeLever(textW)
+    self:bodyChanged()
     self.loadTextW = textW
     local bigW = UI.textWidth("000", UIFont.Large) + UI.textWidth("%") + 4
     self.bigW = bigW
@@ -645,6 +676,7 @@ end
 -- is off.
 local DAY = 24
 function ISBUPanelWindow:measureWater(panel, state)
+    self:bodyChanged()
     self.waterView = nil
     if not state then
         self:placeHead()
@@ -751,12 +783,28 @@ function ISBUPanelWindow:loadShare()
     return math.min(1, (self.ratio or 0) / PanelWindow.BAR_MOST)
 end
 
+-- Something the body draws changed (the status line, the cards, the banner, where they are): its tape is recorded
+-- again (ISBUBody:prerender). Said by each place that sets what it draws.
+function ISBUPanelWindow:bodyChanged()
+    self.bodyRev = (self.bodyRev or 0) + 1
+end
+
+-- The bar's fill a frame on, gliding to the load (LOAD_TAU) by the body's frame time (bodyMs): before the body is
+-- drawn, which may be a tape's play.
+function ISBUPanelWindow:stepLoad()
+    if not self.load then return end
+    local target = self:loadShare()
+    local shown = self.loadShown or target
+    self.loadShown = math.abs(shown - target) > 0.002 and approach(shown, target, self.bodyMs or 0, ISBUPanelWindow.LOAD_TAU)
+        or target
+end
+
 -- Under the body's parts (design units): the status line with its dot, the load's big percent, its bar and text, the
 -- breaker's gauge, the banner.
 function ISBUPanelWindow:drawBody(body)
-    local now = getTimestampMs()
-    local ms = math.min(100, now - (self.bodyFrameAt or now))
-    self.bodyFrameAt = now
+    -- (the body's frame time for the banner's breath, which stands still while nothing moves: a drawing that reads the
+    -- clock is one PZ Optimization's retained interface draws afresh every frame)
+    local now = body.liveNow or 0
     local status = self.headStatus and self.status
     if status then
         local c, dot = status.colour, FONT_HGT_SMALL - 6
@@ -784,10 +832,7 @@ function ISBUPanelWindow:drawBody(body)
         local x = right + 8
         local barH = PanelWindow.BAR_H
         local barY = top + math.floor((PanelWindow.LOAD_H - barH - 3 - FONT_HGT_SMALL) / 2)
-        local target = self:loadShare()
-        local shown = self.loadShown or target
-        shown = math.abs(shown - target) > 0.002 and approach(shown, target, ms, ISBUPanelWindow.LOAD_TAU) or target
-        self.loadShown = shown
+        local shown = self.loadShown or self:loadShare()
         local barW = self.barW or BAR_W
         local filled = math.floor(barW * shown)
         local limitW = math.floor(barW / PanelWindow.BAR_MOST)
@@ -993,6 +1038,7 @@ function ISBUPanelWindow:refreshTasks()
         else
             self.banner = nil
         end
+        self:bodyChanged()
         if self.banner and self.banner.pulse then UI.live(self.body, bodyFrame) end
     end)
     -- The upgrade button, which tells what it takes (the inventory looked through: costState).

@@ -59,20 +59,28 @@ function ISBUManual:taught() return self.key and Manual.teaches(self.window.pane
 -- Each recipe's button under the text: { taught, x, y, w, text, known }, in rows that wrap at the tab's width (the
 -- last row at the bottom). Kept for the frames: made again when a chapter opens (show), the window refreshes
 -- (refresh: a change told), the character learns one, the tab's size changes, and what the character knows each
--- KNOWN_MS. Not to be changed by a caller.
+-- KNOWN_MS (looked at as the tab ticks, ISBUManual:update: the drawing reads no clock, which PZ Optimization's
+-- retained interface would draw afresh every frame). Not to be changed by a caller.
 local KNOWN_MS = 1000
 
 function ISBUManual:recipeButtons()
-    local now = getTimestampMs()
     local kept = self.buttons
-    if kept and not self.buttonsStale and self.buttonsW == self.width and self.buttonsH == self.height
-            and now >= self.buttonsAt and now - self.buttonsAt < KNOWN_MS then
+    if kept and not self.buttonsStale and self.buttonsW == self.width and self.buttonsH == self.height then
         return kept
     end
     kept = self:makeRecipeButtons()
     self.buttons, self.buttonsStale = kept, false
-    self.buttonsW, self.buttonsH, self.buttonsAt = self.width, self.height, now
+    self.buttonsW, self.buttonsH, self.buttonsAt = self.width, self.height, getTimestampMs()
     return kept
+end
+
+function ISBUManual:update()
+    ISPanel.update(self)
+    local at = self.buttonsAt
+    if at then
+        local now = getTimestampMs()
+        if now < at or now - at >= KNOWN_MS then self.buttonsStale = true end
+    end
 end
 
 function ISBUManual:makeRecipeButtons()
