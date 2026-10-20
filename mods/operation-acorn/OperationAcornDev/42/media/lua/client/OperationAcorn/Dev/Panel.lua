@@ -11,10 +11,14 @@ require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Dev/Dev"
 require "OperationAcorn/Dev/Features"
 require "OperationAcorn/Dev/E2E"
+require "PZUIKit/Sound"
 local OA = OperationAcorn
 local Dev = OA.Dev
 local Panel = {}
 OA.DevPanel = Panel
+
+-- The API page's title try-outs sound as the mod's titles do: the UI kit's sounds of each style.
+PZExtDev.titleSounds = PZUIKit.Sound.titleSounds
 
 local function T(key, ...)
     return getText("IGUI_OADev_" .. key, ...)

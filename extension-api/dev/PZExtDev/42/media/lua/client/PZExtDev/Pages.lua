@@ -291,6 +291,16 @@ end
 
 local SAMPLES = { { "Title_Ko", "Sub_Ko" }, { "Title_En", "Sub_En" } }
 
+-- The sounds of a title style, when a mod that has them gave a way to find them (the API carries none):
+-- PZExtDev.titleSounds(style) returns the spec's sounds and subtitleSounds, or nil for a silent title.
+local function soundsOf(style)
+    local find = PZExtDev.titleSounds
+    if type(find) ~= "function" then return nil, nil end
+    local ok, sounds, line = pcall(find, style)
+    if not ok then return nil, nil end
+    return sounds, line
+end
+
 local function textPage(page, ui)
     local lines = ui.lines(page, 1, 2)
     local styles = {}
@@ -304,8 +314,11 @@ local function textPage(page, ui)
     ui.buttons(page, 4, {
         { T("Tx_Title"), function()
             local sample = SAMPLES[sampleBox:getSelectedData() or 1]
+            local style = styleBox:getSelectedData()
+            local sounds, lineSounds = soundsOf(style)
             lastKey = api().text.title(mine(), { text = T("Tx_" .. sample[1]), subtitle = T("Tx_" .. sample[2]),
-                style = styleBox:getSelectedData(), leave = burn:isSelected(1) and "burn" or nil, now = true })
+                style = style, leave = burn:isSelected(1) and "burn" or nil, now = true, sounds = sounds,
+                subtitleSounds = lineSounds })
         end },
         { T("Tx_Typed"), function()
             lastKey = api().text.show(mine(), { text = T("Tx_TypedText"), font = { "SdfRegular", "Medium" }, size = 0.03,
