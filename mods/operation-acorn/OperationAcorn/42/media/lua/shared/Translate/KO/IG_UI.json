@@ -459,6 +459,7 @@
     "IGUI_OA_Tree_ModeTrees": "세 계열",
     "IGUI_OA_Tree_OwnLeft": "남은 여력 %1",
     "IGUI_OA_Tree_BoardShare": "연장 투여 +%1",
+    "IGUI_OA_Tree_CarriedWeight": "들고 다닐 때 무게: %1",
     "IGUI_OA_Tree_BadgeShared": "범용 여력 %1",
     "IGUI_OA_Tree_BadgePlan": "선택 여력 %1",
     "IGUI_OA_Tree_BadgeTree_scout": "감각 식별 %1",

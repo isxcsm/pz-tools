@@ -459,6 +459,7 @@
     "IGUI_OA_Tree_ModeTrees": "Enhancement trees",
     "IGUI_OA_Tree_OwnLeft": "%1 points left",
     "IGUI_OA_Tree_BoardShare": "2nd board +%1",
+    "IGUI_OA_Tree_CarriedWeight": "Weight when carried: %1",
     "IGUI_OA_Tree_BadgeShared": "Shared %1",
     "IGUI_OA_Tree_BadgePlan": "Selected %1 pts",
     "IGUI_OA_Tree_BadgeTree_scout": "Detection %1",

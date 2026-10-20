@@ -8,6 +8,7 @@ require "ISUI/ISWorldObjectContextMenu"
 require "OperationAcorn/Client"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/First"
+require "OperationAcorn/TipLines"
 local OA = OperationAcorn
 local Rules = OA.Upgrades.Rules
 local Effects = OA.Upgrades.Effects
@@ -56,6 +57,16 @@ function Carry.checkOverload(character)
         First.report("overload", character)
     end
 end
+
+-- The weight an item counts for in what the character carries, a line of its tooltip when the carry nodes take some
+-- off (the game's tooltip shows the item's own weight, which stays; the load is the API's, lighter by the efficiency).
+function Carry.tipLines(item)
+    local eff = Effects.efficiencyOf(item)
+    if not (type(eff) == "number" and eff > 0.001) then return nil end
+    local weight = item:getUnequippedWeight() / (1 + eff)
+    return { getText("IGUI_OA_Tree_CarriedWeight", string.format("%.2f", weight)) }
+end
+OA.TipLines.add("carry", Carry.tipLines)
 
 -- The game's functions below are left as they are while the mod is off (OA.off).
 if OA.off then return Carry end

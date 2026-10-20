@@ -362,6 +362,7 @@ test("the transfer factor is worked out once until the research is told to have 
     _G.ISInventoryTransferAction = { new = function(self, character, item) return { maxTime = 100 } end,
         perform = function() end }
     _G.ISWorldObjectContextMenu = { grabItemTime = function() return 100 end }
+    _G.ISToolTipInv = { render = function() end }
     require = function(name)
         if string.find(name, "^ISUI/") or string.find(name, "^TimedActions/") then return true end
         return real(name)
@@ -395,4 +396,30 @@ test("the transfer factor is worked out once until the research is told to have 
     OA.Client.record = function() return other end
     eq(Carry.timeFactor({}, nil), 1)
     eq(calls, 4)
+end)
+
+test("an item the carry nodes lighten has its carried weight under its own in the tooltip; one they do not, none", function()
+    if not (OA.Upgrades and OA.Upgrades.Carry) then
+        local real = require
+        _G.ISInventoryTransferAction = { new = function() return { maxTime = 100 } end, perform = function() end }
+        _G.ISWorldObjectContextMenu = { grabItemTime = function() return 100 end }
+        _G.ISToolTipInv = { render = function() end }
+        require = function(name)
+            if string.find(name, "^ISUI/") or string.find(name, "^TimedActions/") then return true end
+            return real(name)
+        end
+        local ok, err = pcall(real, "OperationAcorn/Upgrades/Carry")
+        require = real
+        if not ok then error(err, 0) end
+    end
+    local Carry, Effects = OA.Upgrades.Carry, OA.Upgrades.Effects
+    local efficiencyOf = Effects.efficiencyOf
+    local text = getText
+    getText = function(key, a) return key .. " " .. tostring(a) end
+    local plank = { getUnequippedWeight = function() return 3 end }
+    Effects.efficiencyOf = function() return 0.5 end
+    eq(Carry.tipLines(plank)[1], "IGUI_OA_Tree_CarriedWeight 2.00")
+    Effects.efficiencyOf = function() return 0 end
+    eq(Carry.tipLines(plank), nil)
+    Effects.efficiencyOf, getText = efficiencyOf, text
 end)
