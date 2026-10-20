@@ -200,8 +200,11 @@ Motion.OPEN_BAR_WAIT_MS = 60
 Motion.OPEN_BAR_MS = 420
 Motion.SWITCH_PACE = 0.5
 -- The 2nd board opened by an approval comes up at REVEAL_PACE of the time (slower than the tab's own opening: the
--- player waits for it), each node's padlock coming off as its pop ends.
+-- player waits for it); its padlocks come off one node after another, REVEAL_STEP_MS apart in reading order, from the
+-- first pop's end, none before its own pop is over. (All at once, a score of nodes flashed together: a frame drew
+-- over a thousand rectangles of rough frames.)
 Motion.REVEAL_PACE = 2
+Motion.REVEAL_STEP_MS = 60
 
 local function share(age, start, ms)
     return Motion.easeOut((age - start) / ms)
@@ -238,9 +241,11 @@ function Motion.openLine(age, c, r)
     return share(age, nodeStart(c, r) + Motion.OPEN_LINE_LAG * Motion.OPEN_NODE_MS, Motion.OPEN_LINE_MS)
 end
 
--- When a node of column c, row r has popped in, ms into the board's reveal (REVEAL_PACE): its padlock comes off then.
-function Motion.revealUnlockAt(c, r)
-    return (nodeStart(c, r) + Motion.OPEN_NODE_MS) * Motion.REVEAL_PACE
+-- When the padlock of the k-th node (reading order) of column c, row r comes off, ms into the board's reveal.
+function Motion.revealUnlockAt(c, r, k)
+    local popped = (nodeStart(c, r) + Motion.OPEN_NODE_MS) * Motion.REVEAL_PACE
+    local turn = (nodeStart(1, 1) + Motion.OPEN_NODE_MS) * Motion.REVEAL_PACE + (k - 1) * Motion.REVEAL_STEP_MS
+    return max(popped, turn)
 end
 
 -- How much of column c's bar has filled `age` ms into the opening (0 to 1).

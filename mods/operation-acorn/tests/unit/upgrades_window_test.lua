@@ -579,20 +579,31 @@ test("the take of the last capstone turns the tab to the board, which comes up s
     eq(view.mode, "board", "then the board")
     eq(view.openPace, Motion.REVEAL_PACE)
     eq(body.liveLook, clock.now, "it comes up")
-    local first, last, count = nil, 0, 0
+    local prev, count, most = nil, 0, 0
+    local times = {}
     for _, item in ipairs(view.items) do
         if item.id then
             truthy(Data.byId[item.id].board, item.id)
             local at = view.unlocks[item.id]
-            eq(at, ends + Motion.revealUnlockAt(item.col, item.row), item.id .. " opens as it pops in")
-            first = math.min(first or at, at)
-            last = math.max(last, at)
             count = count + 1
+            eq(at, ends + Motion.revealUnlockAt(item.col, item.row, count), item.id)
+            local _, shown = Motion.openNode((at - ends) / Motion.REVEAL_PACE, item.col, item.row)
+            eq(shown, 1, item.id .. " popped in before its padlock comes off")
+            if prev then truthy(at - prev >= Motion.REVEAL_STEP_MS, item.id .. " after the one before") end
+            prev = at
+            times[#times + 1] = at
         end
     end
     truthy(count > 0)
-    truthy(last > first, "one band after another")
-    truthy(last - ends <= Motion.openEnd(#view.panels, Data.ROWS) * Motion.REVEAL_PACE, "within the board's coming up")
+    -- how many flash at once (a padlock's flash lasts Motion.UNLOCK_MS)
+    for _, a in ipairs(times) do
+        local n = 0
+        for _, b in ipairs(times) do
+            if b <= a and a < b + Motion.UNLOCK_MS then n = n + 1 end
+        end
+        most = math.max(most, n)
+    end
+    truthy(most <= math.ceil(Motion.UNLOCK_MS / Motion.REVEAL_STEP_MS), "a few at a time, not all: " .. most)
     -- a take that opens nothing turns nothing
     local again = onSection(u)
     shown(again)

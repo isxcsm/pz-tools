@@ -25,7 +25,7 @@
 -- so it costs nothing when the tab is closed). The nodes it opened (their padlocks gone) then flash in their tree's
 -- colour with a ring, as the nodes a click opens do (a row opened by the points selected) just behind the click.
 -- The take of the last capstone, which opens the 2nd board, then turns the tab to the board: it comes up slowly
--- (Motion.REVEAL_PACE), each node losing its padlock as it pops in (View:revealBoard).
+-- (Motion.REVEAL_PACE) and its nodes lose their padlocks one after another (View:revealBoard).
 -- Smaller motions (Motion.lua has their timing): a rank raised makes its node pop with a cyan ring going out and a
 -- "+1" floating up, one taken back shrinks it with a "-1", a refused click shakes it; the pip that changed flashes and
 -- the tree's points left hop with the bar's segment lit. The node under the mouse lights and grows a little. A lit line
@@ -1859,6 +1859,32 @@ end
 -- keeps its selection on it until the scan reaches it, then pops it and settles its ranks into pips; the mouse lights
 -- it; a padlock coming off fades with the grey, flashes the frame
 -- in the tree's colour and sends a ring out.
+-- A padlock's flash: two rough frames round the node (the second going out with `ring`), dozens of pieces, a drawRect
+-- each. They change only with the film's step, so each node's are kept on a tape of their own for the step and played
+-- until the next (View:flashFrames): a reveal flashes many nodes at once.
+local function flashPair(el, x, y, s, c, a, th, out, ring, seed)
+    roughFramePx(el, x, y, s, s, c, a, th + 1, out, seed)
+    roughFramePx(el, x, y, s, s, c, 0.6 * a, th, out + th / S + 1 + ring, seed * 7 + 3)
+end
+
+function View:flashFrames(el, id, x, y, s, c, a, th, out, ring, seed)
+    local tapes = self.flashTapes
+    local kept = tapes and tapes[id]
+    if kept and kept.seed == seed and kept.a == a and kept.x == x and kept.y == y and kept.s == s and kept.S == S
+        and kept.el == el and Tape.play(el, kept.tape) then
+        return
+    end
+    local tape = Tape.new()
+    if Tape.record(el, tape, flashPair, x, y, s, c, a, th, out, ring, seed) and Tape.play(el, tape) then
+        tapes = tapes or {}
+        self.flashTapes = tapes
+        tapes[id] = { tape = tape, seed = seed, a = a, x = x, y = y, s = s, S = S, el = el }
+        return
+    end
+    if tapes then tapes[id] = nil end
+    flashPair(el, x, y, s, c, a, th, out, ring, seed)
+end
+
 function View:paintNode(el, item)
     local node = Data.byId[item.id]
     local n = self.nodes[item.id]
@@ -1966,8 +1992,7 @@ function View:paintNode(el, item)
         local light = TREE[tree].light
         UI.fill(el, x, y, s, s, light, 0.22 * flashA)
         staticBurst(el, x, y, s, s, light, 0.85 * flashA, openStep)
-        roughFramePx(el, x, y, s, s, light, flashA, th + 1, out, seed + openStep)
-        roughFramePx(el, x, y, s, s, light, 0.6 * flashA, th, out + th / S + 1 + unlockRing, seed + openStep * 7 + 3)
+        self:flashFrames(el, item.id, x, y, s, light, flashA, th, out, unlockRing, seed + openStep)
     end
     if f and f.kind == "shrink" then
         -- a rank taken back: the node's print flickers out a moment
@@ -2454,13 +2479,18 @@ function View:lockedOnRecord()
     return locked
 end
 
--- The take that opened the 2nd board is over (at `now`): the tab turns to the board, which comes up slowly, each of its
--- nodes losing its padlock as it pops in (they were drawn locked in the take: Motion.revealUnlockAt).
+-- The take that opened the 2nd board is over (at `now`): the tab turns to the board, which comes up slowly, and its
+-- nodes lose their padlocks one after another in reading order, each once it has popped in (they were drawn locked in
+-- the take: Motion.revealUnlockAt).
 function View:revealBoard(now)
     self:setMode("board", Motion.REVEAL_PACE)
+    local k = 0
     for _, item in ipairs(self.items) do
         local n = item.id and self.nodes[item.id]
-        if n and not greyed(n) then self:addUnlock(item.id, now + Motion.revealUnlockAt(item.col, item.row)) end
+        if n and not greyed(n) then
+            k = k + 1
+            self:addUnlock(item.id, now + Motion.revealUnlockAt(item.col, item.row, k))
+        end
     end
 end
 
@@ -2508,7 +2538,7 @@ function View.tick(body, now)
     end
     if view.unlockEnd then
         if now >= view.unlockEnd then
-            view.unlocks, view.unlockFrom, view.unlockEnd = nil, nil, nil
+            view.unlocks, view.unlockFrom, view.unlockEnd, view.flashTapes = nil, nil, nil, nil
         elseif now >= view.unlockFrom then
             moving = true
         else
@@ -2895,7 +2925,7 @@ function View:setVisible(visible, joypadData)
         self:hideTip()
         self.take, self.approved = nil, nil
         self.fx, self.openAt, self.bump = nil, nil, nil
-        self.unlocks, self.unlockFrom, self.unlockEnd = nil, nil, nil
+        self.unlocks, self.unlockFrom, self.unlockEnd, self.flashTapes = nil, nil, nil, nil
     end
 end
 
