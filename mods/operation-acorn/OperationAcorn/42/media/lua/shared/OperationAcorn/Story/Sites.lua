@@ -3,7 +3,9 @@
 -- wherever a game starts the three are about as far (the capstones need them). Each holds one meteorite fragment of
 -- its own kind, and each kind opens one tree's capstone (Upgrades Data.FRAGMENTS). They are kept in the world section
 -- "sites". Whether a place is really land is found out when its chunk first loads (never by scanning squares): a
--- place that is not gets a new one in the ring. A site then gets its props (scorched ground, rocks, a survey stake with
+-- place that is not gets a new one, near it first (the survey zone the player may have been shown still holds it),
+-- then anywhere in the ring. A site never gives up: each capstone needs its fragment, so a site is moved until it
+-- stands somewhere (after LENIENT_AFTER moves any land square of a chunk will do). A site then gets its props (scorched ground, rocks, a survey stake with
 -- its number and a date, and round them 2 or 3 things someone left) and its fragment, all through OA.Chunks. No sound
 -- is changed around a site and nothing there gives light (FEASIBILITY: visual clues only).
 require "OperationAcorn/Core"
@@ -31,7 +33,12 @@ Sites.SCORCH = { stony = 9, iron = 5, stonyIron = 7 }
 -- Zone types a site never lies in (judged where the zones are known: B42 loads a cell's zones with the cell).
 Sites.NOT = { "TownZone", "WaterZone", "WaterFlow", "Basement", "TrailerPark" }
 Sites.DATES = 8
-Sites.MAX_RETRIES = 12
+-- Moves made near the old place first (squares from it), before the ring; moves after which a site takes a chunk's
+-- first land square without its footprint; moves tried at once while the new places' chunks are loaded too (the rest
+-- at the next look, Sites.kick).
+Sites.NEAR_MOVES, Sites.NEAR_LO, Sites.NEAR_HI = 6, 16, 60
+Sites.LENIENT_AFTER = 12
+Sites.MOVES_AT_ONCE = 24
 -- What someone left round a site (LORE 7, story-improvements 10), 2 or 3 of them: dark soil that looks wet, a second
 -- stake with another date, a cut length of marker tape, an empty sample bag, stones laid in a row.
 Sites.PROPS = { "soil", "stake", "tape", "bag", "stones" }
@@ -42,7 +49,7 @@ local function section()
     return OA.Store.world("sites")
 end
 
--- The sites, in number order: { { n =, x =, y =, kind =, stake =, date =, state = "pending" | "placed" | "failed" } }.
+-- The sites, in number order: { { n =, x =, y =, kind =, stake =, date =, state = "pending" | "placed", tries = moves } }.
 function Sites.list()
     return section().list or {}
 end
@@ -105,16 +112,13 @@ local function drawPoint(x, y, lo, hi)
     return math.floor(p.x), math.floor(p.y)
 end
 
--- Work for a site's square: done now when its chunk is loaded (LoadChunk will not come for it), else when it loads.
-local function register(site)
-    local entry = { kind = "oa_site", site = site.n, x = site.x, y = site.y, z = 0 }
-    local sq = getCell and getCell() and getCell():getGridSquare(site.x, site.y, 0)
-    if sq and sq:getChunk() then
-        Sites.onChunk(entry, sq:getChunk())
-    else
-        OA.Chunks.add(entry)
-    end
+-- Whether the square x, y is loaded now (LoadChunk will not come for it).
+local function loaded(x, y)
+    local sq = getCell and getCell() and getCell():getGridSquare(x, y, 0)
+    return sq ~= nil and sq:getChunk() ~= nil
 end
+
+local settle
 
 -- A new site's stake number: one nobody else has.
 local function newStake(list, int)
@@ -139,6 +143,10 @@ function Sites.ensure(origin, accept, int)
     if not accept then accept, draw = acceptPoint, drawPoint end
     local points = OA.Places.ringSites(origin, Sites.COUNT, Sites.RING_LO, Sites.RING_HI, Sites.SPACING, accept, nil, int,
         draw)
+    if #points < Sites.COUNT then
+        -- (a map with too few places that pass: the rest anywhere in the ring, judged as their chunks load)
+        points = OA.Places.ringSites(origin, Sites.COUNT, Sites.RING_LO, Sites.RING_HI, Sites.SPACING, nil, points, int)
+    end
     local kinds = shuffled(Sites.KINDS, #points, int)
     local dates = {}
     for i = 1, Sites.DATES do dates[i] = i end
@@ -151,33 +159,49 @@ function Sites.ensure(origin, accept, int)
     end
     sec.made = true
     OA.log("meteor sites:", #sec.list, "around", origin.x, origin.y)
-    for _, site in ipairs(sec.list) do register(site) end
+    for _, site in ipairs(sec.list) do settle(site) end
     return sec.list
 end
 
--- A site whose place is not land gets a new place in the ring, as far from the others as they are from each other.
+-- A point NEAR_LO to NEAR_HI squares from x, y that may hold a site, or nil.
+local function nearPoint(x, y, accept, draw, int)
+    for _ = 1, 20 do
+        local px, py
+        if draw then
+            px, py = draw(x, y, Sites.NEAR_LO, Sites.NEAR_HI)
+        else
+            local a = math.rad(int(0, 359))
+            local r = int(Sites.NEAR_LO, Sites.NEAR_HI)
+            px, py = math.floor(x + r * math.cos(a) + 0.5), math.floor(y + r * math.sin(a) + 0.5)
+        end
+        if px and accept(px, py) then return { x = px, y = py } end
+    end
+    return nil
+end
+
+-- A site whose place is not land gets a new place: near it for its first NEAR_MOVES moves, else in the ring as far
+-- from the others as they are from each other (any place of the ring when none passes).
 function Sites.replace(site, accept, int)
     local sec = section()
+    int = int or OA.random
     site.tries = (site.tries or 0) + 1
-    if site.tries > Sites.MAX_RETRIES then
-        site.state = "failed"
-        return false
-    end
-    local others = {}
-    for _, s in ipairs(sec.list) do
-        if s ~= site then others[#others + 1] = { x = s.x, y = s.y } end
-    end
     local draw
     if not accept then accept, draw = acceptPoint, drawPoint end
-    local points = OA.Places.ringSites(sec.origin, #others + 1, Sites.RING_LO, Sites.RING_HI, Sites.SPACING, accept,
-        others, int, draw)
-    if #points <= #others then
-        site.state = "failed"
-        return false
+    local p = site.tries <= Sites.NEAR_MOVES and nearPoint(site.x, site.y, accept, draw, int)
+    if not p then
+        local others = {}
+        for _, s in ipairs(sec.list) do
+            if s ~= site then others[#others + 1] = { x = s.x, y = s.y } end
+        end
+        local points = OA.Places.ringSites(sec.origin, #others + 1, Sites.RING_LO, Sites.RING_HI, Sites.SPACING, accept,
+            others, int, draw)
+        if #points <= #others then
+            points = OA.Places.ringSites(sec.origin, #others + 1, Sites.RING_LO, Sites.RING_HI, Sites.SPACING, nil, others,
+                int)
+        end
+        p = points[#points]
     end
-    local p = points[#points]
     site.x, site.y = p.x, p.y
-    return true
 end
 
 -- Has the player been near a site (within `range`): the soil sample mission may then use it. A site seen for the first
@@ -232,7 +256,8 @@ local function scorchOf(kind)
 end
 
 -- What a site fits: its middle and the squares east and south of it land, and every square the fall scorched open ground
--- (it must not reach into a lake or onto a road). By kind.
+-- (it must not reach into a lake or onto a road). By kind. After LENIENT_AFTER moves: its middle on land, alone.
+local LENIENT = { { offsets = { 0, 0 }, filter = LAND } }
 local fits = {}
 local function fitFor(kind)
     local parts = fits[kind or ""]
@@ -286,36 +311,65 @@ local function build(site, sq)
     end
 end
 
--- LoadChunk work: the chunk of a pending site loaded. A land square in the chunk where the site fits (fitFor) is looked
--- for, one at random; none means the point was not land and the site moves.
+-- A land square in the chunk of the site's place where it fits (fitFor; LENIENT after many moves), one at random: the
+-- site is built there. False when none.
+local function place(site)
+    local size = OA.Chunks.SIZE
+    local x1, y1 = math.floor(site.x / size) * size, math.floor(site.y / size) * size
+    local parts = (site.tries or 0) >= Sites.LENIENT_AFTER and LENIENT or fitFor(site.kind)
+    local sq = OA.api().squares.fit({ x1 = x1, y1 = y1, x2 = x1 + size - 1, y2 = y1 + size - 1, z = 0 }, parts,
+        RANDOM_ORDER)
+    if not sq then return false end
+    site.x, site.y = sq:getX(), sq:getY()
+    build(site, sq)
+    site.state = "placed"
+    OA.log("meteor site", site.n, site.kind, "placed at", site.x, site.y)
+    OA.Sync.changed("sites", nil)
+    return true
+end
+
+-- A pending site placed where it stands, or moved on until it is, or until its place waits for its chunk to load.
+-- `here`: its chunk is loaded now (LoadChunk). Many loaded places in a row that are not land leave the rest to the next
+-- look (Sites.kick).
+settle = function(site, here)
+    for _ = 1, Sites.MOVES_AT_ONCE do
+        if not (here or loaded(site.x, site.y)) then
+            OA.Chunks.add({ kind = "oa_site", site = site.n, x = site.x, y = site.y, z = 0 })
+            return
+        end
+        here = false
+        if place(site) then return end
+        Sites.replace(site)
+        OA.log("meteor site", site.n, "was not land, moved to", site.x, site.y)
+    end
+end
+
+-- LoadChunk work: the chunk of a pending site's place loaded (a place it has left is let go).
 function Sites.onChunk(entry, chunk)
     local site = Sites.byNumber(entry.site)
-    if not site or site.state ~= "pending" then return true end
-    local size = OA.Chunks.SIZE
-    local x1, y1 = math.floor(entry.x / size) * size, math.floor(entry.y / size) * size
-    local sq = OA.api().squares.fit({ x1 = x1, y1 = y1, x2 = x1 + size - 1, y2 = y1 + size - 1, z = 0 }, fitFor(site.kind),
-        RANDOM_ORDER)
-    if sq then
-        site.x, site.y = sq:getX(), sq:getY()
-        build(site, sq)
-        site.state = "placed"
-        OA.log("meteor site", site.n, site.kind, "placed at", site.x, site.y)
-        OA.Sync.changed("sites", nil)
-        return true
-    end
-    if Sites.replace(site) then
-        register(site)
-        OA.log("meteor site", site.n, "was not land, moved to", site.x, site.y)
-    else
-        OA.log("meteor site", site.n, "dropped")
-    end
+    if not site or site.state ~= "pending" or entry.x ~= site.x or entry.y ~= site.y then return true end
+    settle(site, true)
     return true
+end
+
+-- Every ten minutes: a pending site whose place is loaded and was left waiting (moves at once ran out, or its work
+-- failed) is settled again.
+function Sites.kick()
+    for _, site in ipairs(Sites.list()) do
+        if site.state == "pending" and loaded(site.x, site.y) then settle(site) end
+    end
 end
 
 OA.Chunks.handle("oa_site", function(entry, chunk)
     local ok, done = pcall(Sites.onChunk, entry, chunk)
     if not ok then
+        -- (the site is not lost: it moves on, and stands where its next place loads)
         OA.log("meteor site failed:", tostring(done))
+        local site = Sites.byNumber(entry.site)
+        if site and site.state == "pending" then
+            pcall(Sites.replace, site)
+            OA.Chunks.add({ kind = "oa_site", site = site.n, x = site.x, y = site.y, z = 0 })
+        end
         return true
     end
     return done

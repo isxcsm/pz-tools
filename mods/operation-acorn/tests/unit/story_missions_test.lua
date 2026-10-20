@@ -756,7 +756,7 @@ test("the drop site check leads to a site not yet seen while there is one", func
     sec.made, sec.origin = true, { x = 0, y = 0 }
     sec.list = { { n = 1, x = 900, y = 0, stake = 211, state = "placed" },
                  { n = 2, x = -900, y = 0, stake = 322, state = "placed" },
-                 { n = 3, x = 0, y = 900, stake = 433, state = "failed" } }
+                 { n = 3, x = 0, y = 900, stake = 433, state = "placed" } }
     local contracts = OA.StoryData.CONTRACTS
     OA.StoryData.CONTRACTS = { { id = "stake", kind = "stake", item = "StakeTag", weight = 1 } }
     local function nextStake()
@@ -768,6 +768,7 @@ test("the drop site check leads to a site not yet seen while there is one", func
         return m
     end
     Sites.seenOf(record)[1] = true
+    Sites.seenOf(record)[3] = true
     for _ = 1, 3 do
         local m = nextStake()
         eq(m.stake, 2, "the one not seen")

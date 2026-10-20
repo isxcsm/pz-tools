@@ -139,7 +139,8 @@ function Comms.drop(record, id)
 end
 
 -- A short call is a word at the team's regular hour (LORE 6 '짧은 교신'), not a line after a scene: it comes no sooner
--- than this many game hours after the last call played.
+-- than this many game hours after the last call played. Not a branch's call: that answers what the player did (a
+-- capstone waiting for its fragment, a squirrel delivered), told at once ("단말에 교신 수신"), and is there when told.
 Comms.SHORT_GAP = 2
 
 -- When the last call (not a monologue) was played, or nil.
@@ -153,13 +154,13 @@ local function lastCall(s)
 end
 
 -- Whether an entry may play now (`now` in hours, the game's by default): fired, not played, what it waits for done,
--- and a short call SHORT_GAP after the last call.
+-- and a short call (not a branch's) SHORT_GAP after the last call.
 function Comms.ready(record, id, now)
     local s = Comms.section(record)
     local e = Data.BY_ID[id]
     if not e or not s.fired[id] or done(s, id) then return false end
     if e.waits ~= nil and not done(s, e.waits) then return false end
-    if e.kind == "short" then
+    if e.kind == "short" and not e.branch then
         local last = lastCall(s)
         if last and (now or OA.hours()) < last + Comms.SHORT_GAP then return false end
     end
@@ -191,7 +192,8 @@ function Comms.waiting(record)
         if e.kind ~= "say" and e.kind ~= "field" then
             if Comms.ready(record, e.id, now) then
                 n = n + 1
-            elseif e.kind == "short" and s.fired[e.id] and not done(s, e.id) and (e.waits == nil or done(s, e.waits)) then
+            elseif e.kind == "short" and not e.branch and s.fired[e.id] and not done(s, e.id)
+                    and (e.waits == nil or done(s, e.waits)) then
                 -- held only by the gap: ready when it ends
                 last = last or lastCall(s)
                 local at = last and last + Comms.SHORT_GAP

@@ -470,11 +470,9 @@ local function createStake(record, entry, level)
     local seen = sites.seenOf(record)
     local cands, fresh = {}, {}
     for _, site in ipairs(sites.list()) do
-        if site.state ~= "failed" then
-            local c = { x = site.x, y = site.y, id = site.n }
-            cands[#cands + 1] = c
-            if not seen[site.n] then fresh[#fresh + 1] = c end
-        end
+        local c = { x = site.x, y = site.y, id = site.n }
+        cands[#cands + 1] = c
+        if not seen[site.n] then fresh[#fresh + 1] = c end
     end
     if #fresh > 0 then cands = fresh end
     if #cands == 0 then return nil end

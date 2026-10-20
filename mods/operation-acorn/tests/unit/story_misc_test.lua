@@ -48,21 +48,36 @@ test("the sites are laid out once round the start, one of each kind, each with i
     eq(Sites.byNumber(99), nil)
 end)
 
-test("a site that is not land is moved within the ring, and gives up after a number of tries", function()
+test("a site that is not land moves near its place first, then within the ring, and never gives up", function()
     clearSites()
     local list = Sites.ensure(ORIGIN, yes)
     local site = list[1]
     local ox, oy = site.x, site.y
-    truthy(Sites.replace(site, yes))
-    truthy(site.x ~= ox or site.y ~= oy, "a new place")
+    Sites.replace(site, yes)
+    local near = OA.Places.distance(ox, oy, site.x, site.y)
+    truthy(near >= Sites.NEAR_LO - 1 and near <= Sites.NEAR_HI + 1, "near its place: " .. near)
+    for _ = 2, Sites.NEAR_MOVES do Sites.replace(site, yes) end
+    Sites.replace(site, yes)
     local d = OA.Places.distance(ORIGIN.x, ORIGIN.y, site.x, site.y)
-    truthy(d >= Sites.RING_LO - 1 and d <= Sites.RING_HI + 1, "still in the ring: " .. d)
+    truthy(d >= Sites.RING_LO - 1 and d <= Sites.RING_HI + 1, "then in the ring: " .. d)
     for k = 2, 3 do
         truthy(OA.Places.distance(site.x, site.y, list[k].x, list[k].y) >= Sites.SPACING - 1, "apart from the others")
     end
-    for _ = 1, Sites.MAX_RETRIES do Sites.replace(site, yes) end
-    eq(Sites.replace(site, yes), false)
-    eq(site.state, "failed")
+    -- a ring where no place passes: any place of it
+    for _ = 1, 30 do Sites.replace(site, function() return false end) end
+    eq(site.state, "pending", "still on its way")
+    d = OA.Places.distance(ORIGIN.x, ORIGIN.y, site.x, site.y)
+    truthy(d >= Sites.RING_LO - 1, "in the ring: " .. d)
+end)
+
+test("a map with too few places that pass still gets every kind's site", function()
+    clearSites()
+    local n = 0
+    local list = Sites.ensure(ORIGIN, function()
+        n = n + 1
+        return n <= 1
+    end)
+    eq(#list, Sites.COUNT, "one of each kind")
 end)
 
 -- A site's chunk loads and nothing in it fits: the fit is asked of the chunk's squares, the middle and its neighbours on
@@ -91,6 +106,12 @@ test("a site fits its scorched footprint on open ground in its chunk, and moves 
     truthy(scorched.filter == OA.StoryGame.GROUND, "the camp's ground")
     eq(site.state, "pending", "not placed")
     truthy(site.tries >= 1, "moved on")
+    eq(Sites.onChunk(entry, nil), true, "the place it left: let go")
+    -- after many moves, a chunk's land square alone will do
+    site.tries = Sites.LENIENT_AFTER
+    Sites.onChunk({ kind = "oa_site", site = 2, x = site.x, y = site.y, z = 0 }, nil)
+    eq(#fit.parts, 1, "the middle alone")
+    eq(fit.parts[1].filter.zonesNot, Sites.NOT, "on land")
     getWorld, PZExtAPI = nil, nil
 end)
 

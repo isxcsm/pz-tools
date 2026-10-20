@@ -73,8 +73,8 @@ local function eachRecord(fn)
 end
 
 -- The drop sites go round the first character's place (Sites.ensure): asked again until there is one (a server
--- with nobody on it yet).
-local sitesMade = false
+-- with nobody on it yet), and again after an error (said once: the capstones need them).
+local sitesMade, sitesSaid = false, false
 local function ensureSites()
     if sitesMade then return end
     local origin
@@ -89,8 +89,8 @@ local function ensureSites()
     end
     local ok, list = pcall(Sites.ensure, origin)
     if not ok then
-        OA.log("meteor sites failed:", tostring(list))
-        sitesMade = true
+        if not sitesSaid then OA.log("meteor sites failed (asked again):", tostring(list)) end
+        sitesSaid = true
     elseif list then
         sitesMade = true
     end
@@ -117,6 +117,8 @@ end
 local function onTenMinutes()
     if not started then start() end
     ensureSites()
+    local ok, err = pcall(Sites.kick)
+    if not ok then OA.log("meteor sites:", tostring(err)) end
     ensureDense()
     subscribe()
     eachRecord(function(record)

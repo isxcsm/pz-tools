@@ -33,7 +33,7 @@ function Survey.siteOf(tree)
     for _, site in ipairs(OA.Sites.list()) do
         local item = OA.Sites.FRAGMENT[site.kind]
         if item and fullType == "OperationAcorn." .. item then
-            return site.state ~= "failed" and site or nil
+            return site
         end
     end
     return nil

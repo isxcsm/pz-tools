@@ -52,6 +52,10 @@ test("a capstone waiting for its fragment brings its call once, with a notice", 
     eq(#Branches.look(r, "settled"), 0, "once")
     eq(#notices, 1, "told once")
     eq(Comms.next(r, "terminal", 50).id, "C_scout")
+    -- told at once, there at once: not held by the short calls' gap after the last call
+    Comms.played(r, "S1", 1, 49.5)
+    eq(Comms.next(r, "terminal", 50).id, "C_scout", "a call just played holds it back no hour")
+    eq(Comms.waiting(r) > 0, true, "the terminal shows it waiting")
 end)
 
 test("the tiers and a join drop no branch call", function()
