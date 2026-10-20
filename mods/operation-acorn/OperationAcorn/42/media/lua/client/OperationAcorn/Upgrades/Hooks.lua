@@ -201,10 +201,6 @@ local TITLED = {
     IGUI_OA_Tree_GuideSent = { alone = true, style = "type" },
 }
 
--- The notices that bring research points, and when the first one's hint comes (real ms: after its title). After a
--- tree's opening title the hint waits until that title has left (looked at every HINT_STEP_MS, HINT_MOST_MS at most):
--- one place to look at a time.
-Hooks.HINT_MS, Hooks.HINT_STEP_MS, Hooks.HINT_MOST_MS = 6500, 500, 30000
 -- The notices that bring research points.
 local POINTS = { IGUI_OA_Tree_Adapted = true, IGUI_OA_Tree_AdaptedShared = true, IGUI_OA_Tree_Opened = true,
     IGUI_OA_Tree_OpenedShared = true, IGUI_OA_Tree_DoseBonus = true }
@@ -233,23 +229,17 @@ local function onNotice(playerId, detail)
     else
         OA.Titles.brief(playerId, detail.key, args)
     end
-    -- the first research point: where the plan is made, once a character, a brief title once the point's own is over
-    -- (at once without the API's timers), and none when the tab is on the screen already
+    -- the first research point: where the plan is made, once a character, a brief title after the point's own (the
+    -- brief titles' queue) and after a tree's opening title has left (the API's `after`: one place to look at a time),
+    -- none when the tab is on the screen already
+    local opened = Hooks.openedTitle
+    Hooks.openedTitle = nil
     if POINTS[detail.key] and not player:getModData().OA_ResearchHint then
         player:getModData().OA_ResearchHint = true
-        local title, waited = Hooks.openedTitle, Hooks.HINT_MS
-        Hooks.openedTitle = nil
-        local function hint()
-            if OA.Titles.shown(title) and waited < Hooks.HINT_MOST_MS
-                and OA.timerAfter(Hooks.HINT_STEP_MS, hint) then
-                waited = waited + Hooks.HINT_STEP_MS
-                return
-            end
-            local Window = OA.Upgrades.Window
-            if Window and Window.onScreen(0) then return end
-            OA.Titles.brief(playerId, "IGUI_OA_Tree_WhereHint")
+        local Window = OA.Upgrades.Window
+        if not (Window and Window.onScreen(0)) then
+            OA.Titles.brief(playerId, "IGUI_OA_Tree_WhereHint", nil, nil, opened)
         end
-        if not OA.timerAfter(Hooks.HINT_MS, hint) then hint() end
     end
 end
 OA.Sync.listen("notice", onNotice)

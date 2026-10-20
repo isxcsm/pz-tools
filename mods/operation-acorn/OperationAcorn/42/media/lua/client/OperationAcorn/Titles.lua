@@ -68,7 +68,7 @@ Titles.OVER_WINDOW, Titles.CENTER, Titles.CENTER_ALONE = Kit.OVER_WINDOW, Kit.CE
 Titles.SIZES = { major = 1.35, minor = 0.72 }
 
 -- Shows a title (detail as OA.Sync.title takes it) for the player of that id; returns how it was shown: "title",
--- "said" (the API cannot draw it: the character says it) or nil, and the key of a title drawn (Titles.shown). With `noSay` a title the API cannot draw is not shown
+-- "said" (the API cannot draw it: the character says it) or nil, and the key of a title drawn (a later one's `after`). With `noSay` a title the API cannot draw is not shown
 -- at all (the caller has its own way then). The small text over the character is never used.
 function Titles.show(playerId, detail, noSay)
     if type(detail) ~= "table" then return nil end
@@ -86,7 +86,8 @@ function Titles.show(playerId, detail, noSay)
     local shown, key
     for _, character in ipairs(characters) do
         local spec = { text = title, subtitle = sub, style = detail.style, player = character:getPlayerNum(),
-            now = Titles.now or nil, y = Titles.place(detail.at, sub ~= nil), scale = Titles.SIZES[detail.size] }
+            now = Titles.now or nil, y = Titles.place(detail.at, sub ~= nil), scale = Titles.SIZES[detail.size],
+            after = detail.after }
         local tone = Titles.TONES[detail.tone]
         if tone then spec.color, spec.subtitleColor = tone[1], tone[2] end
         if detail.style == "seal" then spec.emblem = Titles.EMBLEM end
@@ -102,17 +103,14 @@ function Titles.show(playerId, detail, noSay)
     return shown, key
 end
 
--- Whether a title Titles.show drew (its key) is still on the screen or waiting its turn.
-function Titles.shown(key)
-    return key ~= nil and Kit.shown(OA.api(), OA.handle(), key)
-end
 
 -- Shows a notice (OA.Sync.notice: a key and its arguments, already put in the player's language) as a title, when
 -- `as` names one: { key (the title), titleArgs (the title takes the notice's arguments too), style, tone, size, alone
--- (no line under it: the notice's own text is the title) }. The notice's text is the line under the title.
+-- (no line under it: the notice's own text is the title), after (a title's key it waits to have left) }. The notice's
+-- text is the line under the title.
 function Titles.notice(playerId, as, key, args)
     if type(as) ~= "table" then return end
-    local detail = { style = as.style, tone = as.tone, size = as.size }
+    local detail = { style = as.style, tone = as.tone, size = as.size, after = as.after }
     if as.alone then
         detail.key, detail.args = key, args
     else
@@ -123,9 +121,9 @@ function Titles.notice(playerId, as, key, args)
 end
 
 -- A notice as a brief title (light, low on the screen, over a window as over the world): its own text the title.
--- `tone`: "red" for a refusal, "amber" for a warning, nil for news.
-function Titles.brief(playerId, key, args, tone)
-    Titles.notice(playerId, { alone = true, style = "brief", tone = tone }, key, args)
+-- `tone`: "red" for a refusal, "amber" for a warning, nil for news. `after`: a title's key it waits to have left.
+function Titles.brief(playerId, key, args, tone, after)
+    Titles.notice(playerId, { alone = true, style = "brief", tone = tone, after = after }, key, args)
 end
 
 -- A notice the character says: what it tried did not work (its text is written as the character's own words).

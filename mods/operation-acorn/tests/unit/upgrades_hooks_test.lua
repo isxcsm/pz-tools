@@ -141,7 +141,7 @@ test("points that came are a brief title (doses are many), an opening a title of
     truthy(said(good[6], "IGUI_OA_Tree_GuideSent"), good[6])
 end)
 
-test("the first point's hint waits until the tree's opening title has left: one place to look at a time", function()
+test("the first point's hint waits for the tree's opening title to have left (the API's after): one place to look", function()
     local Hooks = loadHooks()
     local data = { OA_Id = "p1" }
     local character = { getModData = function() return data end, getPlayerNum = function() return 0 end,
@@ -149,7 +149,7 @@ test("the first point's hint waits until the tree's opening title has left: one 
     getPlayer = function() return character end
     getNumActivePlayers = function() return 1 end
     getSpecificPlayer = function() return character end
-    local drawn, timers, showing = {}, {}, true
+    local drawn = {}
     PZExtAPI = {
         version = OA.API_VERSION,
         client = function() return "handle" end,
@@ -157,24 +157,14 @@ test("the first point's hint waits until the tree's opening title has left: one 
             status = function() return "applied" end,
             styles = function() return { "dust", "brief" } end,
             title = function(handle, spec) drawn[#drawn + 1] = spec; return #drawn end,
-            shown = function(handle, key) return key == 1 and showing end,
         },
-        timers = { every = function(handle, opts, fn) timers[#timers + 1] = { ms = opts.ms, fn = fn } end,
-            cancel = function() end },
     }
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_Opened", args = { "load", "guide", 2 } })
-    eq(#drawn, 1, "the opening title")
-    eq(timers[1].ms, Hooks.HINT_MS)
-    timers[1].fn()
-    eq(#drawn, 1, "the title still on: the hint waits")
-    eq(timers[2].ms, Hooks.HINT_STEP_MS)
-    timers[2].fn()
-    eq(#drawn, 1)
-    showing = false
-    timers[3].fn()
-    eq(#drawn, 2, "the title gone: the hint")
-    eq(drawn[2].style, "brief")
+    eq(#drawn, 2, "the opening title, and the hint queued")
     eq(drawn[2].text, "IGUI_OA_Tree_WhereHint")
+    eq(drawn[2].style, "brief")
+    eq(drawn[2].after, 1, "after the opening title")
+    eq(drawn[1].after, nil)
     PZExtAPI = nil
 end)
 

@@ -78,8 +78,8 @@ function Titles.place(at, withLine)
 end
 
 -- Draws a title: `spec` as the API's text.title takes it (text, subtitle, style: the one wanted, player, color...), its
--- style, backdrop (unless given) and sounds filled in here. `log(...)`: where a failure is told. True when it is drawn,
--- and its key (Titles.shown).
+-- style, backdrop (unless given) and sounds filled in here. `spec.after`: the key of a title it waits to have left (one
+-- place to look at a time). `log(...)`: where a failure is told. True when it is drawn, and its key.
 function Titles.show(api, handle, spec, log)
     local t = Titles.textApi(api)
     if not (t and handle and spec and spec.text) then return false end
@@ -102,17 +102,14 @@ function Titles.show(api, handle, spec, log)
         spec.scale = nil
         ok, err = pcall(t.title, handle, spec)
     end
+    if not ok and spec.after then
+        -- (an older PZ Extension API has no after: the title in its queue alone)
+        spec.after = nil
+        ok, err = pcall(t.title, handle, spec)
+    end
     if not ok and log then log("title:", tostring(err)) end
     return ok, ok and err or nil
 end
 
--- Whether a title drawn (its key, as Titles.show gave it) is still on the screen or waiting its turn: false once it has
--- left.
-function Titles.shown(api, handle, key)
-    local t = Titles.textApi(api)
-    if not (t and t.shown and handle and key) then return false end
-    local ok, on = pcall(t.shown, handle, key)
-    return ok and on == true
-end
 
 return Titles
