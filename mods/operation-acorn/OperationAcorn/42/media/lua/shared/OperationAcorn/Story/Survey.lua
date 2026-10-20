@@ -19,10 +19,10 @@ local OA = OperationAcorn
 local Survey = {}
 OA.StorySurvey = Survey
 
--- The zone's radius (squares), and how far from the site its middle lies, a share of the radius: the site is inside,
--- and from anywhere on the zone's rim the player is within reach of the site's title (Sites.visit's 80) halfway in.
+-- The zone's radius (squares), and how far from the site its middle lies, a share of the radius from OFFSET_MIN to
+-- OFFSET_MAX that the site's place picks: the site is inside, never at the middle nor always as far from it.
 Survey.R = 150
-Survey.OFFSET = 0.5
+Survey.OFFSET_MIN, Survey.OFFSET_MAX = 0.2, 0.7
 -- How near the site the zone narrows (Sites.visit's reach), and the narrow zone's radius: the site's props are in
 -- sight from anywhere in it.
 Survey.NEAR = 80
@@ -58,12 +58,15 @@ function Survey.siteOf(tree)
     return found
 end
 
--- The zone of a site: { x, y, r }, its middle OFFSET * its radius from the site in a direction the site's place picks
--- (the same every time it is asked); `narrow`: the small one.
+-- The zone of a site: { x, y, r }, its middle a share of its radius (OFFSET_MIN .. OFFSET_MAX) from the site in a
+-- direction, both picked by the site's place (the same every time it is asked); `narrow`: the small one, with its own
+-- share and direction (where the wide one's middle lay tells nothing of where in the small one the site is).
 function Survey.zone(site, narrow)
-    local turn = OA.remainder(site.x * 31 + site.y * 17, 360) * math.pi / 180
+    local salt = narrow and 1 or 0
+    local turn = OA.remainder(site.x * 31 + site.y * 17 + salt * 157, 360) * math.pi / 180
+    local share = OA.remainder(site.x * 13 + site.y * 7 + salt * 389, 1000) / 1000
     local r = narrow and Survey.NEAR_R or Survey.R
-    local d = r * Survey.OFFSET
+    local d = r * (Survey.OFFSET_MIN + share * (Survey.OFFSET_MAX - Survey.OFFSET_MIN))
     return { x = math.floor(site.x + d * math.cos(turn) + 0.5), y = math.floor(site.y + d * math.sin(turn) + 0.5),
         r = r }
 end

@@ -78,7 +78,7 @@ test("the call played marks the site's zone: the site inside, away from the midd
     eq(z.tree, "scout")
     eq(z.r, Survey.R)
     local d = OA.Places.distance(site.x, site.y, z.x, z.y)
-    near(d, Survey.R * Survey.OFFSET, 1)
+    truthy(d >= Survey.R * Survey.OFFSET_MIN - 1 and d <= Survey.R * Survey.OFFSET_MAX + 1, d)
     truthy(d < z.r)
     local again = Survey.zone(site)
     eq(again.x, z.x); eq(again.y, z.y)
@@ -128,7 +128,8 @@ test("walked into: a line once; near the site the zone narrows round it, a title
     Survey.minute(r, site.x + Survey.NEAR - 5, site.y, day)
     local z = Survey.zones(r)[1]
     eq(z.r, Survey.NEAR_R)
-    near(OA.Places.distance(site.x, site.y, z.x, z.y), Survey.NEAR_R * Survey.OFFSET, 1)
+    local dn = OA.Places.distance(site.x, site.y, z.x, z.y)
+    truthy(dn >= Survey.NEAR_R * Survey.OFFSET_MIN - 1 and dn <= Survey.NEAR_R * Survey.OFFSET_MAX + 1, dn)
     eq(#titles, 2)
     eq(titles[2].sub, "IGUI_OA_Title_SurveyNear")
     eq(lines[2].id, "SurveyNear")
@@ -182,6 +183,23 @@ test("walked straight near the site: only the narrowing's line; a site stood nea
     eq(lines[2].id, "SurveyIn")
     eq(lines[2].ctx.seen, true)
     OA.Sync.title, OA.Say.tell = title, tell
+end)
+
+test("the site lies at different shares of the radius and ways from the middle, the small zone's its own", function()
+    local shares, same = {}, 0
+    for i = 0, 199 do
+        local site = { x = 9000 + i * 37, y = 6000 + i * 53 }
+        local z, n = Survey.zone(site), Survey.zone(site, true)
+        local share = OA.Places.distance(site.x, site.y, z.x, z.y) / z.r
+        truthy(share >= Survey.OFFSET_MIN - 0.01 and share <= Survey.OFFSET_MAX + 0.01, share)
+        shares[math.floor(share * 10)] = true
+        -- the small zone's middle on the same side of the site as the wide one's
+        local a = math.atan2(z.y - site.y, z.x - site.x)
+        local b = math.atan2(n.y - site.y, n.x - site.x)
+        if math.abs(math.cos(a - b) - 1) < 0.05 then same = same + 1 end
+    end
+    for tenth = 2, 6 do truthy(shares[tenth], "a share near " .. tenth / 10) end
+    truthy(same < 40, "the small zone's way is its own: " .. same)
 end)
 
 test("a fragment that arrives first drops the call not yet played", function()
