@@ -1286,6 +1286,8 @@ function View:tipRows(id)
     -- the bite shield as it is now (the record's, not the plan's)
     local bite, armed = Texts.biteStatus(node, self.u, OA.hours())
     if bite then add({ kind = "para", text = bite, c = armed and P.good or P.warn }) end
+    local doses = Texts.doseStatus(node, self.u)
+    if doses then add({ kind = "para", text = doses, c = P.good }) end
     if not maxed then
         -- only what is still missing: a condition met is noise
         local sep = false

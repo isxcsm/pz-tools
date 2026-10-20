@@ -91,6 +91,7 @@ function Adapt.finish(record, now)
     elseif result.shared > 0 then
         OA.Sync.notice(id, "IGUI_OA_Tree_AdaptedShared", { result.shared })
     end
+    if result.bonus > 0 then OA.Sync.notice(id, "IGUI_OA_Tree_DoseBonus", { result.bonus }) end
     OA.Sync.changed("upgrades", id, { kind = "adapted" })
     if talk then OA.Say.tell(id, "Adapted", { tree = talk }) end
     return true

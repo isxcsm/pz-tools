@@ -26,7 +26,7 @@ Sidebar.SEEN = "OA_AdaptSeen"
 
 -- Every point that came to u: the trees' doses adapted and the shared ones.
 function Sidebar.gained(u)
-    local n = u.sharedInjected or 0
+    local n = (u.sharedInjected or 0) + (u.sharedBonus or 0)
     for _, count in pairs(u.injected or {}) do n = n + count end
     return n
 end

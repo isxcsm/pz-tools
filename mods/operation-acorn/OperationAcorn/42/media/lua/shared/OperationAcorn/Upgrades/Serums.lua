@@ -98,6 +98,9 @@ function Serums.inject(character, item, id)
     end
     -- The first dose is what the test serum's call waits for: the story part's, if it is there.
     if OA.Story and OA.Story.onInjected then OA.try("serums: the story's first dose", OA.Story.onInjected, record) end
+    -- 혈청 적응 rank 2: no time to adapt, it is over at once
+    local now = OA.hours()
+    if Rules.adaptDone(u, now) then Adapt.finish(record, now) end
     OA.Sync.changed("upgrades", id, { kind = kind, tree = tree })
     return true
 end

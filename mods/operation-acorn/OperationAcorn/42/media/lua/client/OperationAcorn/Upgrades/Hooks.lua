@@ -196,7 +196,7 @@ local TITLED = {
 Hooks.HINT_MS = 6500
 -- The notices that bring research points.
 local POINTS = { IGUI_OA_Tree_Adapted = true, IGUI_OA_Tree_AdaptedShared = true, IGUI_OA_Tree_Opened = true,
-    IGUI_OA_Tree_OpenedShared = true }
+    IGUI_OA_Tree_OpenedShared = true, IGUI_OA_Tree_DoseBonus = true }
 
 local function onNotice(playerId, detail)
     if type(detail) ~= "table" or type(detail.key) ~= "string" then return end

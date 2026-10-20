@@ -4,6 +4,7 @@
 --
 -- The section u:
 --   injected[tree]  serums of the tree injected (each is a point in that tree), sharedInjected for shared serums
+--   sharedBonus     shared points 혈청 적응 gave (one every so many doses adapted to)
 --   opened[tree]    the tree has been opened by its first serum (or by a shared one, which opens them all)
 --   bought[tree]    serums bought in the tree: only grows, the price follows it. spend[tree]: credits paid for them
 --   ranks[id]       the rank of each tree node (the capstone's is 1 once approved)
@@ -56,6 +57,7 @@ function Rules.fill(u)
     u.injected = u.injected or perTree(0)
     fillTree(u.injected, 0)
     u.sharedInjected = u.sharedInjected or 0
+    u.sharedBonus = u.sharedBonus or 0
     u.bought = u.bought or perTree(0)
     fillTree(u.bought, 0)
     u.spend = u.spend or perTree(0)
@@ -121,7 +123,7 @@ end
 function Rules.sharedPool(u)
     local used = u.board.fromShared
     for _, tree in ipairs(Data.TREES) do used = used + u.sharedUsed[tree] end
-    return u.sharedInjected - used
+    return u.sharedInjected + u.sharedBonus - used
 end
 
 -- The points the 2nd board has given back (or not yet spent): usable on the board only.
@@ -348,12 +350,33 @@ end
 
 -- ---- adaptation -----------------------------------------------------------------------------------------------
 
--- Hours a dose adapts for: Data.ADAPT_HOURS, a half of it with 혈청 적응 and a quarter at its second rank.
+-- Hours a dose adapts for: Data.ADAPT_HOURS, a half of it with 혈청 적응 and none at its second rank (the dose is
+-- adapted to at once).
 function Rules.adaptHours(u)
     local r = Rules.rank(u, "serumAdapt")
-    if r >= 2 then return Data.ADAPT_HOURS / 4 end
+    if r >= 2 then return 0 end
     if r == 1 then return Data.ADAPT_HOURS / 2 end
     return Data.ADAPT_HOURS
+end
+
+-- 혈청 적응's shared point: one every DOSE_BONUS[rank] doses adapted to, counted from the first dose ever (the trees'
+-- and the shared ones alike).
+Rules.DOSE_BONUS = { 20, 10 }
+
+-- Doses adapted to so far, every kind.
+function Rules.dosesAdapted(u)
+    local n = u.sharedInjected
+    for _, tree in ipairs(Data.TREES) do n = n + u.injected[tree] end
+    return n
+end
+
+-- Doses still to take for 혈청 적응's next shared point (those adapting now count as taken), or nil without the node.
+function Rules.dosesToBonus(u)
+    local every = Rules.DOSE_BONUS[Rules.rank(u, "serumAdapt")]
+    if not every then return nil end
+    local taken = Rules.dosesAdapted(u)
+    for _, n in pairs(u.adapt and u.adapt.doses or {}) do taken = taken + n end
+    return every - OA.remainder(taken, every)
 end
 
 -- A dose of an upgrade serum of a tree (or "shared") is taken at world age hour `now`: it adapts for Rules.adaptHours,
@@ -392,12 +415,14 @@ function Rules.adaptDone(u, now)
 end
 
 -- The adaptation is over: every dose becomes its point (the first of a tree opens it; a shared dose opens every tree
--- still closed, with no point of their own). Returns { trees = { [tree] = n }, shared = n, opened = { tree... } (by
--- their own doses), sharedOpened = { tree... } } in the trees' order, or nil when there was no adaptation.
+-- still closed, with no point of their own), and with 혈청 적응 each multiple of its count the doses pass gives a
+-- shared point. Returns { trees = { [tree] = n }, shared = n, opened = { tree... } (by their own doses),
+-- sharedOpened = { tree... }, bonus = n } in the trees' order, or nil when there was no adaptation.
 function Rules.finishAdapt(u)
     local a = u.adapt
     if not a then return nil end
-    local result = { trees = {}, shared = 0, opened = {} }
+    local result = { trees = {}, shared = 0, opened = {}, bonus = 0 }
+    local before = Rules.dosesAdapted(u)
     for _, tree in ipairs(Data.TREES) do
         local n = a.doses[tree] or 0
         for _ = 1, n do
@@ -415,6 +440,11 @@ function Rules.finishAdapt(u)
                 result.sharedOpened[#result.sharedOpened + 1] = tree
             end
         end
+    end
+    local every = Rules.DOSE_BONUS[Rules.rank(u, "serumAdapt")]
+    if every then
+        result.bonus = math.floor(Rules.dosesAdapted(u) / every) - math.floor(before / every)
+        u.sharedBonus = u.sharedBonus + result.bonus
     end
     u.adapt = nil
     return result

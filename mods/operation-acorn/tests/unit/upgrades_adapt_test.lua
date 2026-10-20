@@ -616,7 +616,7 @@ test("a pried lock is 쇠지렛대로 따기's first effect, from the action tha
     eq(firsts(), 1, "once")
 end)
 
-test("a dose makes the arm sore and the character drowsy, never asleep; 혈청 적응 halves both and the time, then ends them", function()
+test("a dose makes the arm sore and the character drowsy, never asleep; 혈청 적응 halves both and the time, then ends them (at once)", function()
     local c = character()
     OA.Store.ensure("se1", "tester")
     TEST.hours = 10
@@ -641,8 +641,58 @@ test("a dose makes the arm sore and the character drowsy, never asleep; 혈청 �
     near(Rules.adaptHours(half), Data.ADAPT_HOURS / 2)
     local none = Rules.blank()
     none.ranks.serumAdapt = 2
-    near(Rules.adaptHours(none), Data.ADAPT_HOURS / 4)
+    eq(Rules.adaptHours(none), 0, "the second rank adapts at once")
     Rules.startAdapt(half, "scout", 5)
     near(half.adapt.endsAt, 5 + Data.ADAPT_HOURS / 2, 1e-9, "a shorter adaptation")
     eq(Rules.adaptLevel(Rules.blank(), 5), 0, "nothing adapting: no moodle")
+end)
+
+local function seen(told, key)
+    local n = 0
+    for _, notice in ipairs(told.notices) do
+        if notice.key == key then n = n + 1 end
+    end
+    return n
+end
+
+test("혈청 적응 gives a shared point every 20 doses (every 10 at its 2nd rank), counting every dose from the first", function()
+    local c = character()
+    local record = OA.Store.ensure("db1", "tester")
+    local u = Rules.section(record)
+    local told = listen()
+    eq(Rules.dosesToBonus(u), nil, "without the node")
+    TEST.hours = 10
+    for _ = 1, 18 do Serums.inject(c, serum("UpgradeSerumScout"), "db1") end
+    Adapt.finish(record, 11)
+    eq(Rules.dosesAdapted(u), 18)
+    u.ranks.serumAdapt = 1
+    eq(Rules.dosesToBonus(u), 2, "the doses before the node count")
+    Serums.inject(c, serum("UpgradeSerumShared"), "db1")
+    eq(Rules.dosesToBonus(u), 1, "a dose adapting counts as taken; a shared one too")
+    Serums.inject(c, serum("UpgradeSerumLoad"), "db1")
+    Adapt.finish(record, 13)
+    eq(u.sharedBonus, 1, "the 20th dose")
+    eq(Rules.sharedPool(u), 2, "the shared serum's point and the node's")
+    eq(seen(told, "IGUI_OA_Tree_DoseBonus"), 1)
+    eq(Rules.dosesToBonus(u), 20)
+    -- the 2nd rank: every 10, at once (no adaptation to wait for)
+    u.ranks.serumAdapt = 2
+    for _ = 1, 9 do Serums.inject(c, serum("UpgradeSerumScout"), "db1") end
+    eq(u.adapt, nil, "adapted to at once")
+    eq(u.sharedBonus, 1, "the 29th dose")
+    Serums.inject(c, serum("UpgradeSerumScout"), "db1")
+    eq(u.sharedBonus, 2, "the 30th")
+    eq(seen(told, "IGUI_OA_Tree_DoseBonus"), 2)
+    eq(Rules.ownPool(u, "scout"), 28, "each dose its point as ever")
+end)
+
+test("doses taken together that pass two multiples give both points", function()
+    local c = character()
+    local record = OA.Store.ensure("db2", "tester")
+    local u = Rules.section(record)
+    u.ranks.serumAdapt = 1
+    TEST.hours = 10
+    for _ = 1, 41 do Serums.inject(c, serum("UpgradeSerumSurvival"), "db2") end
+    Adapt.finish(record, 11)
+    eq(u.sharedBonus, 2, "the 20th and the 40th")
 end)

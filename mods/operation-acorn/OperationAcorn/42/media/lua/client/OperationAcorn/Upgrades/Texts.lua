@@ -183,6 +183,14 @@ function Texts.biteStatus(node, u, now)
     return getText("IGUI_OA_Tree_BiteRestHours", math.max(1, hours)), false
 end
 
+-- 혈청 적응's count for the tooltip: how many doses until its next shared point, or nil (another node, or not taken).
+function Texts.doseStatus(node, u)
+    if node.id ~= "serumAdapt" then return nil end
+    local left = Rules.dosesToBonus(u)
+    if not left then return nil end
+    return getText("IGUI_OA_Tree_DoseBonusLeft", left)
+end
+
 -- Why the API side of a node does nothing, or nil when it works.
 function Texts.apiNote(id)
     local status, detail = Effects.status(id)
