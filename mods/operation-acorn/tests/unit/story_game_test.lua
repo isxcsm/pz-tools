@@ -191,7 +191,7 @@ test("open ground in a band is a field first, else the first in woods", function
     local x, y = Game.groundInBand(0, 0, 100, 200)
     eq(x, 7); eq(y, 8)
     local options = asked[1][5]
-    eq(options.road.type, "Nav"); eq(options.road.none, Game.ROAD_NEAR); eq(options.road.some, Game.ROAD_FAR)
+    eq(options.near.type, "Nav"); eq(options.near.min, Game.ROAD_NEAR); eq(options.near.max, Game.ROAD_FAR)
     truthy(options["not"] == Game.CLOSED_ZONES)
     points = { { x = 5, y = 6, zones = { "Forest" } }, { x = 9, y = 10, zones = { "Vegitation" } } }
     x, y = Game.groundInBand(0, 0, 100, 200)
@@ -212,7 +212,7 @@ test("a band with no open ground reaches further, then asks no road, then takes 
     calls, give = 0, 4
     Game.groundInBand(0, 0, 100, 200)
     eq(asked[6][4], 400)
-    eq(asked[6][5].road, nil, "no road asked")
+    eq(asked[6][5].near, nil, "no road asked")
     truthy(asked[6][5]["not"] == Game.CLOSED_ZONES)
     -- none at all: a point of the band, on the map and in no building
     local realWorld = getWorld
@@ -243,8 +243,8 @@ test("roadside ground is asked by a road first, else any open ground", function(
     end } })
     local x, y = Game.groundInBand(0, 0, 100, 200, true)
     eq(x, 7); eq(y, 8)
-    eq(asked[1][5].road.none, Game.ROADSIDE_NEAR); eq(asked[1][5].road.some, Game.ROADSIDE_FAR)
-    eq(asked[2][5].road.none, Game.ROAD_NEAR, "none by a road: any open ground")
+    eq(asked[1][5].near.min, Game.ROADSIDE_NEAR); eq(asked[1][5].near.max, Game.ROADSIDE_FAR)
+    eq(asked[2][5].near.min, Game.ROAD_NEAR, "none by a road: any open ground")
     PZExtAPI = nil
 end)
 

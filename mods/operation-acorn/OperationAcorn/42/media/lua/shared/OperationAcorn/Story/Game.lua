@@ -91,15 +91,16 @@ Game.CLOSED_ZONES = { "Nav", "ForagingNav", "TownZone", "WaterFlow", "WaterZone"
     "DeepForest", "OrganicForest", "PHForest", "PRForest", "BirchForest", "FarmForest", "Basement", "ZoneStory" }
 
 -- A road (the map's Nav zone) passes within ROAD_FAR squares of a point and none within ROAD_NEAR: a camp is set up off
--- a road a truck came along, not on its shoulder nor deep in the woods.
+-- a road a truck came along, not on its shoulder nor deep in the woods. The points are drawn round the roads (the API's
+-- `near`): a ring with no road gives none at once.
 Game.ROAD_NEAR, Game.ROAD_FAR = 8, 40
 local GROUND_POINTS = { count = 16, tries = 300, ["not"] = Game.CLOSED_ZONES,
-    road = { type = "Nav", none = Game.ROAD_NEAR, some = Game.ROAD_FAR } }
+    near = { type = "Nav", min = Game.ROAD_NEAR, max = Game.ROAD_FAR } }
 -- `roadside`: by the road, as a wreck towed off it is left (off the carriageway, a road in sight). Its camp is smaller
 -- (ROADSIDE_REACH), so that the ground about it never reaches the road.
 Game.ROADSIDE_NEAR, Game.ROADSIDE_FAR, Game.ROADSIDE_REACH = 5, 14, 4
 local ROADSIDE_POINTS = { count = 16, tries = 300, ["not"] = Game.CLOSED_ZONES,
-    road = { type = "Nav", none = Game.ROADSIDE_NEAR, some = Game.ROADSIDE_FAR } }
+    near = { type = "Nav", min = Game.ROADSIDE_NEAR, max = Game.ROADSIDE_FAR } }
 
 -- Whether a point's zone types (a list) say woods (a Forest zone of any kind, Vegitation).
 local function woodsIn(zones)

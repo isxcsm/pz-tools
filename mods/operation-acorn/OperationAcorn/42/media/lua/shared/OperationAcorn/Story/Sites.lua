@@ -34,7 +34,7 @@ Sites.SPACING = 400
 Sites.KINDS = { "stony", "iron", "stonyIron" }
 Sites.FRAGMENT = { stony = "MeteorFragment", iron = "MeteorFragmentIron", stonyIron = "MeteorFragmentStonyIron" }
 Sites.SCORCH = { stony = 9, iron = 5, stonyIron = 7 }
--- Zone types a site never lies in (judged where the zones are known: B42 loads a cell's zones with the cell).
+-- Zone types a site never lies in.
 Sites.NOT = { "TownZone", "WaterZone", "WaterFlow", "Basement", "TrailerPark" }
 -- A road (the map's Nav zone) within ROAD_FAR squares: land the player can reach. A cell at the map's edge has land
 -- the map does not join (across a river, past its last road), and a cell's data alone lets it pass.
@@ -106,13 +106,14 @@ end
 local CELL = 256
 
 -- A map point that may hold a site: a cell of the drawn map, and (drawPoint) no building and no zone there that says
--- town or water. B42 keeps a cell's zones only once the cell has loaded, so far from the player there are mostly none:
--- the land is then judged when the site's chunk loads (Sites.onChunk), and a site that is not on land moves.
+-- town or water, a road near. The game knows the whole map's zones, loaded or not; the land itself is judged when the
+-- site's chunk loads (Sites.onChunk), and a site that is not on land moves.
 local function acceptPoint(x, y)
     return getWorld():getMetaGrid():getCellData(math.floor(x / CELL), math.floor(y / CELL)) ~= nil
 end
 
-local SITE_POINTS = { count = 1, ["not"] = Sites.NOT, road = { type = "Nav", some = Sites.ROAD_FAR } }
+-- (drawn round the roads, the API's `near`: a ring with no road gives none at once)
+local SITE_POINTS = { count = 1, ["not"] = Sites.NOT, near = { type = "Nav", max = Sites.ROAD_FAR } }
 -- The same, asked of one point (a ring of no width: every try is the point).
 local SITE_HERE = { count = 1, tries = 1, ["not"] = Sites.NOT, road = { type = "Nav", some = Sites.ROAD_FAR } }
 
