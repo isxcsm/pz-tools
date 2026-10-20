@@ -1937,6 +1937,8 @@
     "IGUI_OA_Story_Doc_memo_survival_sample": "~ 시료 분석 메모. 생존 적응 계열.\n분석 대상: 낙하 지점 회수 파편. 석질.\n표면 융해 피각 두께 1mm 내외. 내부에 구상 콘드룰 다수 함유.\n생존 적응 계열 최종 단계 진행 가능.\n> 기록: 애시다운, MAJ.",
     "IGUI_OA_Story_DocTitle_memo_survival_cap": "임상 메모 · 생존 적응 (최종)",
     "IGUI_OA_Story_Doc_memo_survival_cap": "~ 관찰 기록. 생존 적응 계열.\n피험자: [취소선]\n체온 98.6°F.\n전력 질주 중 접촉. 피험자 이상 없음. 접촉 대상은 기립까지 시간이 걸림.\n소견 없음.",
+    "IGUI_OA_Story_DocTitle_memo_board": "임상 메모 · 연장 투여",
+    "IGUI_OA_Story_Doc_memo_board": "~ 관찰 기록. 연장 투여.\n피험자: [취소선]\n세 계열 최종 적응 확인.\n투여 계속.\n투여 기한: 해당 없음.\n종료 기준: 해당 없음.",
     "IGUI_OA_Story_HarvestFail_kit": "채취 키트가 없으면 채취할 수 없어.",
     "IGUI_OA_Story_HarvestFail_tweezers": "핀셋이 없으면 건드릴 수 없어.",
     "IGUI_OA_Story_HarvestFail_gone": "시체가 흔적도 없이 사라졌잖아.",

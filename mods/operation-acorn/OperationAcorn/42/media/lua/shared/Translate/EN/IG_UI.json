@@ -1937,6 +1937,8 @@
     "IGUI_OA_Story_Doc_memo_survival_sample": "~ Sample analysis memo. Survival adaptation line.\nSubject: fragment recovered at a drop site. Stony.\nFusion crust about 1 mm. Many round grains inside.\nSurvival adaptation line: last stage may proceed.\n> Recorded: Ashdown, MAJ.",
     "IGUI_OA_Story_DocTitle_memo_survival_cap": "Research memo · Survival adaptation (follow-up)",
     "IGUI_OA_Story_Doc_memo_survival_cap": "~ Observation record. Survival adaptation line.\nSubject: [struck out]\nTemp 98.6°F.\nContact during a full sprint. Subject unharmed. The other party took time to get up.\nNo findings.",
+    "IGUI_OA_Story_DocTitle_memo_board": "Research memo · Extended dosing",
+    "IGUI_OA_Story_Doc_memo_board": "~ Observation record. Extended dosing.\nSubject: [struck out]\nFinal adaptation confirmed in all three lines.\nDosing continues.\nEnd date: not applicable.\nStopping criteria: not applicable.",
     "IGUI_OA_Story_HarvestFail_kit": "Can't take anything without the harvest kit.",
     "IGUI_OA_Story_HarvestFail_tweezers": "I don't have the tweezers.",
     "IGUI_OA_Story_HarvestFail_gone": "The body is gone.",

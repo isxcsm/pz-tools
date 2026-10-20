@@ -20,9 +20,10 @@ OA.Upgrades.Adapt = Adapt
 
 -- The documents the research team sends to the folder (Docs.addGuide): the plan, and for each tree its memo when it
 -- opens ("open"), when its meteorite fragment has reached the team and its capstone may be taken ("sample"), and
--- when its capstone is approved ("cap").
+-- when its capstone is approved ("cap"); and one when the last capstone opens the 2nd board.
 Adapt.GUIDE = "research_guide"
 Adapt.MEMOS = { "open", "sample", "cap" }
+Adapt.BOARD_MEMO = "memo_board"
 
 function Adapt.memoId(tree, which)
     return "memo_" .. tree .. "_" .. which
@@ -32,6 +33,7 @@ Docs.addGuide(Adapt.GUIDE)
 for _, tree in ipairs(Data.TREES) do
     for _, which in ipairs(Adapt.MEMOS) do Docs.addGuide(Adapt.memoId(tree, which)) end
 end
+Docs.addGuide(Adapt.BOARD_MEMO)
 
 -- The self-talk when an adaptation is over: three lines a tree, in the order of the trees.
 local PER_TREE = 3
@@ -116,14 +118,17 @@ function Adapt.unsealed(record, tree)
     return false
 end
 
--- A plan is approved: each capstone newly taken (not in `before`, as Adapt.capstones gave it) brings its memo. The
--- player is told once. Returns true when a memo came.
+-- A plan is approved: each capstone newly taken (not in `before`, as Adapt.capstones gave it) brings its memo, and the
+-- last one the board's after it. The player is told once. Returns true when a memo came.
 function Adapt.approved(record, before)
-    local after = Adapt.capstones(Rules.section(record))
-    local sent = false
+    local u = Rules.section(record)
+    local after = Adapt.capstones(u)
+    local sent, had = false, 0
     for _, tree in ipairs(Data.TREES) do
+        if before[tree] then had = had + 1 end
         if after[tree] and not before[tree] and Adapt.deliver(record, Adapt.memoId(tree, "cap")) then sent = true end
     end
+    if had < #Data.TREES and Rules.boardOpen(u) and Adapt.deliver(record, Adapt.BOARD_MEMO) then sent = true end
     if sent then OA.Sync.notice(record.id, "IGUI_OA_Tree_GuideSent", {}) end
     return sent
 end

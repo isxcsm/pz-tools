@@ -260,6 +260,26 @@ test("a capstone approved brings the tree's follow-up memo, once", function()
     eq(told.notices[#told.notices].key, "IGUI_OA_Tree_GuideSent")
     eq(Adapt.approved(record, before), false, "the memo is not sent twice")
     eq(Adapt.approved(record, Adapt.capstones(u)), false, "a capstone taken before is not new")
+    eq(OA.Story.section(record).docs.memo_board, nil, "the board is not open yet")
+end)
+
+test("the last capstone brings its memo and the board's after it, once", function()
+    local record = OA.Store.ensure("c2", "tester")
+    local u = Rules.section(record)
+    local told = listen()
+    u.ranks.nightEye, u.ranks.armor = 1, 1
+    local before = Adapt.capstones(u)
+    u.ranks.dash = 1
+    eq(Adapt.approved(record, before), true)
+    local docs = OA.Story.section(record).docs
+    truthy(docs.memo_survival_cap)
+    truthy(docs.memo_board)
+    local guides = 0
+    for _, notice in ipairs(told.notices) do
+        if notice.key == "IGUI_OA_Tree_GuideSent" then guides = guides + 1 end
+    end
+    eq(guides, 1, "told once for both")
+    eq(Adapt.approved(record, Adapt.capstones(u)), false, "an open board brings nothing more")
 end)
 
 test("a fragment received unseals its tree once and brings the sample memo", function()
@@ -286,7 +306,8 @@ test("the papers are guide documents with a title and a text in both languages",
     for _, tree in ipairs(Data.TREES) do
         for _, which in ipairs(Adapt.MEMOS) do ids[#ids + 1] = Adapt.memoId(tree, which) end
     end
-    eq(#ids, 10)
+    ids[#ids + 1] = Adapt.BOARD_MEMO
+    eq(#ids, 11)
     for _, lang in ipairs({ "KO", "EN" }) do
         local text = readfile("OperationAcorn/42/media/lua/shared/Translate/" .. lang .. "/IG_UI.json")
         for _, id in ipairs(ids) do

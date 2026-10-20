@@ -199,6 +199,9 @@ Motion.OPEN_LINE_MS = 200
 Motion.OPEN_BAR_WAIT_MS = 60
 Motion.OPEN_BAR_MS = 420
 Motion.SWITCH_PACE = 0.5
+-- The 2nd board opened by an approval comes up at REVEAL_PACE of the time (slower than the tab's own opening: the
+-- player waits for it), each node's padlock coming off as its pop ends.
+Motion.REVEAL_PACE = 2
 
 local function share(age, start, ms)
     return Motion.easeOut((age - start) / ms)
@@ -233,6 +236,11 @@ end
 -- How much of a line of column c down to a node of row r has drawn itself `age` ms into the opening (0 to 1).
 function Motion.openLine(age, c, r)
     return share(age, nodeStart(c, r) + Motion.OPEN_LINE_LAG * Motion.OPEN_NODE_MS, Motion.OPEN_LINE_MS)
+end
+
+-- When a node of column c, row r has popped in, ms into the board's reveal (REVEAL_PACE): its padlock comes off then.
+function Motion.revealUnlockAt(c, r)
+    return (nodeStart(c, r) + Motion.OPEN_NODE_MS) * Motion.REVEAL_PACE
 end
 
 -- How much of column c's bar has filled `age` ms into the opening (0 to 1).

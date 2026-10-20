@@ -24,6 +24,8 @@
 -- have the timing; the tab's own render draws it,
 -- so it costs nothing when the tab is closed). The nodes it opened (their padlocks gone) then flash in their tree's
 -- colour with a ring, as the nodes a click opens do (a row opened by the points selected) just behind the click.
+-- The take of the last capstone, which opens the 2nd board, then turns the tab to the board: it comes up slowly
+-- (Motion.REVEAL_PACE), each node losing its padlock as it pops in (View:revealBoard).
 -- Smaller motions (Motion.lua has their timing): a rank raised makes its node pop with a cyan ring going out and a
 -- "+1" floating up, one taken back shrinks it with a "-1", a refused click shakes it; the pip that changed flashes and
 -- the tree's points left hop with the bar's segment lit. The node under the mouse lights and grows a little. A lit line
@@ -1060,14 +1062,19 @@ end
 
 function View:onMode(button)
     if self.mode == button.internal then return end
-    self.mode = button.internal
+    -- the other trees come up as the tab's do when it opens, quicker
+    self:setMode(button.internal, Motion.SWITCH_PACE)
+end
+
+-- Shows the trees or the board, coming up at `pace` (a share of the opening's time).
+function View:setMode(mode, pace)
+    self.mode = mode
     self.hover = nil
     self:layout()
     if self.sim then self:workOut() end
     if self.joypad then self.cursor = (self:firstNode() or {}).key or self.cursor end
     self:changed()
-    -- the other trees come up as the tab's do when it opens, quicker
-    self:startOpen(Motion.SWITCH_PACE)
+    self:startOpen(pace)
 end
 
 function View:firstNode()
@@ -1189,7 +1196,7 @@ function View:approve()
     -- that is at once, inside the send), and the nodes the record shows locked, of which those it opens lose their
     -- padlocks after it
     self.approved = { steps = self.steps, at = getTimestampMs(), locked = self:lockedOnRecord(),
-        spent = self.spentPlan }
+        spent = self.spentPlan, boardWas = Rules.boardOpen(self.u) }
     OA.Sync.send(self.player, "upgrades.approve", { steps = self.steps })
     self.steps = {}
     self.refusal = nil
@@ -2447,6 +2454,16 @@ function View:lockedOnRecord()
     return locked
 end
 
+-- The take that opened the 2nd board is over (at `now`): the tab turns to the board, which comes up slowly, each of its
+-- nodes losing its padlock as it pops in (they were drawn locked in the take: Motion.revealUnlockAt).
+function View:revealBoard(now)
+    self:setMode("board", Motion.REVEAL_PACE)
+    for _, item in ipairs(self.items) do
+        local n = item.id and self.nodes[item.id]
+        if n and not greyed(n) then self:addUnlock(item.id, now + Motion.revealUnlockAt(item.col, item.row)) end
+    end
+end
+
 -- The tab came on the screen (or switched between the trees and the board, at `pace`, a share of the time): its
 -- columns come up (Motion.open*). Only the drawing; a click works at once.
 function View:startOpen(pace)
@@ -2467,7 +2484,15 @@ function View.tick(body, now)
     local look
     local take = view.take
     if take then
-        if now - take.start < take.ends then moving = true else view.take = nil end
+        if now - take.start < take.ends then
+            moving = true
+        else
+            view.take = nil
+            if take.board then
+                view:revealBoard(now)
+                moving = true
+            end
+        end
     end
     local fx = view.fx
     if fx then
@@ -2737,7 +2762,8 @@ function View:startTake()
     local start = getTimestampMs()
     self.take = { order = order, start = start, lit = 0, index = index, step = step, ways = ways, arrive = arrive,
         first = first, cols = cols, gained = Plan.counts(approved.steps), points = approved.spent or {},
-        glowFrom = Plan.takeGlowAt(n, last), ends = Plan.takeEnd(n, last) }
+        glowFrom = Plan.takeGlowAt(n, last), ends = Plan.takeEnd(n, last),
+        board = approved.boardWas == false and Rules.boardOpen(self.u) and self.mode ~= "board" }
     -- the nodes it opens stay locked to the eye until it is over, then their padlocks come off (those still locked
     -- then are drawn locked anyway); not the ones it took ranks of, which it lights itself
     if approved.locked then
@@ -2800,7 +2826,8 @@ function View:drawTake(el)
     local n = #take.order
     local t = NOW - take.start
     if t >= take.ends then
-        self.take = nil
+        -- (one that opened the board is let go by View.tick, which turns the tab to it before a frame is drawn)
+        if not take.board then self.take = nil end
         return
     end
     local tex = glow()

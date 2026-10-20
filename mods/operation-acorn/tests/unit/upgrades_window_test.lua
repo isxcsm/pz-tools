@@ -551,6 +551,55 @@ test("the padlocks an approval took off come off once its take is over, not on t
     eq(view.unlocks, nil)
 end)
 
+test("the take of the last capstone turns the tab to the board, which comes up slowly, its padlocks coming off", function()
+    local UI = OA.Trade.UI
+    local Rules = OA.Upgrades.Rules
+    local Motion = OA.Upgrades.Motion
+    local u = Rules.blank()
+    for _, tree in ipairs(Data.TREES) do u.opened[tree] = true end
+    u.ranks.nightEye, u.ranks.armor = 1, 1
+    local view = onSection(u)
+    local body = shown(view)
+    view.getIsVisible = function() return true end
+    -- the approval of the last capstone as View.approve makes it, then the server's answer
+    view.approved = { steps = { { id = "dash" } }, at = clock.now, locked = View.lockedOnRecord(view),
+        boardWas = Rules.boardOpen(u) }
+    eq(view.approved.boardWas, false)
+    u.ranks.dash = 1
+    view:refresh()
+    View.startTake(view)
+    truthy(view.take.board, "this take opened the board")
+    eq(view.mode, "trees", "the trees while it plays")
+    local ends = clock.now + view.take.ends
+    clock.now = ends
+    UI.liveFrame()
+    eq(view.take, nil)
+    eq(view.mode, "board", "then the board")
+    eq(view.openPace, Motion.REVEAL_PACE)
+    eq(body.liveLook, clock.now, "it comes up")
+    local first, last, count = nil, 0, 0
+    for _, item in ipairs(view.items) do
+        if item.id then
+            truthy(Data.byId[item.id].board, item.id)
+            local at = view.unlocks[item.id]
+            eq(at, ends + Motion.revealUnlockAt(item.col, item.row), item.id .. " opens as it pops in")
+            first = math.min(first or at, at)
+            last = math.max(last, at)
+            count = count + 1
+        end
+    end
+    truthy(count > 0)
+    truthy(last > first, "one band after another")
+    truthy(last - ends <= Motion.openEnd(#view.panels, Data.ROWS) * Motion.REVEAL_PACE, "within the board's coming up")
+    -- a take that opens nothing turns nothing
+    local again = onSection(u)
+    shown(again)
+    again.getIsVisible = function() return true end
+    again.approved = { steps = { { id = "dash" } }, at = clock.now, boardWas = true }
+    View.startTake(again)
+    eq(again.take.board, false)
+end)
+
 test("the opening is followed while it plays and only then", function()
     local UI = OA.Trade.UI
     local Motion = OA.Upgrades.Motion

@@ -53,9 +53,11 @@ function Upgrades.capstoneTitle(node)
         size = "major" }
 end
 
--- The title of the second board opening (the last capstone taken): the same quiet one, in gold.
+-- The title of the second board opening (the last capstone taken, once a game): a new phase, not one more step, so
+-- the wide rise of the first supply's (the "unveil" style, SOUND-SYSTEM S6), large, in gold.
 function Upgrades.boardTitle()
-    return { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "dust", tone = "gold" }
+    return { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "unveil", tone = "gold",
+        size = "major" }
 end
 
 -- Sample bundles the shredder adds to its yield, as an expected count (the board).
