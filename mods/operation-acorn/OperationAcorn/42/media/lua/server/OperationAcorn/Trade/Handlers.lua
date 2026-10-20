@@ -161,13 +161,16 @@ local function everyTenMinutes()
 end
 OA.on("EveryTenMinutes", everyTenMinutes)
 
--- A box or terminal that is taken out of the world by something other than us (a sledgehammer): the record forgets it.
--- Our own removals set Objects.removing. The event fires on the side that decides (the server, or the game alone).
+-- A box or terminal that is taken out of the world by something other than us (a sledgehammer): the record forgets it;
+-- a sealed crate's cargo falls out (Things.crateLost). Our own removals set Objects.removing. The event fires on the
+-- side that decides (the server, or the game alone).
 local function onRemoved(object)
     if Objects.removing or not object or not object.hasModData then return end
     local kind = Objects.kindOf(object)
     if kind == Objects.DELIVERY_BOX or kind == Objects.TERMINAL then
         guarded("destroyed", function() Things.destroyed(object) end)
+    elseif kind == Objects.CRATE then
+        guarded("crate lost", function() Things.crateLost(object) end)
     end
 end
 OA.on("OnObjectAboutToBeRemoved", onRemoved)

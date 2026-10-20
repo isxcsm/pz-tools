@@ -384,6 +384,35 @@ function Things.unseal(character, object, record)
     return true
 end
 
+-- A sealed crate taken out of the world by something other than us (a sledgehammer, a fire): its cargo falls out on its
+-- square as the items it would have held, so nothing it brought is lost (the first supply's terminal and delivery box
+-- above all: without them nothing can be ordered again). Returns how many items fell.
+function Things.crateLost(object)
+    local md = object:getModData()
+    if Objects.kindOf(object) ~= Objects.CRATE or not md[Objects.SEALED] then return 0 end
+    local square = object:getSquare()
+    if not square then return 0 end
+    local fell = 0
+    local function drop(item)
+        square:AddWorldInventoryItem(item, 0.2 + OA.randomFloat(0, 0.6), 0.2 + OA.randomFloat(0, 0.6), 0)
+        fell = fell + 1
+    end
+    for _, spec in ipairs(md[Objects.CARGO] or {}) do
+        for _ = 1, spec.count or 1 do
+            local pieces = OA.Machines and OA.Machines.deliveryItems and OA.Machines.deliveryItems(spec.type)
+            if pieces then
+                for _, item in ipairs(pieces) do drop(item) end
+            else
+                local item = Objects.makeItem(spec)
+                if item then drop(item) end
+            end
+        end
+    end
+    md[Objects.CARGO], md[Objects.SEALED] = nil, nil
+    OA.log("a sealed crate was taken out at", square:getX(), square:getY(), ": its cargo fell out,", fell, "items")
+    return fell
+end
+
 -- Whether an opened crate is empty (and so breaks).
 function Things.crateEmpty(object)
     local md = object:getModData()

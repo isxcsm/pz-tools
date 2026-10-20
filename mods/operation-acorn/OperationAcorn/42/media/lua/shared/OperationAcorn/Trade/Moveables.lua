@@ -1,7 +1,9 @@
 -- The game's furniture tool takes the trade objects up (its 떼어내기, pick up mode) the way this mod's own taking
 -- does (Things.takeTerminal / takeBox): the terminal always, a delivery box when it is not sealed and is empty, each
 -- into the hands as its item with what it carries (the box's id and owner), when it fits the inventory as the game
--- asks of its own furniture of one tile. (A supply crate is not taken up: it breaks once it is emptied.) Left
+-- asks of its own furniture of one tile. (A supply crate is not taken up nor scrapped: it is opened, and breaks once
+-- it is emptied. Its tiles say CanScrap, and a sealed one has no container for the tool to find full: scrapped, its
+-- cargo went with it, the first supply's terminal and delivery box too, and nothing could be ordered again.) Left
 -- to itself the tool would not offer them (their tiles have no IsMoveAble property) or would make a generic Moveable;
 -- the trade sheet's object tiles are told they move and the tool's check and pick-up are this mod's. Its other modes
 -- leave them alone (no faces to rotate, nothing to scrap).
@@ -24,6 +26,7 @@ for dir = 0, 7 do
     KIND[Sprites.TRADE .. "_" .. (16 + dir)] = Objects.TERMINAL   -- as assembled
 end
 KIND[Sprites.deliveryBox(false)], KIND[Sprites.deliveryBox(true)] = Objects.DELIVERY_BOX, Objects.DELIVERY_BOX
+local CRATE = { [Sprites.supplyCrate(false)] = true, [Sprites.supplyCrate(true)] = true, [Sprites.PARACHUTE_CRATE] = true }
 local NAME = { [Objects.TERMINAL] = Objects.ITEMS.terminal, [Objects.DELIVERY_BOX] = Objects.ITEMS.box }
 
 -- An item of the kind (the field terminal's for its tiles), made once, for the tool's name and weight.
@@ -48,6 +51,7 @@ if not OA.off then
     local new = ISMoveableSpriteProps.new
     function ISMoveableSpriteProps.new(sprite)
         local s = new(sprite)
+        if s and s.spriteName and CRATE[s.spriteName] then s.canScrap = false end
         local kind = s and s.spriteName and KIND[s.spriteName]
         if kind then
             s.oaTrade = kind
