@@ -2763,7 +2763,7 @@ function View:startTake()
     self.take = { order = order, start = start, lit = 0, index = index, step = step, ways = ways, arrive = arrive,
         first = first, cols = cols, gained = Plan.counts(approved.steps), points = approved.spent or {},
         glowFrom = Plan.takeGlowAt(n, last), ends = Plan.takeEnd(n, last),
-        board = approved.boardWas == false and Rules.boardOpen(self.u) and self.mode ~= "board" }
+        board = approved.boardWas == false and Rules.boardOpen(self.u) }
     -- the nodes it opens stay locked to the eye until it is over, then their padlocks come off (those still locked
     -- then are drawn locked anyway); not the ones it took ranks of, which it lights itself
     if approved.locked then
@@ -2825,11 +2825,7 @@ function View:drawTake(el)
     local take = self.take
     local n = #take.order
     local t = NOW - take.start
-    if t >= take.ends then
-        -- (one that opened the board is let go by View.tick, which turns the tab to it before a frame is drawn)
-        if not take.board then self.take = nil end
-        return
-    end
+    if t >= take.ends then return end   -- (View.tick lets it go, before the next frame is drawn)
     local tex = glow()
     local lit = Plan.takeLit(n, t)
     for i = 1, lit do

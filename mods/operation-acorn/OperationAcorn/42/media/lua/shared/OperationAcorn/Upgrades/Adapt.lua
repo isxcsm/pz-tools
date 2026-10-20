@@ -123,12 +123,11 @@ end
 function Adapt.approved(record, before)
     local u = Rules.section(record)
     local after = Adapt.capstones(u)
-    local sent, had = false, 0
+    local sent = false
     for _, tree in ipairs(Data.TREES) do
-        if before[tree] then had = had + 1 end
         if after[tree] and not before[tree] and Adapt.deliver(record, Adapt.memoId(tree, "cap")) then sent = true end
     end
-    if had < #Data.TREES and Rules.boardOpen(u) and Adapt.deliver(record, Adapt.BOARD_MEMO) then sent = true end
+    if Rules.boardOpen(u) and Adapt.deliver(record, Adapt.BOARD_MEMO) then sent = true end
     if sent then OA.Sync.notice(record.id, "IGUI_OA_Tree_GuideSent", {}) end
     return sent
 end

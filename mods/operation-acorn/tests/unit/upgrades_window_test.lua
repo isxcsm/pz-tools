@@ -19,9 +19,11 @@ local function stubClass()
     return setmetatable(c, { __index = function() return function() end end })
 end
 
--- A canvas's stand-in: every method there, returning 0; no fields (its frame time, liveNow, is the clock's then).
+-- A canvas's stand-in: every method there, returning 0; not the kit's fields (its frame time, liveNow, is the clock's
+-- then; uiGone and uiFadeRoot unset, as on a body in the UI: a function there read as taken out, its frames dropped).
+local NOT_METHODS = { liveNow = true, uiGone = true, uiFadeRoot = true }
 local function canvasMethod(_, key)
-    if key ~= "liveNow" then return function() return 0 end end
+    if not NOT_METHODS[key] then return function() return 0 end end
 end
 
 -- Loads the tab with the stand-ins; returns its view class.
@@ -598,6 +600,21 @@ test("the take of the last capstone turns the tab to the board, which comes up s
     again.approved = { steps = { { id = "dash" } }, at = clock.now, boardWas = true }
     View.startTake(again)
     eq(again.take.board, false)
+    -- approved with the board on the screen (the capstone selected in the trees before): it comes up all the same
+    u.ranks.dash = nil
+    local onBoard = onSection(u)
+    shown(onBoard)
+    onBoard.getIsVisible = function() return true end
+    View.onMode(onBoard, { internal = "board" })
+    onBoard.approved = { steps = { { id = "dash" } }, at = clock.now, boardWas = false }
+    u.ranks.dash = 1
+    onBoard:refresh()
+    View.startTake(onBoard)
+    eq(#onBoard.take.order, 0, "no node of the plan on the screen")
+    clock.now = clock.now + onBoard.take.ends
+    UI.liveFrame()
+    eq(onBoard.mode, "board")
+    eq(onBoard.openPace, Motion.REVEAL_PACE, "it comes up as it would from the trees")
 end)
 
 test("the opening is followed while it plays and only then", function()
@@ -721,6 +738,11 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     el.drawRect, el.uiBase, el.uiScaled, el.uiDesign = rect, false, false, false
     el.fx, el.fxFlash, el.rev, el.liveLook = false, false, 0, false
     setmetatable(el, { __index = canvasMethod })
+    -- the flow and the pulse paint on themselves, as in the game (each its own frame time)
+    for _, part in ipairs({ view.flow, view.pulse }) do
+        part.drawRect, part.uiBase, part.uiScaled, part.uiDesign = rect, false, false, false
+        setmetatable(part, { __index = canvasMethod })
+    end
     View.startOpen(view)
     View.paint(view, el)
     eq(covers, 3, "the opening starts with the columns hidden")
@@ -740,8 +762,8 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
             clock.now = clock.now + 16
             OA.Trade.UI.liveFrame()
             View.paint(view, el)
-            View.paintFlow(view, el)
-            View.paintPulses(view, el)
+            View.paintFlow(view, view.flow)
+            View.paintPulses(view, view.pulse)
         end
     end
     frames(30)
