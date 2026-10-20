@@ -924,3 +924,14 @@ test("the sub-tabs' frame reuses its click slots instead of making them each fra
     tabs:prerender()
     eq(#tabs.slots, 1, "fewer items: the slots past them gone")
 end)
+
+test("the progress screen chooses the level just entered, else the next; a click is forgotten when the screen is left", function()
+    loadStatus(16)
+    eq(OATabProgress.chosen(nil, 2, 2), 2, "the level just entered: what it opened")
+    eq(OATabProgress.chosen(nil, nil, 2), 3, "else the next")
+    eq(OATabProgress.chosen(5, 2, 2), 5, "the one clicked")
+    eq(OATabProgress.chosen(nil, nil, 9), 9, "the last at most")
+    local view = { sel = 5 }
+    OATabProgress.onTabLeave(view)
+    eq(view.sel, nil)
+end)

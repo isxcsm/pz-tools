@@ -118,7 +118,7 @@ function OATabProgress:build(L, w, h)
     local lx, colw = R.lx, R.colw
     local half = math.floor(colw / 2)
     local cur = d.cur
-    local sel = OA.clamp(self.sel or math.min(cur + 1, M.LEVELS), 1, M.LEVELS)
+    local sel = OA.clamp(OATabProgress.chosen(self.sel, d.fresh, cur), 1, M.LEVELS)
     local function cx(t) return lx + (t - 1) * colw end
     -- The lanes' names.
     Draw.fit(L, getText("IGUI_OA_Status_Lane_All"), 0, R.ya + 6, lx - 2, p.text)
@@ -146,16 +146,16 @@ function OATabProgress:build(L, w, h)
         local x = cx(t)
         local mid = x + half
         local past, now = t < cur, t == cur
-        if t == d.fresh then
-            -- The level just entered (DESIGN-terminal 11.1 priority 4): amber box and a small mark by the name.
-            Draw.box(L, x + 2, 0, colw - 4, R.trackH, p.warn, 0.08, p.warn, 0.9)
-            Draw.rect(L, x + colw - 10, 4, 4, 4, p.warn)
-        end
+        -- the chosen level's box; the level just entered (DESIGN-terminal 11.1 priority 4) an amber one when another is
+        -- chosen, and a small mark by the name either way: one box a column
         if t == sel then
             Draw.box(L, x + 2, 0, colw - 4, R.trackH, p.sel, 0.10, p.sel, 0.9)
+        elseif t == d.fresh then
+            Draw.box(L, x + 2, 0, colw - 4, R.trackH, p.warn, 0.08, p.warn, 0.9)
         elseif now then
             Draw.rect(L, x + 2, 0, colw - 4, R.trackH, p.sel, 0.05)
         end
+        if t == d.fresh then Draw.rect(L, x + colw - 10, 4, 4, 4, p.warn) end
         if past or now then
             Draw.rect(L, mid - 5, ly, 10, 10, fill)
         else
@@ -259,6 +259,16 @@ function OATabProgress:buildDetail(L, x, y, w, h, t)
     Draw.rect(L, gx - 5, top, 1, h - 26 - 8, p.border, 0.5)
     head(gx, getText("IGUI_OA_Status_Col_Up"), crude and p.warn or p.value, crude)
     column(gx, {}, lv.ups, crude or past)
+end
+
+-- The level chosen: the one clicked, else the level just entered (what it opened is the news), else the next one.
+function OATabProgress.chosen(clicked, fresh, cur)
+    return clicked or fresh or math.min(cur + 1, M.LEVELS)
+end
+
+-- The screen left (another tab or sub-tab): the level clicked is forgotten, the screen comes back on its own choice.
+function OATabProgress:onTabLeave()
+    self.sel = nil
 end
 
 function OATabProgress:onHit(hit)
