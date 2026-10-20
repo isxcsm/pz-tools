@@ -78,7 +78,8 @@ function Titles.place(at, withLine)
 end
 
 -- Draws a title: `spec` as the API's text.title takes it (text, subtitle, style: the one wanted, player, color...), its
--- style, backdrop (unless given) and sounds filled in here. `log(...)`: where a failure is told. True when it is drawn.
+-- style, backdrop (unless given) and sounds filled in here. `log(...)`: where a failure is told. True when it is drawn,
+-- and its key (Titles.shown).
 function Titles.show(api, handle, spec, log)
     local t = Titles.textApi(api)
     if not (t and handle and spec and spec.text) then return false end
@@ -102,7 +103,16 @@ function Titles.show(api, handle, spec, log)
         ok, err = pcall(t.title, handle, spec)
     end
     if not ok and log then log("title:", tostring(err)) end
-    return ok
+    return ok, ok and err or nil
+end
+
+-- Whether a title drawn (its key, as Titles.show gave it) is still on the screen or waiting its turn: false once it has
+-- left.
+function Titles.shown(api, handle, key)
+    local t = Titles.textApi(api)
+    if not (t and t.shown and handle and key) then return false end
+    local ok, on = pcall(t.shown, handle, key)
+    return ok and on == true
 end
 
 return Titles

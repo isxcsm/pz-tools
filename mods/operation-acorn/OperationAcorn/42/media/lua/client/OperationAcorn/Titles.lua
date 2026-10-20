@@ -68,7 +68,7 @@ Titles.OVER_WINDOW, Titles.CENTER, Titles.CENTER_ALONE = Kit.OVER_WINDOW, Kit.CE
 Titles.SIZES = { major = 1.35, minor = 0.72 }
 
 -- Shows a title (detail as OA.Sync.title takes it) for the player of that id; returns how it was shown: "title",
--- "said" (the API cannot draw it: the character says it) or nil. With `noSay` a title the API cannot draw is not shown
+-- "said" (the API cannot draw it: the character says it) or nil, and the key of a title drawn (Titles.shown). With `noSay` a title the API cannot draw is not shown
 -- at all (the caller has its own way then). The small text over the character is never used.
 function Titles.show(playerId, detail, noSay)
     if type(detail) ~= "table" then return nil end
@@ -83,21 +83,28 @@ function Titles.show(playerId, detail, noSay)
     local handle = Kit.textApi(api) and OA.handle()
     if handle and not Kit.styleFor(Kit.textApi(api), detail.style) then handle = nil end
     if noSay and not handle then return nil end
-    local shown
+    local shown, key
     for _, character in ipairs(characters) do
         local spec = { text = title, subtitle = sub, style = detail.style, player = character:getPlayerNum(),
             now = Titles.now or nil, y = Titles.place(detail.at, sub ~= nil), scale = Titles.SIZES[detail.size] }
         local tone = Titles.TONES[detail.tone]
         if tone then spec.color, spec.subtitleColor = tone[1], tone[2] end
         if detail.style == "seal" then spec.emblem = Titles.EMBLEM end
-        if handle and Kit.show(api, handle, spec, OA.log) then
-            shown = "title"
+        local drawn, drawnKey = false, nil
+        if handle then drawn, drawnKey = Kit.show(api, handle, spec, OA.log) end
+        if drawn then
+            shown, key = "title", key or drawnKey
         elseif not noSay then
             character:Say(sub and (title .. " - " .. sub) or title)
             shown = shown or "said"
         end
     end
-    return shown
+    return shown, key
+end
+
+-- Whether a title Titles.show drew (its key) is still on the screen or waiting its turn.
+function Titles.shown(key)
+    return key ~= nil and Kit.shown(OA.api(), OA.handle(), key)
 end
 
 -- Shows a notice (OA.Sync.notice: a key and its arguments, already put in the player's language) as a title, when
