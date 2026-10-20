@@ -33,6 +33,7 @@ for _, def in ipairs(Moodles.DEFS) do byId[def.id] = def end
 local how = nil          -- nil until decided, "api" or "draw"
 local levels = {}        -- id -> the level shown
 local inColumn = {}      -- id -> true when the game's column shows it (defined through the API)
+local types = {}         -- id -> the game's MoodleType the API registered for it
 
 -- Whether the hooks the API's moodles need went in: true, false, or nil while their classes have not loaded.
 local function hooksIn(api)
@@ -194,6 +195,46 @@ local function standIns()
     end
 end
 
+-- ---- a moodle mod that draws the column itself -------------------------------------------------------------------
+
+-- PlainMoodles (PlainMoodlesLevels) hides the game's moodle column and draws its own from a fixed list of the game's
+-- moodle types (and MoodleFramework's), so a type registered through the API is never in it. Its list (getTypes) is
+-- given ours as they are defined, each with an icon name of our own that its texture lookup (getUiTexture) answers
+-- with our picture. Its plate, level marks, order and tooltips (the translation name's Moodles.json keys) are its own.
+-- Feature-checked, not by version: without that table or those functions nothing is done.
+local ICON = "OA_Moodle_"
+function Moodles.plain()
+    local PML = rawget(_G, "PlainMoodlesLevels")
+    if type(PML) ~= "table" or type(PML.getTypes) ~= "function" or type(PML.getUiTexture) ~= "function" then return false end
+    if not PML.oaHooked then
+        PML.oaHooked = true
+        local getTypes, getUiTexture = PML.getTypes, PML.getUiTexture
+        PML.getTypes = function(...)
+            local list = getTypes(...)
+            if type(list) ~= "table" then return list end
+            PML.typeIcons = PML.typeIcons or {}
+            for _, def in ipairs(Moodles.DEFS) do
+                local t = types[def.id]
+                if t and not PML.oaListed then PML.oaListed = {} end
+                if t and not PML.oaListed[def.id] then
+                    PML.oaListed[def.id] = true
+                    list[#list + 1] = t
+                    PML.typeIcons[#list] = ICON .. def.id
+                end
+            end
+            return list
+        end
+        PML.getUiTexture = function(size, name)
+            local id = type(name) == "string" and string.sub(name, 1, #ICON) == ICON and string.sub(name, #ICON + 1)
+            local def = id and byId[id]
+            if def then return pictureOf(def, math.max(1, levels[id] or 1), size) or nil end
+            return getUiTexture(size, name)
+        end
+    end
+    return true
+end
+OA.on("OnGameStart", function() Moodles.plain() end)
+
 -- ---- setting a level -------------------------------------------------------------------------------------------
 
 -- The level (0 to 4; 0 hides it) the moodle `id` shows for the local player. Nothing is done while the level is the
@@ -208,7 +249,12 @@ function Moodles.set(id, level)
     if way == "api" and inColumn[id] == nil then
         local ok, err = pcall(PZExtAPI.moodles.define, OA.handle(), id, { kind = def.kind, picture = def.picture })
         inColumn[id] = ok
-        if not ok then OA.log("moodle", id, tostring(err)) end
+        if ok then
+            types[id] = err
+            Moodles.plain()
+        else
+            OA.log("moodle", id, tostring(err))
+        end
     end
     if inColumn[id] then
         local ok, err = pcall(PZExtAPI.moodles.set, OA.handle(), id, level)

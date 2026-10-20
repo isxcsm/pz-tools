@@ -2772,15 +2772,15 @@ end
 
 -- ---- the tab in the character info window ----------------------------------------------------------------------
 
--- Whether a player has the tab: from the first upgrade serum taken (its adaptation started) on. Before it the
--- character window has no such tab; the first dose brings it, quietly (Window.reveal), and it blinks when the points
--- come (Window.blink).
+-- Whether a player has the tab: from the first research point on (the first dose adapted to: a tree opened, or a
+-- shared point). Before it the character window has no such tab, nothing being there to choose; the first point
+-- brings it, blinking (Window.reveal, Window.blink).
 local function earned(playerNum)
     local player = getSpecificPlayer(playerNum)
     local record = player and OA.Client.record(player)
     if not record then return false end
     local u = Rules.section(record)
-    if u.adapt or u.sharedInjected > 0 then return true end
+    if u.sharedInjected > 0 then return true end
     for _ in pairs(u.opened) do return true end
     return false
 end
@@ -2935,8 +2935,8 @@ end
 
 OA.Upgrades.open = Window.open
 
--- The record changed (an approval, a reset, a serum, an adaptation over): a tab not earned yet may be now (a first
--- dose: it comes in quietly, nothing to choose yet); the tabs read it again. An adaptation over brings points: the tab
+-- The record changed (an approval, a reset, a serum, an adaptation over): a tab not earned yet may be now (the first
+-- point); the tabs read it again. An adaptation over brings points: the tab
 -- blinks when it is not the one shown, and on the screen the trees it opened lose their padlocks.
 local function onChanged(playerId, detail)
     local kind = type(detail) == "table" and detail.kind or nil
