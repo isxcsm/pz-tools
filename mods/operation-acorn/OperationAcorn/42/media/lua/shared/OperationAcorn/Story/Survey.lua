@@ -1,7 +1,8 @@
 -- The drop sites' survey zones (the "survey" branch of the team's calls, Story/Branches): when a tree's capstone waits
 -- for nothing but its meteorite fragment (every other condition met: Upgrades Rules.blocked gives "sealed"), a call
 -- comes once about the fragment, and as it is played the maps mark a wide zone the tree's drop site lies in, away from
--- its middle: the last stretch is the player's to search. Once the player comes within NEAR of the site the zone
+-- its middle: the last stretch is the player's to search. Once the player comes within NEAR of the site, or into the
+-- inner part of the zone (INNER of its radius round its middle: the middle is where the map says to go), the zone
 -- narrows to a small one round it (NEAR_R, as far off its middle), with a title. The character says a line on first
 -- walking into the zone (SurveyIn) and after the title of its narrowing (SurveyNear). The zone stays until the fragment
 -- reaches the team. Before
@@ -26,6 +27,7 @@ Survey.OFFSET = 0.5
 -- sight from anywhere in it.
 Survey.NEAR = 80
 Survey.NEAR_R = 30
+Survey.INNER = 0.5
 -- Real seconds from the narrowing's title to its line (the title is read first, as Scene.ARRIVE_SAY).
 Survey.NEAR_SAY = 5
 
@@ -109,7 +111,7 @@ function Survey.zones(record)
 end
 
 -- Every game minute, the player at x, y (`isNight()` asked only when a line is said): a wide zone first walked into
--- has its line; one whose site is within NEAR narrows, with a title and then its line (the site counts as seen:
+-- has its line; one whose site is within NEAR, or whose inner part is reached, narrows, with a title and then its line (the site counts as seen:
 -- Sites.visit gives no title of its own for it; walked straight that near, only the narrowing's line).
 function Survey.minute(record, x, y, isNight)
     local s = OA.Story.section(record)
@@ -119,15 +121,16 @@ function Survey.minute(record, x, y, isNight)
         local site = s.surveys[tree] and Survey.siteOf(tree)
         if site and narrowed(record)[tree] ~= site.n and not rules().unsealed(u, tree) then
             local seen = OA.Sites.seenOf(record)
-            if OA.Places.distance(x, y, site.x, site.y) <= Survey.NEAR then
+            local wide = Survey.zone(site)
+            if OA.Places.distance(x, y, site.x, site.y) <= Survey.NEAR
+                or OA.Places.distance(x, y, wide.x, wide.y) <= wide.r * Survey.INNER then
                 narrowed(record)[tree], entered(record)[tree] = site.n, site.n
                 if seen then seen[site.n] = true end
                 OA.Sync.title(record.id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SurveyNear", style = "discovery" })
                 OA.Say.tell(record.id, "SurveyNear", { night = isNight() == true }, Survey.NEAR_SAY)
                 OA.Sync.changed("story", record.id)
             elseif entered(record)[tree] ~= site.n then
-                local z = Survey.zone(site)
-                if OA.Places.distance(x, y, z.x, z.y) <= z.r then
+                if OA.Places.distance(x, y, wide.x, wide.y) <= wide.r then
                     entered(record)[tree] = site.n
                     OA.Say.tell(record.id, "SurveyIn", { night = isNight() == true, seen = (seen and seen[site.n]) == true })
                 end

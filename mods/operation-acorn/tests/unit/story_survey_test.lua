@@ -137,6 +137,24 @@ test("walked into: a line once; near the site the zone narrows round it, a title
     OA.Sync.title, OA.Say.tell = title, tell
 end)
 
+test("the inner part of the zone narrows it too, on the side away from the site", function()
+    local r = record(true)
+    Branches.look(r, "approved")
+    local site = Survey.siteOf("scout")
+    local title, tell = OA.Sync.title, OA.Say.tell
+    OA.Sync.title, OA.Say.tell = function() end, function() end
+    play(r, "C_scout")
+    local z = Survey.zones(r)[1]
+    local dx, dy = z.x - site.x, z.y - site.y
+    local d = math.sqrt(dx * dx + dy * dy)
+    local share = z.r * Survey.INNER - 3
+    local x, y = math.floor(z.x + dx / d * share), math.floor(z.y + dy / d * share)
+    truthy(OA.Places.distance(x, y, site.x, site.y) > Survey.NEAR)
+    Survey.minute(r, x, y, function() return false end)
+    eq(Survey.zones(r)[1].r, Survey.NEAR_R)
+    OA.Sync.title, OA.Say.tell = title, tell
+end)
+
 test("walked straight near the site: only the narrowing's line; a site stood near before tells so on entering", function()
     local r = record(true)
     Branches.look(r, "approved")
