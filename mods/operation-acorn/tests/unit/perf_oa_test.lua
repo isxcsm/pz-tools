@@ -362,9 +362,9 @@ test("the transfer factor is worked out once until the research is told to have 
     _G.ISInventoryTransferAction = { new = function(self, character, item) return { maxTime = 100 } end,
         perform = function() end }
     _G.ISWorldObjectContextMenu = { grabItemTime = function() return 100 end }
-    _G.ISToolTipInv = { render = function() end }
+    _G.ISMoveableSpriteProps = {}
     require = function(name)
-        if string.find(name, "^ISUI/") or string.find(name, "^TimedActions/") then return true end
+        if string.find(name, "^ISUI/") or string.find(name, "^TimedActions/") or string.find(name, "^Moveables/") then return true end
         return real(name)
     end
     local ok, err = pcall(real, "OperationAcorn/Upgrades/Carry")
@@ -398,14 +398,14 @@ test("the transfer factor is worked out once until the research is told to have 
     eq(calls, 4)
 end)
 
-test("an item the carry nodes lighten has its carried weight under its own in the tooltip; one they do not, none", function()
+test("furniture on the map is weighed as it will be carried while the game asks, and keeps its weight after", function()
     if not (OA.Upgrades and OA.Upgrades.Carry) then
         local real = require
         _G.ISInventoryTransferAction = { new = function() return { maxTime = 100 } end, perform = function() end }
         _G.ISWorldObjectContextMenu = { grabItemTime = function() return 100 end }
-        _G.ISToolTipInv = { render = function() end }
+        _G.ISMoveableSpriteProps = {}
         require = function(name)
-            if string.find(name, "^ISUI/") or string.find(name, "^TimedActions/") then return true end
+            if string.find(name, "^ISUI/") or string.find(name, "^TimedActions/") or string.find(name, "^Moveables/") then return true end
             return real(name)
         end
         local ok, err = pcall(real, "OperationAcorn/Upgrades/Carry")
@@ -413,13 +413,21 @@ test("an item the carry nodes lighten has its carried weight under its own in th
         if not ok then error(err, 0) end
     end
     local Carry, Effects = OA.Upgrades.Carry, OA.Upgrades.Effects
-    local efficiencyOf = Effects.efficiencyOf
-    local text = getText
-    getText = function(key, a) return key .. " " .. tostring(a) end
-    local plank = { getUnequippedWeight = function() return 3 end }
-    Effects.efficiencyOf = function() return 0.5 end
-    eq(Carry.tipLines(plank)[1], "IGUI_OA_Tree_CarriedWeight 2.00")
-    Effects.efficiencyOf = function() return 0 end
-    eq(Carry.tipLines(plank), nil)
-    Effects.efficiencyOf, getText = efficiencyOf, text
+    local moveableEfficiency = Effects.moveableEfficiency
+    local seen
+    local fits = Carry.asCarried(function(self, limit) seen = self.weight return self.weight <= limit end)
+    local sofa = { weight = 30 }
+    Effects.moveableEfficiency = function() return 1 end
+    eq(fits(sofa, 20), true, "30 carried at +100% fits under 20")
+    eq(seen, 15)
+    eq(sofa.weight, 30, "the weight is put back")
+    local broken = Carry.asCarried(function() error("broken", 0) end)
+    local ok = pcall(broken, sofa)
+    eq(ok, false)
+    eq(sofa.weight, 30, "put back after an error too")
+    Effects.moveableEfficiency = function() return 0 end
+    eq(fits(sofa, 20), false)
+    eq(seen, 30)
+    eq(Carry.moveableWeight({}), nil, "a moveable without a weight")
+    Effects.moveableEfficiency = moveableEfficiency
 end)

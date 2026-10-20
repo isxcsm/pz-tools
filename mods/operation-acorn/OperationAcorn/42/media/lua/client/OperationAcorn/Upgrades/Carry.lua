@@ -5,10 +5,10 @@
 -- the game's weight limit with 과적 적응 taken is that node's first effect (First.lua).
 require "TimedActions/ISInventoryTransferAction"
 require "ISUI/ISWorldObjectContextMenu"
+require "Moveables/ISMoveableSpriteProps"
 require "OperationAcorn/Client"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/First"
-require "OperationAcorn/TipLines"
 local OA = OperationAcorn
 local Rules = OA.Upgrades.Rules
 local Effects = OA.Upgrades.Effects
@@ -58,15 +58,30 @@ function Carry.checkOverload(character)
     end
 end
 
--- The weight an item counts for in what the character carries, a line of its tooltip when the carry nodes take some
--- off (the game's tooltip shows the item's own weight, which stays; the load is the API's, lighter by the efficiency).
-function Carry.tipLines(item)
-    local eff = Effects.efficiencyOf(item)
-    if not (type(eff) == "number" and eff > 0.001) then return nil end
-    local weight = item:getUnequippedWeight() / (1 + eff)
-    return { getText("IGUI_OA_Tree_CarriedWeight", string.format("%.2f", weight)) }
+-- Furniture is weighed before it is an item: the game asks whether a moveable fits, and shows its weight, by the
+-- sprite's weight (ISMoveableSpriteProps.weight), which the carry points never see; the item it becomes keeps that
+-- weight and is carried lighter by the API. While the game asks, the weight is the one it will be carried at.
+function Carry.moveableWeight(props)
+    local weight = props.weight
+    if type(weight) ~= "number" then return nil end
+    local eff = Effects.moveableEfficiency()
+    if eff <= 0 then return nil end
+    return weight / (1 + eff)
 end
-OA.TipLines.add("carry", Carry.tipLines)
+
+-- The game's function, with the moveable's weight the carried one while it runs (put back after, an error too).
+function Carry.asCarried(original)
+    return function(self, ...)
+        local carried = Carry.moveableWeight(self)
+        if not carried then return original(self, ...) end
+        local weight = self.weight
+        self.weight = carried
+        local ok, first, second = pcall(original, self, ...)
+        self.weight = weight
+        if not ok then error(first, 0) end
+        return first, second
+    end
+end
 
 -- The game's functions below are left as they are while the mod is off (OA.off).
 if OA.off then return Carry end
@@ -97,6 +112,10 @@ end
 function ISInventoryTransferAction:perform(...)
     return performed(self, originalPerform(self, ...))
 end
+
+ISMoveableSpriteProps.canPickUpMoveableInternal = Carry.asCarried(ISMoveableSpriteProps.canPickUpMoveableInternal)
+ISMoveableSpriteProps.getInfoPanelFlagsGeneral = Carry.asCarried(ISMoveableSpriteProps.getInfoPanelFlagsGeneral)
+ISMoveableSpriteProps.getInfoPanelFlagsPerTile = Carry.asCarried(ISMoveableSpriteProps.getInfoPanelFlagsPerTile)
 
 local originalGrab = ISWorldObjectContextMenu.grabItemTime
 

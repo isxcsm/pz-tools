@@ -377,6 +377,17 @@ function Effects.efficiencyOf(item)
     return eff
 end
 
+-- The carry efficiency of furniture before it is an item (a moveable on the map): its type's and its category's, of the
+-- points this mod declared.
+function Effects.moveableEfficiency()
+    local eff = 0
+    local special = declared[P.carryItem]
+    if special and special["base:moveable"] then eff = eff + special["base:moveable"] end
+    local category = declared[P.carryCategory]
+    if category and category.Furniture then eff = eff + category.Furniture end
+    return eff
+end
+
 -- The state of a node's API side: "lua" (the node needs no API), "noApi" (no API, with the reason second), or the
 -- name of the first point it feeds that the API does not apply ("noPoint", point name), or "ok".
 function Effects.status(id)

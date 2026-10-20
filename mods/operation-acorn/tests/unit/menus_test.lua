@@ -10,7 +10,7 @@ local OA = OperationAcorn
 -- Fakes
 
 local UI = { "ISPanel", "ISPanelJoypad", "ISButton", "ISToolTip", "ISToolTipInv", "ISModalDialog", "ISContextMenu",
-    "ISCharacterInfoWindow", "ISWorldObjectContextMenu", "ISInventoryTransferAction", "ISInventoryPaneContextMenu",
+    "ISCharacterInfoWindow", "ISWorldObjectContextMenu", "ISInventoryTransferAction", "ISMoveableSpriteProps", "ISInventoryPaneContextMenu",
     "ISBaseTimedAction", "ISInventoryPane", "ISMoveableContextMenu", "ISCollapsableWindow", "ISLabel",
     "ISScrollingListBox", "ISRichTextPanel", "ISVehicleMechanics" }
 
@@ -76,7 +76,7 @@ local function loadFile(name, skip)
     getMouseY = function() return 0 end
     local real = require
     require = function(file)
-        if string.find(file, "^ISUI/") or string.find(file, "^XpSystem/") or string.find(file, "^TimedActions/")
+        if string.find(file, "^ISUI/") or string.find(file, "^XpSystem/") or string.find(file, "^TimedActions/") or string.find(file, "^Moveables/")
             or string.find(file, "^Vehicles/") or string.find(file, "^Moveables/") or (skip and skip[file]) then
             return true
         end

@@ -5,7 +5,7 @@ require "OperationAcorn/Core"
 local OA = OperationAcorn
 
 local UI = { "ISPanel", "ISPanelJoypad", "ISButton", "ISToolTip", "ISToolTipInv", "ISModalDialog", "ISContextMenu",
-    "ISCharacterInfoWindow", "ISWorldObjectContextMenu", "ISInventoryTransferAction", "ISInventoryPaneContextMenu",
+    "ISCharacterInfoWindow", "ISWorldObjectContextMenu", "ISInventoryTransferAction", "ISMoveableSpriteProps", "ISInventoryPaneContextMenu",
     "ISBaseTimedAction" }
 
 -- A UI class whose members are all functions that do nothing, and whose derived classes are the same.
@@ -23,7 +23,7 @@ local function loadHooks()
     UIFont = font or setmetatable({}, { __index = function() return 1 end })
     local real = require
     require = function(name)
-        if string.find(name, "^ISUI/") or string.find(name, "^XpSystem/") or string.find(name, "^TimedActions/") then
+        if string.find(name, "^ISUI/") or string.find(name, "^XpSystem/") or string.find(name, "^TimedActions/") or string.find(name, "^Moveables/") then
             return true
         end
         return real(name)
