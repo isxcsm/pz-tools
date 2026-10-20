@@ -65,7 +65,7 @@ function OATabHeli:buildHero(L, x, y, w, h)
         local bw = w - 20
         Draw.rect(L, x + 10, yy + 4, bw, 5, p.border, 0.30)
         local fill = { Draw.RECT, x + 10, yy + 4, 0, 5, p.panel and p.value or p.sel, 0.95 }
-        L.ops[#L.ops + 1] = fill
+        Draw.add(L, fill)
         Draw.frame(L, x + 9, yy + 3, bw + 2, 7, p.border)
         self.eta = { op = fill, w = bw, from = H.eta.from, to = H.eta.to }
         self:moveEta()

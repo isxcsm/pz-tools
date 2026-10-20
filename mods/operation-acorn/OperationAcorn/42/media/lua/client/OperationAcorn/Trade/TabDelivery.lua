@@ -2,7 +2,8 @@
 -- the week has taken, what a full line gives, the settlement the sealed boxes would make, and under it this week's
 -- situation: the market's events, the season, and today's index of each category. A row shows its group's name and
 -- picture; the mouse over it lists the kinds the group takes. Everything is worked out when the record changes (or the
--- day does) and the frames only draw it.
+-- day does) and the frames only draw it, from tapes (PZUIKit.Tape) kept until it is laid out again.
+require "PZUIKit/Tape"
 require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Trade/Estimate"
 require "OperationAcorn/Economy/Requests"
@@ -12,6 +13,7 @@ require "OperationAcorn/Trade/StatusDraw"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 local Boxes, Estimate = Trade.Boxes, Trade.Estimate
+local Tape = PZUIKit.Tape
 
 OATabDelivery = OATab:derive("OATabDelivery")
 
@@ -49,6 +51,8 @@ function OATabDelivery:createChildren()
     list.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
     -- The game's list, its rows drawn in design units (Trade/UI.lua); the layout places it.
     list.doDrawItem = UI.rowPainter(OATabDelivery.drawRow)
+    -- (each layout makes the metrics anew)
+    UI.tapeRows(list, function(l) return l.tab.metrics end)
     -- The rows are for reading: a click on one selects nothing and makes no sound.
     list.onMouseDown = function() end
     list.tab = self
@@ -334,10 +338,8 @@ local function drawTriangle(el, x, y, up, c)
     end
 end
 
-function OATabDelivery:prerender()
-    if self.data and (self.laidW ~= self:getWidth() or self.laidH ~= self:getHeight()) then self:layout() end
+local function drawTab(self)
     local d, m = self.data, self.metrics
-    if not (d and m) then return end
     local p = self:palette()
     local w = self:getWidth()
     local nf = p.numberFont
@@ -393,6 +395,13 @@ function OATabDelivery:prerender()
             if chip.trend then drawTriangle(self, x + m.chipW - 11, y + (chip.trend == "up" and 6 or 7), chip.trend == "up", c) end
         end
     end
+end
+
+function OATabDelivery:prerender()
+    if self.data and (self.laidW ~= self:getWidth() or self.laidH ~= self:getHeight()) then self:layout() end
+    if not (self.data and self.metrics) then return end
+    -- (each layout makes the metrics anew; the palette is the window's for its life)
+    Tape.keep(self, drawTab, nil, self.metrics)
 end
 
 -- The kinds a row's group takes, beside the row under the mouse (drawn as the chips' tip is).

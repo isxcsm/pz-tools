@@ -11,13 +11,17 @@ require "PZUIKit/Combo"
 require "OperationAcorn/Gear/Gear"
 require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Sounds"
+require "PZUIKit/Tape"
 local OA = OperationAcorn
+local Tape = PZUIKit.Tape
 local Trade, UI, Orders, Text = OA.Trade, OA.Trade.UI, OA.Trade.Orders, OA.Trade.Text
 local ShopView = OA.Trade.ShopView
 
 -- A scrolling list of rows of different heights, drawn by the tab: `drawRow(list, row, y, palette)` for each row on
 -- show (y from the list's top), `onClick(tab, row, x, yInRow)` for a click on a row. A thin bar of the palette stands
 -- at the right when there is more than fits (DESIGN-terminal 1.2: lists shrink and scroll in the smallest window).
+-- The rows on show are kept on a tape (PZUIKit.Tape) until the rows, the scroll or the size change, their lit places
+-- (`drawPart(list, key, data)`, marked by Tape.part as the rows draw) drawn as they are over it.
 OAShopScroll = ISPanel:derive("OAShopScroll")
 
 OAShopScroll.STEP = 36
@@ -63,6 +67,15 @@ function OAShopScroll:thumb()
     return UI.thumb(self.height, self.full, self.scroll, self:maxScroll())
 end
 
+local function drawRows(self, p)
+    self:setStencilRect(0, 0, self.width, self.height)
+    for _, row in ipairs(self.rows) do
+        local y = row.y - self.scroll
+        if y + row.h > 0 and y < self.height then self.drawRow(self, row, y, p) end
+    end
+    UI.unclip(self, 0, 0, self.width, self.height)
+end
+
 function OAShopScroll:prerender()
     local p = self.tab:palette()
     -- the place under the mouse (a card's id, a cart button) lights up: Trade/UI places
@@ -73,12 +86,8 @@ function OAShopScroll:prerender()
         if row then over = self.placeAt(self.tab, row, x, y - row.y) end
     end
     UI.placeLight(self, over)
-    self:setStencilRect(0, 0, self.width, self.height)
-    for _, row in ipairs(self.rows) do
-        local y = row.y - self.scroll
-        if y + row.h > 0 and y < self.height then self.drawRow(self, row, y, p) end
-    end
-    UI.unclip(self, 0, 0, self.width, self.height)
+    -- (the palette is the window's for its life)
+    Tape.keep(self, drawRows, p, self.rows, self.scroll, UI.placeLit, self.drawPart)
     if self.full > self.height then
         local bar = OAShopScroll.BAR
         local ty, th = self:thumb()
@@ -174,6 +183,8 @@ function OATabShop:createChildren()
     self.cartList = OAShopScroll:new(self, OATabShop.drawCartRow, OATabShop.onCartRow)
     self.cards.placeAt = OATabShop.cardPlace
     self.cartList.placeAt = OATabShop.cartPlace
+    self.cards.drawPart = function(list, _, d) self:drawCard(list, d.card, d.x, d.y, d.w, self:palette()) end
+    self.cartList.drawPart = function(list, _, d) OATabShop.cartButton(list, d.row, d.y, d.k, self:palette()) end
     for _, list in ipairs({ self.cards, self.cartList }) do
         list:initialise()
         list:instantiate()
@@ -475,12 +486,10 @@ end
 
 -- Drawing -------------------------------------------------------------------------------------------------------
 
-function OATabShop:prerender()
-    local m = self.model
-    if not m then return end
-    if self.laidW ~= self.width or self.laidH ~= self.height then self:layout() end
-    local p = self:palette()
-    self:drawLeft(p, m)
+-- The tab's drawing is kept on a tape (PZUIKit.Tape) until it is laid out again (each refresh lays it out: self.rect
+-- is new), the places of the left column that light drawn as they are over it.
+local function drawTab(self, p)
+    self:drawLeft(p, self.model)
     self:drawBand(p)
     self:drawDetail(p)
     self:drawCart(p)
@@ -490,11 +499,47 @@ function OATabShop:prerender()
     end
 end
 
--- The left column: the serum box, the sections and the "only what can be bought" box.
-function OATabShop:drawLeft(p, m)
-    local catw, sb = ShopView.CAT_W, ShopView.SERUM_H
+function OATabShop:prerender()
+    if not self.model then return end
+    if self.laidW ~= self.width or self.laidH ~= self.height then self:layout() end
+    local p = self:palette()
     local over = self:isMouseOver() and self:leftAt(self:getMouseX(), self:getMouseY()) or nil
     UI.placeLight(self, over ~= self.cat and over or nil)
+    Tape.keep(self, drawTab, p, self.rect, nil, UI.placeLit, OATabShop.drawLeftPart)
+end
+
+-- The left column: the serum box, the sections and the "only what can be bought" box, each a part that lights.
+function OATabShop:drawLeft(p, m)
+    local catw, sb = ShopView.CAT_W, ShopView.SERUM_H
+    Tape.part("serums")
+    self:drawSerums(p, m)
+    Tape.partEnd()
+    UI.text(self, UI.str("IGUI_OA_Terminal_Shop_Sections"), 10, sb + 8, p.dim)
+    UI.fill(self, 40, sb + 16, catw - 44, 1, p.border, 0.6)
+    for i, cat in ipairs(m.cats) do
+        Tape.part(cat.id, i)
+        self:drawCat(p, cat, i)
+        Tape.partEnd()
+    end
+    Tape.part("only")
+    self:drawOnly(p, m)
+    Tape.partEnd()
+end
+
+-- A lit part of the left column, drawn over the tab's tape.
+function OATabShop.drawLeftPart(self, key, i)
+    local p, m = self:palette(), self.model
+    if key == "serums" then
+        self:drawSerums(p, m)
+    elseif key == "only" then
+        self:drawOnly(p, m)
+    else
+        self:drawCat(p, m.cats[i], i)
+    end
+end
+
+function OATabShop:drawSerums(p, m)
+    local catw, sb = ShopView.CAT_W, ShopView.SERUM_H
     local on = self.cat == "serums"
     local k, f = UI.placeLevels(self, "serums")
     UI.fill(self, 0, 0, catw, sb, p.sel, (on and 0.24 or 0.08) + 0.08 * k + 0.3 * f)
@@ -503,27 +548,29 @@ function OATabShop:drawLeft(p, m)
     UI.text(self, UI.str("IGUI_OA_Terminal_Shop_Serum"), 10, 3, on and p.bright or p.head, UIFont.Medium)
     drawIcon(self, m.serumEntry, catw - 30, 4, 24, p)
     UI.text(self, m.shelfSubFit, 10, 3 + UI.fontHeight(UIFont.Medium) + 1, on and p.text or p.dim)
-    UI.text(self, UI.str("IGUI_OA_Terminal_Shop_Sections"), 10, sb + 8, p.dim)
-    UI.fill(self, 40, sb + 16, catw - 44, 1, p.border, 0.6)
-    local y = ShopView.CAT_TOP
-    for _, cat in ipairs(m.cats) do
-        local chosen = cat.id == self.cat
-        if chosen then
-            UI.fill(self, 0, y, catw, ShopView.CAT_ROW, p.sel, 0.22)
-            UI.fill(self, 0, y, 2, ShopView.CAT_ROW, p.sel)
-        end
-        k, f = UI.placeLevels(self, cat.id)
-        if k > 0 or f > 0 then
-            UI.fill(self, 0, y, catw, ShopView.CAT_ROW, p.sel, 0.1 * k + 0.3 * f)
-            UI.fill(self, 0, y, 2, ShopView.CAT_ROW, p.sel, 0.6 * k)
-        end
-        if cat.locked then UI.lock(self, 8, y + 6, p.warn, 0.8) end
-        UI.text(self, cat.name, cat.locked and 22 or 10, y + 3, chosen and p.bright or (cat.locked and p.dim or p.text))
-        y = y + ShopView.CAT_ROW
+end
+
+-- The i-th section's row.
+function OATabShop:drawCat(p, cat, i)
+    local catw, y = ShopView.CAT_W, ShopView.CAT_TOP + (i - 1) * ShopView.CAT_ROW
+    local chosen = cat.id == self.cat
+    if chosen then
+        UI.fill(self, 0, y, catw, ShopView.CAT_ROW, p.sel, 0.22)
+        UI.fill(self, 0, y, 2, ShopView.CAT_ROW, p.sel)
     end
+    local k, f = UI.placeLevels(self, cat.id)
+    if k > 0 or f > 0 then
+        UI.fill(self, 0, y, catw, ShopView.CAT_ROW, p.sel, 0.1 * k + 0.3 * f)
+        UI.fill(self, 0, y, 2, ShopView.CAT_ROW, p.sel, 0.6 * k)
+    end
+    if cat.locked then UI.lock(self, 8, y + 6, p.warn, 0.8) end
+    UI.text(self, cat.name, cat.locked and 22 or 10, y + 3, chosen and p.bright or (cat.locked and p.dim or p.text))
+end
+
+function OATabShop:drawOnly(p, m)
     local cy = self.height - 18
     UI.frame(self, 0, cy + 2, 12, 12, p.border)
-    k, f = UI.placeLevels(self, "only")
+    local k, f = UI.placeLevels(self, "only")
     if k > 0 then UI.frame(self, 0, cy + 2, 12, 12, p.sel, k) end
     if f > 0 then UI.fill(self, 0, cy + 2, 12, 12, p.sel, 0.4 * f) end
     if self.onlyOpen then UI.fill(self, 3, cy + 5, 6, 6, p.text) end
@@ -613,7 +660,12 @@ function OATabShop.drawCardRow(list, row, y, p)
         return
     end
     local w = ShopView.cardWidth(list.width)
-    for _, card in ipairs(row.cards) do tab:drawCard(list, card, card.col * (w + 6), y, w, p) end
+    for _, card in ipairs(row.cards) do
+        local x = card.col * (w + 6)
+        Tape.part(card.id, { card = card, x = x, y = y, w = w })
+        tab:drawCard(list, card, x, y, w, p)
+        Tape.partEnd()
+    end
 end
 
 function OATabShop:drawCard(list, card, x, y, w, p)
@@ -653,6 +705,20 @@ end
 
 local CART_GLYPHS = { "-", "+", "x" }
 
+-- The k-th small button of a cart row (a part that lights).
+function OATabShop.cartButton(list, row, y, k, p)
+    local fh = UI.fontHeight()
+    local glyph = CART_GLYPHS[k]
+    local bx = list.width - 62 + 18 * (k - 1)
+    local c = glyph == "x" and p.bad or ((glyph == "+" and row.full) and p.dim or p.text)
+    UI.fill(list, bx, y + fh + 1, 15, 15, p.panel or p.bg)
+    local lk, lf = UI.placeLevels(list, row.keys[k])
+    if lk > 0 or lf > 0 then UI.fill(list, bx, y + fh + 1, 15, 15, c, 0.14 * lk + 0.35 * lf) end
+    UI.frame(list, bx, y + fh + 1, 15, 15, p.border)
+    if lk > 0 then UI.frame(list, bx, y + fh + 1, 15, 15, c, 0.8 * lk) end
+    UI.textCentre(list, glyph, bx + 8, y + fh, c)
+end
+
 -- A row of the cart list: the line's name, its price and the three small buttons.
 function OATabShop.drawCartRow(list, row, y, p)
     local fh = UI.fontHeight()
@@ -662,15 +728,10 @@ function OATabShop.drawCartRow(list, row, y, p)
     end
     UI.text(list, row.nameFit, 8, y, p.text)
     UI.text(list, row.price, 8, y + fh + 1, p.value, p.numberFont)
-    for k, glyph in ipairs(CART_GLYPHS) do
-        local bx = list.width - 62 + 18 * (k - 1)
-        local c = glyph == "x" and p.bad or ((glyph == "+" and row.full) and p.dim or p.text)
-        UI.fill(list, bx, y + fh + 1, 15, 15, p.panel or p.bg)
-        local lk, lf = UI.placeLevels(list, row.keys[k])
-        if lk > 0 or lf > 0 then UI.fill(list, bx, y + fh + 1, 15, 15, c, 0.14 * lk + 0.35 * lf) end
-        UI.frame(list, bx, y + fh + 1, 15, 15, p.border)
-        if lk > 0 then UI.frame(list, bx, y + fh + 1, 15, 15, c, 0.8 * lk) end
-        UI.textCentre(list, glyph, bx + 8, y + fh, c)
+    for k = 1, #CART_GLYPHS do
+        Tape.part(row.keys[k], { row = row, y = y, k = k })
+        OATabShop.cartButton(list, row, y, k, p)
+        Tape.partEnd()
     end
     UI.fill(list, 8, y + 37, list.width - 16, 1, p.border, 0.35)
 end

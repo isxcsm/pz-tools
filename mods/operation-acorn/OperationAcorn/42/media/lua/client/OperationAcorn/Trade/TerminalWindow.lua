@@ -13,7 +13,9 @@ require "OperationAcorn/Trade/BootSeq"
 require "OperationAcorn/Trade/TerminalBoot"
 require "OperationAcorn/Trade/TerminalStatic"
 require "OperationAcorn/Trade/TerminalSound"
+require "PZUIKit/Tape"
 local OA = OperationAcorn
+local Tape = PZUIKit.Tape
 local Trade, Terminal, UI = OA.Trade, OA.Terminal, OA.Trade.UI
 local Objects, Things = Trade.Objects, Trade.Things
 local Seq = Trade.BootSeq
@@ -84,56 +86,88 @@ function OATerminalTabs:new(x, y, width, height, window)
     return o
 end
 
-function OATerminalTabs:prerender()
+-- The pulse of the blinks and the new dots, -1 to 1 by the strip's frame time, in steps (PULSE_STEPS a half swing):
+-- followed while one pulses (UI.live), the strip is drawn again only as it steps, reading no clock.
+OATerminalTabs.PULSE_STEPS = 8
+
+local function pulseAt(now)
+    local k = OATerminalTabs.PULSE_STEPS
+    return math.floor(math.sin(now / 220) * k + 0.5) / k
+end
+
+local function pulsing(self)
+    local w = self.window
+    for _, id in ipairs(Terminal.ORDER) do
+        if w.blink[id] or w.marks[id] == "new" then return true end
+    end
+    return false
+end
+
+-- UI.live's look: the pulse's step, nil once nothing pulses.
+local function pulseFrame(self, now)
+    if not pulsing(self) then return nil end
+    return pulseAt(now)
+end
+
+-- One tab of the strip at x, tw wide.
+local function drawTab(self, id, x, tw)
     local w = self.window
     local p = w.palette
     local h = self.height
-    if p.tabStrip then UI.fill(self, 0, 0, self.width, h, p.tabStrip) end
     local fh = UI.fontHeight()
+    local name = self.labels[id].name
+    local on = id == w.activeId
+    -- a tab under the mouse lights up, a clicked one flashes (Trade/UI hover and press lights)
+    local mx = self:isMouseOver() and self:getMouseX() or -1
+    local k = UI.hoverLight(self, id, not on and mx >= x and mx < x + tw)
+    local f = UI.flashLevel(self, id)
+    if p.tabStrip then
+        if on then
+            UI.fill(self, x, 2, tw, h - 2, p.bg)
+            UI.fill(self, x, 2, tw, 2, p.value)
+        elseif k > 0 then
+            UI.fill(self, x, 2, tw, h - 2, p.bg, 0.6 * k)
+            UI.fill(self, x, h - 3, tw, 2, p.value, 0.6 * k)
+        end
+        if f > 0 then UI.fill(self, x, 2, tw, h - 2, p.value, 0.25 * f) end
+        UI.textCentre(self, name, x + tw / 2, (h - fh) / 2 + 1, (on or k > 0.5) and p.value or p.text)
+    else
+        if on then
+            UI.fill(self, x, 3, tw, h - 3, p.sel, 0.18)
+            UI.frame(self, x, 3, tw, h - 2, p.text)
+            UI.fill(self, x + 1, h - 1, tw - 2, 1, p.bg)
+        else
+            if k > 0 then UI.fill(self, x, 4, tw, h - 5, p.sel, 0.1 * k) end
+            UI.frame(self, x, 4, tw, h - 5, p.border)
+            if k > 0 then UI.frame(self, x, 4, tw, h - 5, p.text, 0.6 * k) end
+        end
+        if f > 0 then UI.fill(self, x, 3, tw, h - 3, p.sel, 0.3 * f) end
+        UI.textCentre(self, name, x + tw / 2, (h - fh) / 2 + 1, (on or k > 0.5) and p.bright or p.dim)
+    end
+    local mark = w.marks[id]
+    local pulse = 0
+    if w.blink[id] or mark == "new" then pulse = pulseAt(UI.frameNow(self)) end
+    if w.blink[id] then
+        -- (on the tab's own frame: a blinking tab is never the one on show)
+        if p.tabStrip then UI.frame(self, x, 2, tw, h - 2, p.value, 0.5 + 0.5 * pulse)
+        else UI.frame(self, x, 4, tw, h - 5, p.value, 0.5 + 0.5 * pulse) end
+    end
+    if mark then
+        local a = 1
+        if mark == "new" then a = 0.55 + 0.45 * pulse end
+        UI.fill(self, x + tw - 8, 7, 4, 4, mark == "bad" and p.bad or p.warn, a)
+    end
+end
+
+-- The strip: each tab a part of it (PZUIKit.Tape), where it is kept for a click (self.slots).
+local function drawStrip(self)
+    local p = self.window.palette
+    local h = self.height
+    if p.tabStrip then UI.fill(self, 0, 0, self.width, h, p.tabStrip) end
     local x = 8
     local slots, n = self.slots, 0
-    local pulse = math.sin(getTimestampMs() / 220)
-    local mx = self:isMouseOver() and self:getMouseX() or -1
     for _, id in ipairs(Terminal.ORDER) do
-        local name, tw = self.labels[id].name, self.labels[id].w
-        local on = id == w.activeId
-        -- a tab under the mouse lights up, a clicked one flashes (Trade/UI hover and press lights)
-        local k = UI.hoverLight(self, id, not on and mx >= x and mx < x + tw)
-        local f = UI.flashLevel(self, id)
-        if p.tabStrip then
-            if on then
-                UI.fill(self, x, 2, tw, h - 2, p.bg)
-                UI.fill(self, x, 2, tw, 2, p.value)
-            elseif k > 0 then
-                UI.fill(self, x, 2, tw, h - 2, p.bg, 0.6 * k)
-                UI.fill(self, x, h - 3, tw, 2, p.value, 0.6 * k)
-            end
-            if f > 0 then UI.fill(self, x, 2, tw, h - 2, p.value, 0.25 * f) end
-            UI.textCentre(self, name, x + tw / 2, (h - fh) / 2 + 1, (on or k > 0.5) and p.value or p.text)
-        else
-            if on then
-                UI.fill(self, x, 3, tw, h - 3, p.sel, 0.18)
-                UI.frame(self, x, 3, tw, h - 2, p.text)
-                UI.fill(self, x + 1, h - 1, tw - 2, 1, p.bg)
-            else
-                if k > 0 then UI.fill(self, x, 4, tw, h - 5, p.sel, 0.1 * k) end
-                UI.frame(self, x, 4, tw, h - 5, p.border)
-                if k > 0 then UI.frame(self, x, 4, tw, h - 5, p.text, 0.6 * k) end
-            end
-            if f > 0 then UI.fill(self, x, 3, tw, h - 3, p.sel, 0.3 * f) end
-            UI.textCentre(self, name, x + tw / 2, (h - fh) / 2 + 1, (on or k > 0.5) and p.bright or p.dim)
-        end
-        if w.blink[id] then
-            -- (on the tab's own frame: a blinking tab is never the one on show)
-            if p.tabStrip then UI.frame(self, x, 2, tw, h - 2, p.value, 0.5 + 0.5 * pulse)
-            else UI.frame(self, x, 4, tw, h - 5, p.value, 0.5 + 0.5 * pulse) end
-        end
-        local mark = w.marks[id]
-        if mark then
-            local a = 1
-            if mark == "new" then a = 0.55 + 0.45 * pulse end
-            UI.fill(self, x + tw - 8, 7, 4, 4, mark == "bad" and p.bad or p.warn, a)
-        end
+        local tw = self.labels[id].w
         n = n + 1
         local slot = slots[n]
         if not slot then
@@ -141,10 +175,38 @@ function OATerminalTabs:prerender()
             slots[n] = slot
         end
         slot.id, slot.x, slot.w = id, x, tw
+        Tape.part(id, slot)
+        drawTab(self, id, x, tw)
+        Tape.partEnd()
         x = x + tw + 3
     end
     for i = #slots, n + 1, -1 do slots[i] = nil end
     UI.fill(self, 0, h - 1, self.width, 1, p.border)
+end
+
+-- Whether a tab moves now: its light under the mouse (coming, held or going), a click's flash, a blink, a new dot.
+local function tabMoves(self, id)
+    local w = self.window
+    if w.blink[id] or w.marks[id] == "new" then return true end
+    local f = self.fx and self.fx[id]
+    -- (a light heading down read without turning it: hoverLight leaves a light going its way alone)
+    if f and (f.to == 1 or UI.hoverLight(self, id, false) > 0) then return true end
+    return UI.flashLevel(self, id) > 0
+end
+
+local function drawTabPart(self, id, slot) drawTab(self, id, slot.x, slot.w) end
+
+-- The strip is kept on a tape until the window's tabs change (self.rev, OATerminalWindow:tabsChanged); a tab that
+-- moves is drawn as it is over it. The lights under the mouse are set off here (a tape keeps none).
+function OATerminalTabs:prerender()
+    local active = self.window.activeId
+    local mx = self:isMouseOver() and self:getMouseX() or -1
+    for _, slot in ipairs(self.slots) do
+        local id = slot.id
+        UI.hoverLight(self, id, id ~= active and mx >= slot.x and mx < slot.x + slot.w)
+    end
+    if pulsing(self) then UI.live(self, pulseFrame) end
+    Tape.keep(self, drawStrip, nil, self.rev, self.window.palette, tabMoves, drawTabPart)
 end
 
 function OATerminalTabs:onMouseDown(x, y)
@@ -496,7 +558,7 @@ function OATerminalWindow:refresh()
     self:markSeen(record)
 end
 
-function OATerminalWindow:prerender()
+local function drawFrame(self)
     local p = self.palette
     local th = self:titleBarHeight()
     UI.fill(self, 0, 0, self.width, self.height, p.bg, p.bgAlpha)
@@ -509,6 +571,11 @@ function OATerminalWindow:prerender()
         local c = p.text
         self:drawTextureTiled(self.scanline, 0, top, self.width, self.height - top - rh, c[1], c[2], c[3], 0.07)
     end
+end
+
+-- The window's ground and title bar, kept on a tape (PZUIKit.Tape) while its size and title stay.
+function OATerminalWindow:prerender()
+    Tape.keep(self, drawFrame, nil, self.title, self.scanline)
 end
 
 -- The crude terminal's weak signal (Seq.weakSignal), over the strip and the body (the tabs still take clicks): the
@@ -548,7 +615,8 @@ function OATerminalWindow:drawWeakSignal(th, rh)
     end
 end
 
-function OATerminalWindow:render()
+-- The resize bar's line and grip, under the static.
+local function drawGrip(self)
     local p = self.palette
     local rh = self:resizeWidgetHeight()
     local w, h = self.width, self.height
@@ -556,6 +624,14 @@ function OATerminalWindow:render()
     for i = 0, 2 do
         for j = 0, i do UI.fill(self, w - 5 - 4 * j, h - rh + 3 + 4 * (2 - i), 2, 2, p.dim) end
     end
+end
+
+-- Over the children: the grip (kept on a tape), the static and the spells that change with the time, the frame.
+function OATerminalWindow:render()
+    local p = self.palette
+    local rh = self:resizeWidgetHeight()
+    local w, h = self.width, self.height
+    Tape.keep(self, drawGrip, nil, p)
     -- a field terminal's static, over its screen (OATerminalStatic.OVER; the boot's console draws its own)
     if self.static and not self.bootOverlay and OATerminalStatic.OVER[self.tier] then
         OATerminalStatic.drawOver(self.static, self)

@@ -11,7 +11,9 @@ require "OperationAcorn/Trade/TabUpgrades"
 require "OperationAcorn/Trade/TabRecords"
 require "OperationAcorn/Economy/Trust"
 require "OperationAcorn/Say"
+require "PZUIKit/Tape"
 local OA = OperationAcorn
+local Tape = PZUIKit.Tape
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 local Trust = OA.Trust
 local Draw, M = Trade.Draw, Trade.StatusModel
@@ -144,9 +146,8 @@ local function run(el, x, y, parts)
     return x
 end
 
-function OATabStatus:prerender()
+local function drawTop(self)
     local t = self.top
-    if not t then return end
     local p = self:palette()
     local w = self.width
     local field = self.window.tier == "field"
@@ -191,6 +192,11 @@ function OATabStatus:prerender()
         end
     end
     UI.fill(self, 0, OATabStatus.TOP_H, w, 1, p.border, 0.8)
+end
+
+-- The head is kept on a tape (PZUIKit.Tape) until the record changes (each refresh makes self.top anew).
+function OATabStatus:prerender()
+    if self.top then Tape.keep(self, drawTop, nil, self.top) end
 end
 
 -- The first open of a field terminal (DESIGN-terminal 12) ----------------------------------------------------------

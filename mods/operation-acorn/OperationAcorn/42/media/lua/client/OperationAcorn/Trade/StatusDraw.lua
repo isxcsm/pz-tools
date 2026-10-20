@@ -7,8 +7,10 @@
 -- an arrow made of rectangles (the fonts have no glyph for them), in the palette of the terminal.
 require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Trade/UI"
+require "PZUIKit/Tape"
 local OA = OperationAcorn
 local Trade, UI = OA.Trade, OA.Trade.UI
+local Tape = PZUIKit.Tape
 local Draw = {}
 Trade.Draw = Draw
 
@@ -20,9 +22,12 @@ function Draw.list(p)
     return { p = p, ops = {}, hits = {}, fh = UI.fontHeight(UIFont.Small) }
 end
 
+-- A step joins its list, and knows it: a step changed and made pixels again (Draw.bakeOp) has the list drawn anew.
 local function add(L, op)
+    op.list = L
     L.ops[#L.ops + 1] = op
 end
+Draw.add = add
 
 function Draw.rect(L, x, y, w, h, c, a)
     if w <= 0 or h <= 0 or not c then return end
@@ -316,6 +321,8 @@ end
 -- A step's pixels for the scale now: rx, ry (and rw, rh for a rectangle), by the rounded edges as UI.lua draws them.
 -- At scale 1 they are the design numbers as they are.
 function Draw.bakeOp(op)
+    local L = op.list
+    if L then L.tapeEl = nil end
     local s = UI.S
     local k = op[1]
     local x, y, w, h
@@ -342,15 +349,10 @@ function Draw.bake(L)
     L.scale = UI.S
 end
 
--- Draws a list on one of our elements (each frame): the baked pixels go to the game's drawing as they are (the
--- element's class without the scaling, el.uiBase), the texts in their faces (UI.textPx, the element's place on the
--- screen asked once a frame), the icons through UI.iconPx. `dy`: pixels the whole list is moved down by (a list that
--- scrolls in its element gives minus its scroll; nil: 0). `fade`: what every alpha is multiplied by (nil: 1), with
--- the window's own fade (UI.faded: these draws go past the element's, which the fade wraps).
-function Draw.paint(el, L, dy, fade)
-    if not L then return end
-    if L.scale ~= UI.S then Draw.bake(L) end
-    dy = dy or 0
+-- The list's steps as the game's draws: the baked pixels as they are (the element's class without the scaling,
+-- el.uiBase), the texts in their faces (UI.textPx, the element's place on the screen asked once), the icons through
+-- UI.iconPx.
+local function paintOps(el, L, dy, fade)
     local f = UI.faded(el, fade)
     local iconFade = fade or 1
     local B = UI.rawDraws(el)
@@ -382,6 +384,35 @@ function Draw.paint(el, L, dy, fade)
             if clip then B.repaintStencilRect(el, clip.rx, clip.ry + dy, clip.rw, clip.rh) end
         end
     end
+end
+
+-- Draws a list on one of our elements (each frame). `dy`: pixels the whole list is moved down by (a list that scrolls
+-- in its element gives minus its scroll; nil: 0). `fade`: what every alpha is multiplied by (nil: 1), with the
+-- window's own fade (UI.faded: these draws go past the element's, which the fade wraps). The draws are kept on a tape
+-- on the list (PZUIKit.Tape) and played back while the list, the element, the move and the alpha stay as they were: a
+-- frame costs the draws, not the Lua that goes through the steps. A list a tape cannot keep is drawn step by step.
+function Draw.paint(el, L, dy, fade)
+    if not L then return end
+    if L.scale ~= UI.S then
+        Draw.bake(L)
+        L.tapeEl = nil
+    end
+    dy = dy or 0
+    local tape = L.tape
+    if tape == false then return paintOps(el, L, dy, fade) end
+    local f = UI.faded(el, fade)
+    if not (tape and L.tapeEl == el and L.tapeDy == dy and L.tapeF == f) then
+        tape = tape or Tape.new()
+        if not Tape.record(el, tape, paintOps, L, dy, fade) then
+            L.tape = false
+            return paintOps(el, L, dy, fade)
+        end
+        L.tape, L.tapeEl, L.tapeDy, L.tapeF = tape, el, dy, f
+    end
+    if Tape.play(el, tape) then return end
+    -- (the API lost the tape: recorded again next time)
+    L.tapeEl = nil
+    paintOps(el, L, dy, fade)
 end
 
 -- Draws a tooltip near x, y, kept inside the element where it fits.

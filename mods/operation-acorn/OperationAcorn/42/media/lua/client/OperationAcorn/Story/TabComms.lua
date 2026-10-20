@@ -16,9 +16,10 @@ require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Comms"
 require "OperationAcorn/Story/CommsScript"
 require "OperationAcorn/Sounds"
+require "PZUIKit/Tape"
 local OA = OperationAcorn
 local UI, Comms, Script, Data = OA.Trade.UI, OA.Comms, OA.CommsScript, OA.CommsData
-local Sound = PZUIKit.Sound
+local Sound, Tape = PZUIKit.Sound, PZUIKit.Tape
 
 OATabComms = OATab:derive("OATabComms")
 
@@ -762,12 +763,41 @@ function OACommsLog:onMouseMoveOutside(dx, dy) UI.barDrag(self, dy) end
 function OACommsLog:onMouseUp() self.dragging = false end
 function OACommsLog:onMouseUpOutside() self.dragging = false end
 
+-- The record's panel and its rows on show, each head a part that lights (PZUIKit.Tape).
+local function drawLog(self, p)
+    local w, h = self.width, self.height
+    if p.panel then UI.fill(self, 0, 0, w, h, p.panel) else UI.fill(self, 0, 0, w, h, p.text, 0.03) end
+    UI.frame(self, 0, 0, w, h, p.border)
+    if #self.rows == 0 then
+        UI.textCentre(self, UI.str("IGUI_OA_Comms_Empty"), w / 2, h / 2 - UI.fontHeight() / 2, p.dim)
+        return
+    end
+    self:setStencilRect(1, 1, w - 2, h - 2)
+    for _, row in ipairs(self.rows) do
+        local y = row.y - self.scroll
+        if y + row.h > 0 and y < h then
+            local head = row.kind == "head"
+            if head then Tape.part(row, y) end
+            self:drawRow(row, y, p)
+            if head then Tape.partEnd() end
+        end
+    end
+    UI.unclip(self, 1, 1, w - 2, h - 2)
+end
+
+-- Whether a head moves now: the mouse over it, or its replay button's light.
+local function headMoves(self, row)
+    return self.overHead == row or (row.replay ~= nil and UI.placeLit(self, row.replay))
+end
+
+local function drawHead(self, row, y) self:drawRow(row, y, self.tab:palette()) end
+
+-- While no call plays the record is kept on a tape until its rows, its scroll or its size change, a head that moves
+-- drawn as it is over it; a call playing draws it each frame.
 function OACommsLog:prerender()
     local tab = self.tab
     local p = tab:palette()
     local w, h = self.width, self.height
-    if p.panel then UI.fill(self, 0, 0, w, h, p.panel) else UI.fill(self, 0, 0, w, h, p.text, 0.03) end
-    UI.frame(self, 0, 0, w, h, p.border)
     local over
     self.overHead = nil
     if self:isMouseOver() and not self.dragging then
@@ -776,16 +806,8 @@ function OACommsLog:prerender()
         if not over then self.overHead = self:headAt(self:getMouseY()) end
     end
     UI.placeLight(self, over)
-    if #self.rows == 0 then
-        UI.textCentre(self, UI.str("IGUI_OA_Comms_Empty"), w / 2, h / 2 - UI.fontHeight() / 2, p.dim)
-        return
-    end
-    self:setStencilRect(1, 1, w - 2, h - 2)
-    for _, row in ipairs(self.rows) do
-        local y = row.y - self.scroll
-        if y + row.h > 0 and y < h then self:drawRow(row, y, p) end
-    end
-    UI.unclip(self, 1, 1, w - 2, h - 2)
+    if tab.play then drawLog(self, p) else Tape.keep(self, drawLog, p, self.rows, self.scroll, headMoves, drawHead) end
+    if #self.rows == 0 then return end
     if self:maxScroll() > 0 then
         local ty, th = self:thumb()
         UI.drawBar(self, w - OATabComms.BAR - 2, OATabComms.BAR - 2, h, ty, th, p.border)
@@ -835,7 +857,8 @@ function OACommsLog:drawRow(row, y, p)
     local pad = OATabComms.PAD
     if row.kind == "head" then
         local ty = y + 8
-        local hover = self.overHead == row
+        -- (a tape keeps no light: PZUIKit.taping)
+        local hover = self.overHead == row and not PZUIKit.taping
         UI.fill(self, pad, ty + math.floor(fh / 2), self.width - pad * 2 - OATabComms.BAR, 1, p.border, 0.5)
         -- the fold mark: pointing down over an open block, right at a folded one
         local mark = row.block and math.floor(fh * 0.4) or 0
