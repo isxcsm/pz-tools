@@ -187,9 +187,10 @@ test("the first point's hint waits for the tree's opening title to have left (th
     data.OA_ResearchHint = nil
     OATerminalWindow = { instances = { [0] = {} } }
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_Adapted", args = { "load", 1 } })
-    eq(#drawn, 4, "the point's own brief title")
+    eq(#drawn, 3, "the point's own brief title waits for the terminal too")
     terminal(false)
     eq(#drawn, 5)
+    eq(drawn[4].text, "IGUI_OA_Tree_Adapted IGUI_OA_Tree_Name_load 1", "the point's own first")
     eq(drawn[5].text, "IGUI_OA_Tree_WhereHint")
     OATerminalWindow, PZExtAPI = nil, nil
 end)

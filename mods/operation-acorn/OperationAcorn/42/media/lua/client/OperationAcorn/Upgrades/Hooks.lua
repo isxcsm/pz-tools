@@ -225,7 +225,7 @@ local function onNotice(playerId, detail)
         player:Say(text)
     elseif string.find(detail.key, "Failed$") then
         -- the adaptation tab's buttons: a brief title, red, over its window
-        OA.Titles.brief(playerId, detail.key, args, "red")
+        OA.Titles.brief(playerId, detail.key, args, "red", nil, true)
     else
         OA.Titles.brief(playerId, detail.key, args)
     end
@@ -258,7 +258,7 @@ function Hooks.showHint()
         hint.aside = true
         return
     end
-    local _, key = OA.Titles.brief(hint.playerId, "IGUI_OA_Tree_WhereHint", nil, nil, hint.after)
+    local _, key = OA.Titles.brief(hint.playerId, "IGUI_OA_Tree_WhereHint", nil, nil, hint.after, true)
     hint.key, hint.after, hint.aside = key, nil, nil
 end
 

@@ -290,3 +290,33 @@ test("a notice as a brief title in its tone, or said; a refusal of the character
     OA.Titles.brief("p1", "IGUI_OA_Trade_Notice_Called", { "3" })
     eq(said[2], "IGUI_OA_Trade_Notice_Called 3")
 end)
+
+test("a brief title from the world waits while a window is open and comes as it closes; an answer comes at once", function()
+    local said = world()
+    PZExtAPI = nil
+    local Titles = OA.Titles
+    OATerminalWindow = { instances = { [0] = {} } }
+    eq(Titles.brief("p1", "IGUI_OA_Machine_PartWorn"), "held")
+    eq(Titles.brief("p1", "IGUI_OA_Machine_PartWorn"), "held", "the same one held once")
+    eq(OA.Sync.title("p1", { key = "IGUI_OA_Title_TownProgress1", style = "brief" }), nil)
+    eq(#said, 0)
+    eq(Titles.brief("p1", "IGUI_OA_Story_RerollFail", nil, "red", nil, true), "said", "an answer: at once")
+    eq(#said, 1)
+    Titles.showHeld(1000000)
+    eq(#said, 1, "the window still open")
+    OATerminalWindow.instances[0] = nil
+    Titles.showHeld(1000000 + Titles.HELD_LOOK_MS)
+    eq(#said, 3, "closed: the held ones, once each")
+    eq(said[2], "IGUI_OA_Machine_PartWorn")
+    eq(said[3], "IGUI_OA_Title_TownProgress1")
+    -- the adaptation tab on the screen holds them too; another style does not wait
+    OA.Upgrades = OA.Upgrades or {}
+    local realWindow = OA.Upgrades.Window
+    OA.Upgrades.Window = { onScreen = function() return true end }
+    eq(Titles.brief("p1", "IGUI_OA_Tree_FirstEffect"), "held")
+    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Paid", style = "discovery" }), "said")
+    OA.Upgrades.Window = realWindow
+    Titles.showHeld(2000000)
+    eq(said[#said], "IGUI_OA_Tree_FirstEffect")
+    OATerminalWindow = nil
+end)

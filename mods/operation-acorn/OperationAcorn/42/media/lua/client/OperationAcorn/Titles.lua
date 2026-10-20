@@ -67,9 +67,26 @@ Titles.OVER_WINDOW, Titles.CENTER, Titles.CENTER_ALONE = Kit.OVER_WINDOW, Kit.CE
 -- already and is not made smaller.
 Titles.SIZES = { major = 1.35, minor = 0.72 }
 
+-- Whether one of the windows a player works in is open: the terminal's, or the adaptation tab on the screen.
+function Titles.windowOpen(playerNum)
+    if OATerminalWindow and OATerminalWindow.instances and OATerminalWindow.instances[playerNum] then return true end
+    local Window = OA.Upgrades and OA.Upgrades.Window
+    return Window ~= nil and Window.onScreen(playerNum) == true
+end
+
+-- The brief titles held while a window is open (Titles.show): { playerId, detail, noSay, playerNum, text }, in the
+-- order they came; one the same as one held already is not held twice. Looked at every HELD_LOOK_MS of real time
+-- while there are some.
+Titles.HELD_LOOK_MS = 250
+local held = {}
+local heldLook = 0
+
 -- Shows a title (detail as OA.Sync.title takes it) for the player of that id; returns how it was shown: "title",
--- "said" (the API cannot draw it: the character says it) or nil, and the key of a title drawn (a later one's `after`). With `noSay` a title the API cannot draw is not shown
--- at all (the caller has its own way then). The small text over the character is never used.
+-- "said" (the API cannot draw it: the character says it), "held" or nil, and the key of a title drawn (a later one's
+-- `after`). With `noSay` a title the API cannot draw is not shown at all (the caller has its own way then). The small
+-- text over the character is never used. A brief title is news from the world, and while the player works in a window
+-- (Titles.windowOpen) it waits for the window to close; one that answers what was done in the window (detail.answer: a
+-- button's refusal, a call taken) comes over it at once.
 function Titles.show(playerId, detail, noSay)
     if type(detail) ~= "table" then return nil end
     local title = text(detail.key, detail.args)
@@ -79,6 +96,17 @@ function Titles.show(playerId, detail, noSay)
     if sub then sub = OA.Markup.strip(sub) end
     local characters = charactersOf(playerId)
     if #characters == 0 then return nil end
+    if detail.style == "brief" and not detail.answer and not Titles.now then
+        local playerNum = characters[1]:getPlayerNum()
+        if Titles.windowOpen(playerNum) then
+            local whole = title .. "|" .. (sub or "")
+            for _, h in ipairs(held) do
+                if h.playerNum == playerNum and h.text == whole then return "held" end
+            end
+            held[#held + 1] = { playerId = playerId, detail = detail, noSay = noSay, playerNum = playerNum, text = whole }
+            return "held"
+        end
+    end
     local api = OA.api()
     local handle = Kit.textApi(api) and OA.handle()
     if handle and not Kit.styleFor(Kit.textApi(api), detail.style) then handle = nil end
@@ -106,11 +134,11 @@ end
 
 -- Shows a notice (OA.Sync.notice: a key and its arguments, already put in the player's language) as a title, when
 -- `as` names one: { key (the title), titleArgs (the title takes the notice's arguments too), style, tone, size, alone
--- (no line under it: the notice's own text is the title), after (a title's key it waits to have left) }. The notice's
--- text is the line under the title.
+-- (no line under it: the notice's own text is the title), after (a title's key it waits to have left), answer (it
+-- answers what was done in a window: Titles.show) }. The notice's text is the line under the title.
 function Titles.notice(playerId, as, key, args)
     if type(as) ~= "table" then return end
-    local detail = { style = as.style, tone = as.tone, size = as.size, after = as.after }
+    local detail = { style = as.style, tone = as.tone, size = as.size, after = as.after, answer = as.answer }
     if as.alone then
         detail.key, detail.args = key, args
     else
@@ -120,11 +148,41 @@ function Titles.notice(playerId, as, key, args)
     return Titles.show(playerId, detail)
 end
 
--- A notice as a brief title (light, low on the screen, over a window as over the world): its own text the title.
--- `tone`: "red" for a refusal, "amber" for a warning, nil for news. `after`: a title's key it waits to have left.
-function Titles.brief(playerId, key, args, tone, after)
-    return Titles.notice(playerId, { alone = true, style = "brief", tone = tone, after = after }, key, args)
+-- A notice as a brief title (light, low on the screen): its own text the title. `tone`: "red" for a refusal, "amber"
+-- for a warning, nil for news. `after`: a title's key it waits to have left. `answer`: it answers what was done in a
+-- window, over which it comes at once (else it waits for the window to close: Titles.show).
+function Titles.brief(playerId, key, args, tone, after, answer)
+    return Titles.notice(playerId, { alone = true, style = "brief", tone = tone, after = after, answer = answer },
+        key, args)
 end
+
+-- The titles held for a window: each shown once its player's windows are closed (the handler stays, and returns at
+-- once while none is held). `now` true: looked at at once (the terminal closed).
+function Titles.showHeld(now)
+    if held[1] == nil then return end
+    if now ~= true then
+        now = now or getTimestampMs()
+        if now >= heldLook and now - heldLook < Titles.HELD_LOOK_MS then return end
+    else
+        now = getTimestampMs()
+    end
+    heldLook = now
+    local waiting = held
+    held = {}
+    for _, h in ipairs(waiting) do
+        if Titles.windowOpen(h.playerNum) then
+            held[#held + 1] = h
+        else
+            OA.try("title held for a window", Titles.show, h.playerId, h.detail, h.noSay)
+        end
+    end
+end
+OA.on("OnTick", function() Titles.showHeld() end)
+-- (the terminal closing shows them at once, before what other parts bring as it closes: this file loads before them)
+OA.terminalWatchers = OA.terminalWatchers or {}
+table.insert(OA.terminalWatchers, function(_, open)
+    if not open then Titles.showHeld(true) end
+end)
 
 -- Takes a title Titles.show drew away at once (its key), one still waiting too. True when there was one.
 function Titles.hide(key)

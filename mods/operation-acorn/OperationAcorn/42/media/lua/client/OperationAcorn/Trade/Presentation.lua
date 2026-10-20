@@ -25,9 +25,10 @@ local function onNotice(playerId, detail)
         OA.Titles.notice(playerId, { key = "IGUI_OA_Title_Sealed", style = "stamp", size = "minor" }, detail.key, args)
         return
     end
-    -- a refusal (the trade's reasons, flight support's) in red, news in the style's own colour
+    -- a refusal (the trade's reasons, flight support's) in red, news in the style's own colour; each answers what was
+    -- done (at the terminal mostly), so it comes over the window at once
     local refused = string.find(detail.key, "_Reason_", 1, true) ~= nil or string.find(detail.key, "^IGUI_OA_Support_Why_") ~= nil
-    OA.Titles.brief(playerId, detail.key, args, refused and "red" or nil)
+    OA.Titles.brief(playerId, detail.key, args, refused and "red" or nil, nil, true)
 end
 OA.Sync.listen("notice", onNotice)
 
