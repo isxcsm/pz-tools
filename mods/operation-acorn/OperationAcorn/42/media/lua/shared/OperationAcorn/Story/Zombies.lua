@@ -130,12 +130,12 @@ function Zombies.look(record, m, now)
             ready[m.id] = true
             return
         end
-        here[m.id] = true
+        -- the visit's group is brought once; short of it (every open square within ZOMBIE_AWAY of the player, as when
+        -- they stand in a small yard), the rest is tried again each look while they are about
         local missing = Zombies.wanted(m, now) - g.countMarked(m.id)
-        if missing > 0 then
-            local made = g.spawnZombies(m.area, m.zombies.outfit, m.id, missing, px, py)
-            OA.log("mission", m.id, "brought", tostring(made), "of", missing, m.zombies.outfit)
-        end
+        local made = missing > 0 and g.spawnZombies(m.area, m.zombies.outfit, m.id, missing, px, py) or 0
+        here[m.id] = made >= missing or nil
+        if made > 0 then OA.log("mission", m.id, "brought", tostring(made), "of", missing, m.zombies.outfit) end
     elseif d > m.area.r + Data.ZOMBIE_NEAR + Data.ZOMBIE_LEAVE then
         here[m.id], ready[m.id] = nil, nil
     end

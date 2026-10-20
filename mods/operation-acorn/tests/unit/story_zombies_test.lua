@@ -211,6 +211,35 @@ test("the group is held at once, brought once a visit a look after its squares l
     eq(#g.held, 1, "held once")
 end)
 
+test("a group brought short (no open square away from the player) is tried again each look until it is whole", function()
+    local record = setup(1, "clear")
+    local m = startNow(record)
+    local g = M.game
+    g.present = 0
+    local room = 0
+    g.spawnZombies = function(area, outfit, key, count)
+        g.spawned[#g.spawned + 1] = { count = count }
+        local made = math.min(room, count)
+        g.present = g.present + made
+        return made
+    end
+    g.px, g.py = m.area.x, m.area.y
+    Z.tick(TEST.hours)
+    Z.tick(TEST.hours)
+    eq(#g.spawned, 1)
+    Z.tick(TEST.hours)
+    eq(#g.spawned, 2, "none came: tried again")
+    room = 4
+    Z.tick(TEST.hours)
+    eq(g.spawned[3].count, 12)
+    Z.tick(TEST.hours)
+    eq(g.spawned[4].count, 8, "the rest")
+    room = 100
+    Z.tick(TEST.hours)
+    Z.tick(TEST.hours)
+    eq(#g.spawned, 5, "whole: once a visit again")
+end)
+
 test("without the API's zombie marks the zombie missions are not given", function()
     local record = setup(1, "clear")
     M.game.canMarkZombies = function() return false end

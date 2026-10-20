@@ -196,8 +196,41 @@ test("open ground in a band is a field first, else the first in woods", function
     points = { { x = 5, y = 6, zones = { "Forest" } }, { x = 9, y = 10, zones = { "Vegitation" } } }
     x, y = Game.groundInBand(0, 0, 100, 200)
     eq(x, 5); eq(y, 6)
-    points = {}
-    eq(Game.groundInBand(0, 0, 100, 200), nil)
+    PZExtAPI = nil
+end)
+
+test("a band with no open ground reaches further, then asks no road, then takes a point of the band on the map", function()
+    local calls, give = 0, 0
+    local asked = fakeApi({ zones = { points = function()
+        calls = calls + 1
+        return calls == give and { { x = 7, y = 8, zones = {} } } or {}
+    end } })
+    give = 2
+    local x, y = Game.groundInBand(0, 0, 100, 200)
+    eq(x, 7); eq(y, 8)
+    eq(asked[2][4], 300, "further out")
+    calls, give = 0, 4
+    Game.groundInBand(0, 0, 100, 200)
+    eq(asked[6][4], 400)
+    eq(asked[6][5].road, nil, "no road asked")
+    truthy(asked[6][5]["not"] == Game.CLOSED_ZONES)
+    -- none at all: a point of the band, on the map and in no building
+    local realWorld = getWorld
+    local tried = 0
+    getWorld = function() return { getMetaGrid = function() return {
+        getChunkDataFromTile = function(_, px, py) tried = tried + 1; return tried > 3 and {} or nil end,
+        getBuildingAt = function() return nil end } end } end
+    calls, give = 0, 0
+    x, y = Game.groundInBand(0, 0, 100, 200)
+    local d = math.sqrt(x * x + y * y)
+    truthy(d >= 99 and d <= 201, "in the band")
+    eq(tried, 4, "off the map: another")
+    -- nothing of the map known: the anchor
+    getWorld = function() return { getMetaGrid = function() return {
+        getChunkDataFromTile = function() return nil end, getBuildingAt = function() return nil end } end } end
+    x, y = Game.groundInBand(3, 4, 100, 200)
+    eq(x, 3); eq(y, 4)
+    getWorld = realWorld
     PZExtAPI = nil
 end)
 
@@ -236,5 +269,49 @@ test("a camp that does not fit where it is moves to the nearest ground that does
     eq(ring.anchors.from, 2); eq(ring.anchors.to, Game.SETTLE_REACH); eq(ring.anchors.step, 2)
     near(ring.parts[1].filter.distance.max, 51, 1e-9)
     eq(m.site.x, 107); eq(m.site.key, "g:107,100")
+    getCell, PZExtAPI = nil, nil
+end)
+
+test("a camp no camp fits near goes at least to the nearest open ground", function()
+    local square = function(x, y) return { getX = function() return x end, getY = function() return y end } end
+    getCell = function() return { getGridSquare = function(_, x, y) return square(x, y) end } end
+    fakeApi({ squares = { fit = function() return nil end, nearest = function() return square(95, 100) end } })
+    local record = OA.Store.ensure("p1", "P")
+    local m = { id = "M8", site = { x = 100, y = 100, z = 0, ground = true, key = "g:100,100" }, items = {} }
+    eq(Game.settleGround(record, m), true)
+    eq(m.site.x, 95); eq(m.site.key, "g:95,100")
+    getCell, PZExtAPI = nil, nil
+end)
+
+test("a piece asked for where all is loaded already, with no container for it, goes on a floor now", function()
+    local loaded = false
+    local dropped = {}
+    local roomSq = { getX = function() return 9 end, getY = function() return 9 end, getZ = function() return 0 end,
+        getRoom = function() return { getName = function() return "kitchen" end } end,
+        AddWorldInventoryItem = function(_, item) dropped[#dropped + 1] = item end }
+    getCell = function() return { getGridSquare = function() return loaded and roomSq or nil end } end
+    fakeApi({ objects = { find = function() return {} end }, squares = { list = function() return { roomSq } end } })
+    local realItem = instanceItem
+    instanceItem = function(fullType)
+        local md = {}
+        return { fullType = fullType, getModData = function() return md end }
+    end
+    local record = OA.Store.ensure("p1", "P")
+    local function piece()
+        return { key = "A", type = "Base.Notebook", mode = "container", placed = false, x = 10, y = 10, z = 0,
+            x1 = 8, y1 = 8, x2 = 20, y2 = 12, z1 = 0, z2 = 0 }
+    end
+    local it = piece()
+    Game.request(record, { id = "M9", items = { it } }, it)
+    eq(it.placed, false, "not loaded: waits")
+    eq(it.chunks, 2, "for its two chunks")
+    Game.unregisterPiece("M9", nil)
+    loaded = true
+    it = piece()
+    Game.request(record, { id = "M10", items = { it } }, it)
+    eq(it.placed, true, "placed at once")
+    eq(#dropped, 1)
+    eq(#OA.Chunks.list("oa_place"), 0, "nothing waits")
+    instanceItem = realItem
     getCell, PZExtAPI = nil, nil
 end)

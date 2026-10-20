@@ -303,7 +303,7 @@ end
 -- { want = Places.pickSite's want, ground = true (open ground only), roadside = true (open ground by a road), up = true (of more than one floor first) }. Not the base's building, not a site a story has
 -- used in this world, not a building a player has searched, not the site of a special request on offer, nor `taken` (a
 -- key). No building in the band: the band's outer edge reaches further out (SITE_WIDER) before open ground. Returns { x, y, z, x1, y1, x2, y2, z1, z2, key } (a building's), { x, y, z = 0, key, ground = true } or nil (no
--- base known, or nothing found).
+-- base known yet: open ground is always found, Game.groundInBand).
 Missions.SITE_WIDER = { 1, 1.5, 2 }   -- the band's outer edge, times these in turn, before open ground
 function Missions.pickSite(record, level, spec, taken)
     local g = game()
@@ -827,8 +827,8 @@ function Missions.briefOf(record, m, option)
     return OA.CommsData.BRIEFS[key]
 end
 
--- A story mission is made from its offer once its briefing is over, and begins. With no place for it now (rare: no
--- building in its band) it goes back to the queue and comes again after a regular mission.
+-- A story mission is made from its offer once its briefing is over, and begins. With no place for it now (no base known
+-- yet: a site is always found once there is one) it goes back to the queue and comes again after a regular mission.
 local function buildStory(record, offer)
     local s = Missions.state(record)
     local m = createStoryMission(record, offer.story, offer.level, offer.option)

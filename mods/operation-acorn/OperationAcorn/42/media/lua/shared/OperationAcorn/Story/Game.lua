@@ -109,17 +109,52 @@ local function woodsIn(zones)
     return false
 end
 
--- A point of open ground in the band around ax, ay, off a road, tried at random: a field first, else the first in
--- woods; nil when none was found. `roadside`: by a road first (ROADSIDE), else as any open ground.
-function Game.groundInBand(ax, ay, lo, hi, roadside)
+-- Open ground with no road asked for: the last of the map's zones to try.
+local LOOSE_POINTS = { count = 16, tries = 300, ["not"] = Game.CLOSED_ZONES }
+-- The band's outer edge, times these in turn, when it has no open ground (a base in a city's middle).
+Game.GROUND_WIDER = { 1.5, 2 }
+
+-- A point of the zones' list: a field first, else the first in woods; nil for none.
+local function groundOf(ax, ay, lo, hi, wanted)
     local wx, wy
-    for _, p in ipairs(OA.api().zones.points(ax, ay, lo, hi, roadside and ROADSIDE_POINTS or GROUND_POINTS)) do
+    for _, p in ipairs(OA.api().zones.points(ax, ay, lo, hi, wanted)) do
         local x, y = math.floor(p.x), math.floor(p.y)
         if not woodsIn(p.zones) then return x, y end
         wx, wy = wx or x, wy or y
     end
-    if not wx and roadside then return Game.groundInBand(ax, ay, lo, hi) end
     return wx, wy
+end
+
+-- A point of the band as it is, on the map (its chunk's data known), for when its zones give none: the site settles on
+-- the nearest open ground once it loads (Game.settleGround). The anchor itself at the very last.
+local function ringPoint(ax, ay, lo, hi)
+    local grid = getWorld():getMetaGrid()
+    for _ = 1, 64 do
+        local a, r = OA.randomFloat(0, 2 * math.pi), OA.randomFloat(lo, hi)
+        local x, y = math.floor(ax + math.cos(a) * r), math.floor(ay + math.sin(a) * r)
+        if grid:getChunkDataFromTile(x, y) and not grid:getBuildingAt(x, y, 0) then return x, y end
+    end
+    return math.floor(ax), math.floor(ay)
+end
+
+-- A point of open ground in the band around ax, ay, off a road, tried at random: a field first, else the first in
+-- woods. `roadside`: by a road first (ROADSIDE), else as any open ground. None in the band: further out
+-- (GROUND_WIDER), then with no road near asked, then a point of the band as it is. Never nil: a story mission must
+-- have its site.
+function Game.groundInBand(ax, ay, lo, hi, roadside)
+    local x, y
+    if roadside then x, y = groundOf(ax, ay, lo, hi, ROADSIDE_POINTS) end
+    if not x then x, y = groundOf(ax, ay, lo, hi, GROUND_POINTS) end
+    for _, wider in ipairs(Game.GROUND_WIDER) do
+        if x then break end
+        x, y = groundOf(ax, ay, lo, hi * wider, GROUND_POINTS)
+    end
+    if not x then x, y = groundOf(ax, ay, lo, hi * Game.GROUND_WIDER[#Game.GROUND_WIDER], LOOSE_POINTS) end
+    if not x then
+        x, y = ringPoint(ax, ay, lo, hi)
+        OA.log("open ground: none in the zones about", ax, ay, "; a point of the band as it is,", x, y)
+    end
+    return x, y
 end
 
 -- Open natural ground, as a square condition: outdoors, no building, its floor natural ground (grass, dirt, sand: the
@@ -208,10 +243,12 @@ function Game.settleGround(record, m)
         end
         -- on every other ring: a camp a square off makes no difference, and the search is a quarter as long
         local a = squares.fit({ x = x0, y = y0, z = z, from = 2, to = Game.SETTLE_REACH, step = 2 }, shape(middle))
-        if a then nx, ny = a:getX(), a:getY() end
+        -- no camp fits near: its middle on the nearest open ground at least (not in water, on a road or in a house)
+        if not a then a = squares.nearest({ x = x0, y = y0, z = z, to = Game.SETTLE_REACH }, middle) end
+        if a and not (a:getX() == x0 and a:getY() == y0) then nx, ny = a:getX(), a:getY() end
     end
     if nx then moveTo(record, m, nx, ny)
-    elseif not here then OA.log("ground site", site.key, "is not open ground; nothing near is: kept") end
+    elseif not here then OA.log("ground site", site.key, "fits no camp, nor anything near: kept") end
     for _, it in ipairs(m.items or {}) do
         if not (it.placed or it.staged) then
             Game.unregisterPiece(m.id, it.key)
@@ -561,7 +598,7 @@ function Game.tryPlace(record, m, it, forceFloor)
         return true
     end
     if it.mode == "case" or it.mode == "floor" then
-        local sq = floorSquare(it)
+        local sq = floorSquare(it) or (forceFloor and nearFreeSquare(it.x, it.y, it.z or 0))
         if not sq then return false end
         local item = newItem(record, m, it)
         if not item then return true end
@@ -588,7 +625,7 @@ function Game.tryPlace(record, m, it, forceFloor)
     end
     if #list == 0 then
         if not forceFloor then return false end
-        local sq = floorSquare(it)
+        local sq = floorSquare(it) or (forceFloor and nearFreeSquare(it.x, it.y, it.z or 0))
         if not sq then return false end
         local item = newItem(record, m, it)
         if not item then return true end
@@ -694,18 +731,26 @@ local function chunksOf(it, reach)
 end
 
 -- Asks for the piece to be placed: now if its place is loaded, otherwise when it loads or its containers fill. A piece
--- a story site's stage puts (it.staged, Story/Stage) waits for the stage.
+-- a story site's stage puts (it.staged, Story/Stage) waits for the stage. Its chunks loaded already will not load
+-- again while the player is about: only the others are waited for, and with none left (the whole place is loaded and
+-- has no container for it) it goes on a floor now.
 function Game.request(record, m, it)
     if it.placed or it.staged then return end
     if Game.tryPlace(record, m, it) then return end
+    local chunks = chunksOf(it, m.site and m.site.ground and not m.site.settled and Game.CAMP_REACH or nil)
+    local c = getCell()
+    local unloaded = 0
+    for _, ch in ipairs(chunks) do
+        if not c:getGridSquare(ch.x, ch.y, 0) then unloaded = unloaded + 1 end
+    end
+    if unloaded == 0 and Game.tryPlace(record, m, it, true) then return end
     if it.mode == "container" then
         waiting[#waiting + 1] = waitEntry(m, it)
     end
-    local chunks = chunksOf(it, m.site and m.site.ground and not m.site.settled and Game.CAMP_REACH or nil)
-    it.chunks = #chunks
+    it.chunks = math.max(unloaded, 1)
     it.misses = 0
-    for _, c in ipairs(chunks) do
-        OA.Chunks.add({ kind = "oa_place", mission = m.id, key = it.key, x = c.x, y = c.y, z = 0 })
+    for _, ch in ipairs(chunks) do
+        OA.Chunks.add({ kind = "oa_place", mission = m.id, key = it.key, x = ch.x, y = ch.y, z = 0 })
     end
 end
 
