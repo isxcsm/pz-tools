@@ -142,16 +142,15 @@ function Hooks.banner(text)
     UI.live(banner, Banner.tick)
 end
 
--- A tree opened (its first serum adapted to): a title, with a line under it saying a paper came to the terminal's folder
--- (`guide`: the tree's memo did), or the banner when the API cannot draw it.
-function Hooks.treeOpened(playerId, tree, guide)
+-- A tree opened (its first serum adapted to): a title, with the points that came under it and, with `guide`, that its
+-- memo came to the terminal's folder; or the banner when the API cannot draw it.
+function Hooks.treeOpened(playerId, tree, guide, points)
     local name = "IGUI_OA_Tree_Name_" .. tree
-    local line = guide and "IGUI_OA_Title_GuideSub" or nil
-    local detail = { key = "IGUI_OA_Title_TreeOpened", args = { { key = name } }, sub = line, style = "dust" }
+    local line = guide and "IGUI_OA_Title_OpenedSubGuide" or "IGUI_OA_Title_OpenedSub"
+    local detail = { key = "IGUI_OA_Title_TreeOpened", args = { { key = name } }, sub = line,
+        subArgs = { points or 1 }, style = "dust" }
     if OA.Titles.show(playerId, detail, true) == "title" then return end
-    local text = getText("IGUI_OA_Title_TreeOpened", getText(name))
-    if line then text = text .. "<LINE>" .. getText(line) end
-    Hooks.banner(text)
+    Hooks.banner(getText("IGUI_OA_Title_TreeOpened", getText(name)) .. "<LINE>" .. getText(line, points or 1))
 end
 
 local function localizedArgs(detail)
@@ -188,6 +187,9 @@ local TITLED = {
     IGUI_OA_Tree_GuideSent = { alone = true, style = "type" },
 }
 
+-- The notices that bring research points.
+local POINTS = { IGUI_OA_Tree_Adapted = true, IGUI_OA_Tree_AdaptedShared = true, IGUI_OA_Tree_Opened = true }
+
 local function onNotice(playerId, detail)
     if type(detail) ~= "table" or type(detail.key) ~= "string" then return end
     if not string.find(detail.key, "^IGUI_OA_Tree_") then return end
@@ -196,15 +198,9 @@ local function onNotice(playerId, detail)
     if playerId and OA.Client.id(player) ~= playerId then return end
     local args = localizedArgs(detail)
     local text = getText(detail.key, args[1], args[2], args[3])
-    -- the first research point: where the plan is made, once a character
-    if (detail.key == "IGUI_OA_Tree_Adapted" or detail.key == "IGUI_OA_Tree_AdaptedShared")
-        and not player:getModData().OA_ResearchHint then
-        player:getModData().OA_ResearchHint = true
-        Hooks.banner(getText("IGUI_OA_Tree_WhereHint"))
-    end
     if detail.key == "IGUI_OA_Tree_Opened" then
         local raw = detail.args or {}
-        Hooks.treeOpened(playerId, tostring(raw[1]), raw[2] == "guide")
+        Hooks.treeOpened(playerId, tostring(raw[1]), raw[2] == "guide", tonumber(raw[3]))
     elseif TITLED[detail.key] then
         OA.Titles.notice(playerId, TITLED[detail.key], detail.key, args)
     elseif SAID[detail.key] then
@@ -214,6 +210,11 @@ local function onNotice(playerId, detail)
         OA.Titles.brief(playerId, detail.key, args, "red")
     else
         OA.Titles.brief(playerId, detail.key, args)
+    end
+    -- the first research point: where the plan is made, once a character, a brief title after the point's own
+    if POINTS[detail.key] and not player:getModData().OA_ResearchHint then
+        player:getModData().OA_ResearchHint = true
+        OA.Titles.brief(playerId, "IGUI_OA_Tree_WhereHint")
     end
 end
 OA.Sync.listen("notice", onNotice)
@@ -520,6 +521,7 @@ local function onMinute()
     local now = OA.hours()
     Watch.minute(player, now)
     Adapting.minute(player, u, now)
+    if u.adapt and OA.Upgrades.Window then OA.Upgrades.Window.adaptMinute() end
     biteShield(player, u, now)
     -- until the API shield is there, the bite is undone from here
     if Rules.rank(u, "resistPlus") >= 2 and not Effects.biteShieldApplied() then

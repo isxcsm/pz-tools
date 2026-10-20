@@ -83,9 +83,9 @@ test("a tree opened is a title with the folder line under it when a memo came, o
     getSpecificPlayer = function() return character end
     character.Say = function(_, t) halo[#halo + 1] = t end
     PZExtAPI = nil
-    Hooks.treeOpened("p1", "scout", true)
+    Hooks.treeOpened("p1", "scout", true, 2)
     eq(#banners, 1)
-    eq(banners[1], "IGUI_OA_Title_TreeOpened IGUI_OA_Tree_Name_scout<LINE>IGUI_OA_Title_GuideSub")
+    eq(banners[1], "IGUI_OA_Title_TreeOpened IGUI_OA_Tree_Name_scout<LINE>IGUI_OA_Title_OpenedSubGuide 2")
     eq(#halo, 0, "the banner, not a line said")
     PZExtAPI = {
         version = OA.API_VERSION,
@@ -98,10 +98,10 @@ test("a tree opened is a title with the folder line under it when a memo came, o
     Hooks.treeOpened("p1", "load", true)
     eq(#banners, 1, "no banner when the title is drawn")
     eq(called[1].text, "IGUI_OA_Title_TreeOpened IGUI_OA_Tree_Name_load")
-    eq(called[1].subtitle, "IGUI_OA_Title_GuideSub")
-    -- no memo (the story part is not there): nothing under the title
-    Hooks.treeOpened("p1", "survival", false)
-    eq(called[2].subtitle, nil)
+    eq(called[1].subtitle, "IGUI_OA_Title_OpenedSubGuide 1", "the points under it, and the memo")
+    -- no memo (the story part is not there): only the points under the title
+    Hooks.treeOpened("p1", "survival", false, 3)
+    eq(called[2].subtitle, "IGUI_OA_Title_OpenedSub 3")
     PZExtAPI = nil
 end)
 
@@ -109,7 +109,7 @@ test("an adaptation is a title with the tree's name under it; a first effect is 
     local Hooks = loadHooks()
     local banners, good, opened = {}, {}, {}
     Hooks.banner = function(text) banners[#banners + 1] = text end
-    Hooks.treeOpened = function(id, tree, guide) opened[#opened + 1] = { tree, guide } end
+    Hooks.treeOpened = function(id, tree, guide, points) opened[#opened + 1] = { tree, guide, points } end
     local data = { OA_Id = "p1" }
     local character = { getModData = function() return data end, getPlayerNum = function() return 0 end }
     getPlayer = function() return character end
@@ -123,22 +123,23 @@ test("an adaptation is a title with the tree's name under it; a first effect is 
     local function said(text, prefix) return string.sub(text, 1, #prefix) == prefix end
     truthy(said(good[1], "IGUI_OA_Title_Adapted"), good[1])
     truthy(string.find(good[1], "IGUI_OA_Tree_Adapted IGUI_OA_Tree_Name_scout 2", 1, true), good[1])
-    eq(#banners, 1, "the first point tells where the plan is made")
+    truthy(said(good[2], "IGUI_OA_Tree_WhereHint"), "the first point tells where the plan is made, after its title")
+    eq(#banners, 0, "a brief title, not the banner")
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_AdaptedShared", args = { 1 } })
-    eq(#banners, 1, "once a character")
-    OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_Opened", args = { "load", "guide" } })
+    eq(#good, 3, "once a character")
+    OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_Opened", args = { "load", "guide", 2 } })
     eq(#opened, 1)
     eq(opened[1][1], "load")
     eq(opened[1][2], true)
-    eq(#good, 2, "an opening is a title of its own")
+    eq(opened[1][3], 2, "its points with it")
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_Opened", args = { "survival", "" } })
     eq(opened[2][2], false)
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_FirstEffect", args = { "sense", 1 } })
-    truthy(said(good[3], "IGUI_OA_Tree_FirstEffect IGUI_OA_Tree_Node_sense_Name 1"), good[3])
+    truthy(said(good[4], "IGUI_OA_Tree_FirstEffect IGUI_OA_Tree_Node_sense_Name 1"), good[4])
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_FirstEffectSingle", args = { "dash", 1 } })
-    truthy(said(good[4], "IGUI_OA_Tree_FirstEffectSingle IGUI_OA_Tree_Node_dash_Name 1"), good[4])
+    truthy(said(good[5], "IGUI_OA_Tree_FirstEffectSingle IGUI_OA_Tree_Node_dash_Name 1"), good[5])
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_GuideSent", args = {} })
-    truthy(said(good[5], "IGUI_OA_Tree_GuideSent"), good[5])
+    truthy(said(good[6], "IGUI_OA_Tree_GuideSent"), good[6])
 end)
 
 -- ---- with PZ Optimization's retained UI (Trade/UI live) ------------------------------------------------------------

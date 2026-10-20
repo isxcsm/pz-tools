@@ -166,19 +166,24 @@ test("a tree opening brings its memo once; the notice says whether it came", fun
             opened = opened + 1
             eq(n.args[1], "scout")
             eq(n.args[2], "guide")
+            eq(n.args[3], 2, "both points told with the opening")
         elseif n.key == "IGUI_OA_Tree_Adapted" then
             adapted = n.args
         end
     end
     eq(opened, 1, "a tree opens once, whatever the number of doses")
-    eq(adapted[1], "scout")
-    eq(adapted[2], 2, "both points told together")
-    -- the same tree again: no memo, no opening
+    eq(adapted, nil, "an opening is told once: its points with it")
+    -- the same tree again: no memo, no opening, its points
     Serums.inject(c, serum("UpgradeSerumScout"), "m1")
     Adapt.finish(record, 12)
     opened = 0
-    for _, n in ipairs(told.notices) do if n.key == "IGUI_OA_Tree_Opened" then opened = opened + 1 end end
+    for _, n in ipairs(told.notices) do
+        if n.key == "IGUI_OA_Tree_Opened" then opened = opened + 1 end
+        if n.key == "IGUI_OA_Tree_Adapted" then adapted = n.args end
+    end
     eq(opened, 1)
+    eq(adapted[1], "scout")
+    eq(adapted[2], 1)
     -- the self-talk is the bundle for the tree
     eq(told.say[#told.say].id, "Adapted")
     eq(told.say[#told.say].ctx.tree, "scout")

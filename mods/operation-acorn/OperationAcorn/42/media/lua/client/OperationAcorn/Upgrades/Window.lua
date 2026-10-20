@@ -1447,6 +1447,21 @@ end
 
 -- A chip at the top right ending at `right`: an item icon (or none), a text with its number in the value colour.
 -- Returns its left edge.
+-- The doses of a tree (or "shared") adapting in u now, 0 when none.
+local function adapting(u, key)
+    local a = u and u.adapt
+    return a and a.doses[key] or 0
+end
+
+-- How far the adaptation has come (0 to 1) at the world's hour now.
+local function adaptShare(u)
+    local left = Rules.adaptLeft(u, OA.hours())
+    if not left then return 1 end
+    local total = Rules.adaptHours(u)
+    if total <= 0 then return 1 end
+    return math.max(0, math.min(1, 1 - left / total))
+end
+
 local function chip(el, right, y, h, icon, key, value)
     local pre, post = around(key)
     local v = tostring(value)
@@ -1504,6 +1519,14 @@ function View:paintTop(el)
     local y, h = L.PAD + 1, L.TOP - 2
     local right = L.VIEW_W - L.PAD
     right = chip(el, right, y, h, "UpgradeSerumShared", "IGUI_OA_Tree_BadgeShared", Rules.sharedPool(self.sim)) - 6
+    -- shared doses still adapting: their points are on the way
+    local coming = adapting(self.u, "shared")
+    if coming > 0 then
+        local t = UI.str("IGUI_OA_Tree_AdaptingMore", coming)
+        right = right - UI.textWidth(t) - 4
+        UI.text(el, t, right, y + (h - UI.fontHeight()) / 2, P.text, nil, 0.85)
+        right = right - 8
+    end
     if self.mode == "board" and Rules.boardOpen(self.sim) then
         right = chip(el, right, y, h, nil, "IGUI_OA_Tree_BadgeBoard", Rules.boardLeft(self.sim)) - 6
     end
@@ -1562,6 +1585,11 @@ function View:paintStrip(el, panel, i)
     local left = UI.str("IGUI_OA_Tree_OwnLeft", usable)
     UI.text(el, left, x + 10, y + 27 - hop, usable > 0 and P.value or P.dim)
     if lit > 0 then UI.text(el, left, x + 10, y + 27 - hop, WHITE, nil, 0.8 * lit) end
+    -- doses of an open tree still adapting: their points are on the way
+    local coming = adapting(self.u, tree)
+    if coming > 0 then
+        UI.text(el, UI.str("IGUI_OA_Tree_AdaptingMore", coming), x + 18 + UI.textWidth(left), y + 27, tc.light, nil, 0.85)
+    end
     if surplus > 0 then
         UI.textRight(el, UI.str("IGUI_OA_Tree_BoardShare", surplus), x + panel.w - 10, y + 27, P.dim)
     end
@@ -2171,10 +2199,26 @@ function View:paint(el)
         -- a tree not opened yet: dark, with why
         if self.mode == "trees" and not Rules.treeOpen(self.u, panel.tree) then
             UI.fill(el, panel.gx, panel.gy + dy, panel.w, panel.gridH, BLACK, 0.6)
-            local lines = UI.wrapMemo(UI.str("IGUI_OA_Tree_TreeClosed"), panel.w - 2 * L.GRID_PAD)
-            local ty = panel.gy + dy + (panel.gridH - #lines * fh) / 2
-            for i, line in ipairs(lines) do
-                UI.textCentre(el, line, panel.gx + panel.w / 2, ty + (i - 1) * fh, CLOSED_TEXT)
+            local doses = adapting(self.u, panel.tree)
+            local why = doses > 0 and "IGUI_OA_Tree_AdaptingClosed" or "IGUI_OA_Tree_TreeClosed"
+            local lines = UI.wrapMemo(UI.str(why), panel.w - 2 * L.GRID_PAD)
+            local cx = panel.gx + panel.w / 2
+            if doses > 0 then
+                -- adapting: the head, why, and a bar of the time adapted in the tree's colour
+                local tc = TREE[panel.tree]
+                local bh, gap = 6, 8
+                local ty = panel.gy + dy + (panel.gridH - (fh + gap + #lines * fh + gap + bh)) / 2
+                UI.textCentre(el, UI.str("IGUI_OA_Tree_Adapting"), cx, ty, tc.light)
+                ty = ty + fh + gap
+                for i, line in ipairs(lines) do UI.textCentre(el, line, cx, ty + (i - 1) * fh, P.text) end
+                ty = ty + #lines * fh + gap
+                local bw = panel.w - 4 * L.GRID_PAD
+                local bx = panel.gx + (panel.w - bw) / 2
+                UI.fill(el, bx, ty, bw, bh, P.inset)
+                UI.fill(el, bx, ty, bw * adaptShare(self.u), bh, tc.c)
+            else
+                local ty = panel.gy + dy + (panel.gridH - #lines * fh) / 2
+                for i, line in ipairs(lines) do UI.textCentre(el, line, cx, ty + (i - 1) * fh, CLOSED_TEXT) end
             end
         end
         UI.frame(el, panel.x, panel.y + dy, panel.w, panel.strip + panel.gridH, P.border)
@@ -2727,7 +2771,8 @@ end
 -- ---- the tab in the character info window ----------------------------------------------------------------------
 
 -- Whether a player has the tab: from the first upgrade serum taken (its adaptation started) on. Before it the
--- character window has no such tab; the first dose brings it, blinking (Window.reveal).
+-- character window has no such tab; the first dose brings it, quietly (Window.reveal), and it blinks when the points
+-- come (Window.blink).
 local function earned(playerNum)
     local player = getSpecificPlayer(playerNum)
     local record = player and OA.Client.record(player)
@@ -2757,6 +2802,20 @@ function Window.reveal(playerNum, blink, info)
         info.panel.blinkTabs = tabs
         tabs[#tabs + 1] = tabName()
     end
+    return true
+end
+
+-- The tab blinks in the character window (points came to choose with), unless it is the one shown.
+function Window.blink(playerNum)
+    local view = views[playerNum]
+    local info = getPlayerInfoPanel(playerNum)
+    if not (view and info and info.panel and view.parent == info.panel) or view:getIsVisible() then return false end
+    local tabs = info.panel.blinkTabs or {}
+    info.panel.blinkTabs = tabs
+    for _, name in ipairs(tabs) do
+        if name == tabName() then return true end
+    end
+    tabs[#tabs + 1] = tabName()
     return true
 end
 
@@ -2862,15 +2921,28 @@ end
 
 OA.Upgrades.open = Window.open
 
--- The record changed (an approval, a reset, a serum): a tab not earned yet may be now; the tabs read it again.
+-- The record changed (an approval, a reset, a serum, an adaptation over): a tab not earned yet may be now (a first
+-- dose: it comes in quietly, nothing to choose yet); the tabs read it again. An adaptation over brings points: the tab
+-- blinks when it is not the one shown, and on the screen the trees it opened lose their padlocks.
 local function onChanged(playerId, detail)
-    local approved = type(detail) == "table" and detail.kind == "approve"
+    local kind = type(detail) == "table" and detail.kind or nil
     for playerNum, view in pairs(views) do
-        if not view.parent then Window.reveal(playerNum, true) end
+        if not view.parent then Window.reveal(playerNum, false) end
         if view:getIsVisible() then
+            local before = view.nodes
             view:refresh()
-            if approved then view:startTake() end
+            if kind == "approve" then view:startTake() end
+            if kind == "adapted" then view:unlockSince(before, getTimestampMs()) end
+        elseif kind == "adapted" then
+            Window.blink(playerNum)
         end
+    end
+end
+
+-- A game minute while doses adapt: a tab on the screen draws the time adapted again.
+function Window.adaptMinute()
+    for _, view in pairs(views) do
+        if view:getIsVisible() then view:changed() end
     end
 end
 OA.Sync.listen("upgrades", onChanged)
