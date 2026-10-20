@@ -19,7 +19,9 @@ local Data, Places, Rewards, Missions = OA.StoryData, OA.Places, OA.Rewards, OA.
 
 OATabMission = OATab:derive("OATabMission")
 
--- The card's height, and the height of the screen (the body under the sub-tabs) under which it is the small one.
+-- The card's least height, and the height of the tab under which it is the small one. The special request's panel is as
+-- tall as what it says and the card takes the rest (a short offer card is as tall as what it says, and the panel takes
+-- the rest then).
 OATabMission.CARD_H, OATabMission.CARD_H_SMALL, OATabMission.SMALL_BELOW = 196, 172, 350
 OATabMission.CARD_H_MIN = 110
 
@@ -459,19 +461,66 @@ function OATabMission:refresh()
     self.laidW = nil
 end
 
+-- The special request's texts cut to the width, and the height of its panel: what it says (nil: the rest).
+function OATabMission:layoutSpecial(w)
+    local special = self.special
+    if not special then return nil end
+    local fh = UI.fontHeight()
+    if special.kind == "offer" then
+        special.hintFit = UI.fit(special.hint, w - 24 - UI.textWidth(special.head) - 12)
+        -- two cells side by side: a radio, the title, the form (dim) and the place
+        local cw = math.floor((w - 36) / 2)
+        special.cells = {}
+        for i, key in ipairs({ "a", "b" }) do
+            special.cells[key] = { x = 12 + (i - 1) * (cw + 12), y = 26, w = cw, h = 3 * fh + 10 }
+            local o = special.options[key]
+            o.titleFit = UI.fit(o.title, cw - 32)
+            o.formFit = UI.fit(o.form, cw - 32)
+            o.whereFit = UI.fit(o.where, cw - 32)
+        end
+        -- the cells, then the reward's line and the button
+        return 26 + 3 * fh + 10 + 6 + math.max(self.acceptButton.height + 4, 24)
+    elseif special.kind == "mission" then
+        local mh = UI.fontHeight(UIFont.Medium)
+        special.titleFit = UI.fit(special.title, w - 24 - special.right.w - UI.textWidth(special.head) - 24, UIFont.Medium)
+        special.mh = mh
+        special.formFit = UI.fit(special.form, w - 24)
+        special.lineFits = {}
+        for i, text in ipairs(special.lines) do special.lineFits[i] = UI.fit(text, w - 24) end
+        if special.where then special.where.labelW = UI.textWidth(special.where.label) end
+        if special.where then special.where.fit = UI.fit(special.where.text, w - 24 - special.where.labelW) end
+        if special.link then special.link.w = UI.textWidth(special.link.text) end
+        -- (drawMission's lines, then the reward's line and the button)
+        return 22 + mh + 1 + fh + 4 + #special.lineFits * fh + (special.where and fh + 2 or 0)
+            + (special.link and fh or 0) + 4 + math.max(self.specialMapButton.height + 4, 28)
+    elseif special.locked then
+        special.textLines = wrapLines(special.text, w - 24)
+        special.tagX = 26 + UI.textWidth(special.head) + 10
+        special.bulletFits = {}
+        for i, text in ipairs(special.bullets) do special.bulletFits[i] = UI.fit(text, w - 36) end
+        return 26 + (#special.textLines + #special.bulletFits) * fh + 4 + 40
+    end
+    -- the head and a line ("none", or how long until the next)
+    return 26 + fh + 10
+end
+
 -- Where everything goes, worked out when the size changes or the record does.
 function OATabMission:layout()
-    local card, p = self.card, self:palette()
+    local card = self.card
     local w, h = self.width, self.height
     self.laidW, self.laidH = w, h
     self.small = h < OATabMission.SMALL_BELOW
-    self.cardH = self.small and OATabMission.CARD_H_SMALL or OATabMission.CARD_H
-    -- an offer (nothing at a place yet) is as tall as what it says, not a card with a hole in the middle
+    local least = self.small and OATabMission.CARD_H_SMALL or OATabMission.CARD_H
+    local specialH = self:layoutSpecial(w)
+    -- an offer (nothing at a place yet) is as tall as what it says, not a card with a hole in the middle; any other card
+    -- takes what the special request's panel leaves
     if card and not card.empty and self.info.state == "waiting" then
         local fh = UI.fontHeight()
         local need = 32 + #wrapLines(card.brief, w - 24) * fh + 6 + (card.item and 28 or 0) + #card.lines * fh
             + (card.bonus and 18 or 0) + 44
-        self.cardH = math.max(OATabMission.CARD_H_MIN, math.min(self.cardH, need))
+        self.cardH = math.max(OATabMission.CARD_H_MIN, math.min(least, need))
+    else
+        self.cardH = math.max(least, h - 8 - (specialH or 0))
     end
     local cardH = self.cardH
     for _, b in ipairs(self:buttons()) do
@@ -535,46 +584,19 @@ function OATabMission:layout()
     local sh = h - sy
     self.slot = { y = sy, h = sh }
     local special = self.special
-    local fh = UI.fontHeight()
     if special and special.kind == "offer" then
+        for _, cell in pairs(special.cells) do cell.y = sy + 26 end
         local b = self.acceptButton
         b:setX(w - 12 - b.width)
         b:setY(sy + sh - b.height - 4)
         b:setVisible(true)
-        special.hintFit = UI.fit(special.hint, w - 24 - UI.textWidth(special.head) - 12)
-        -- two cells side by side: a radio, the title, the form (dim) and the place
-        local cw = math.floor((w - 36) / 2)
-        special.cells = {}
-        for i, key in ipairs({ "a", "b" }) do
-            special.cells[key] = { x = 12 + (i - 1) * (cw + 12), y = sy + 26, w = cw, h = 3 * fh + 10 }
-            local o = special.options[key]
-            o.titleFit = UI.fit(o.title, cw - 32)
-            o.formFit = UI.fit(o.form, cw - 32)
-            o.whereFit = UI.fit(o.where, cw - 32)
-        end
     elseif special and special.kind == "mission" then
         local b = self.specialMapButton
         b:setX(w - 12 - b.width)
         b:setY(sy + sh - b.height - 4)
         b:setVisible(true)
         b.enable = special.hasArea
-        local mh = UI.fontHeight(UIFont.Medium)
-        special.titleFit = UI.fit(special.title, w - 24 - special.right.w - UI.textWidth(special.head) - 24, UIFont.Medium)
-        special.mh = mh
-        special.formFit = UI.fit(special.form, w - 24)
-        special.lineFits = {}
-        for i, text in ipairs(special.lines) do special.lineFits[i] = UI.fit(text, w - 24) end
-        if special.where then special.where.labelW = UI.textWidth(special.where.label) end
-        if special.where then special.where.fit = UI.fit(special.where.text, w - 24 - special.where.labelW) end
-        if special.link then special.link.w = UI.textWidth(special.link.text) end
     elseif special and special.locked then
-        special.textLines = wrapLines(special.text, w - 24)
-        special.tagX = 26 + UI.textWidth(special.head) + 10
-        special.bulletFits = {}
-        for i, text in ipairs(special.bullets) do special.bulletFits[i] = UI.fit(text, w - 36) end
-        -- as tall as what it says (the window's height below it stays empty, not a hole inside the panel)
-        sh = math.min(sh, 26 + (#special.textLines + #special.bulletFits) * fh + 4 + 40)
-        self.slot.h = sh
         local b = self.shopButton
         b:setX(w - 12 - b.width)
         b:setY(sy + sh - b.height - 4)
