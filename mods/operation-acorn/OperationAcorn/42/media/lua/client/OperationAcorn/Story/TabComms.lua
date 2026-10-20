@@ -540,16 +540,8 @@ function OATabComms:finish(leaving)
     self:follow()
 end
 
--- Skipping the hail goes straight to the call; skipping the call ends it.
+-- Skipping ends the call, its hail too: one press, whatever part is on (its lines go to the log as played).
 function OATabComms.skip(self)
-    local play = self.play
-    if play and hailing(play) then
-        local now = UI.sceneNow()
-        play.hailFrom, play.at = nil, now
-        self.st = Script.at(play.tl, 0)
-        self:setRows(self:record())
-        return
-    end
     self:finish()
 end
 
