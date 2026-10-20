@@ -33,14 +33,14 @@ Value.CASH = { ["Base.Money"] = 1, ["Base.MoneyBundle"] = 100 }
 -- The mod's own goods that are taken: credits and trust for one, no market. Other goods of the mod (serums, kits,
 -- machines, parts, gear) are shop goods and not taken. A selected sample (시료 감별) is a sample bundle of a better
 -- grade. "MissionItem" is worth what its mission pays (the story part settles it); "ExpiredMission" is a mission item
--- past its time. A meteorite fragment is not sold: it goes to the research team and opens a capstone (the story part
+-- past its time. A meteorite fragment is not sold: it goes to the research team (paid as a stage-3 mission is) and opens a capstone (the story part
 -- tells the upgrades when it settles: Story.onSettled).
 Value.OWN = {
     SampleBundle = { credits = 600, trust = 6, event = "samples" },
     SelectedSample = { credits = 1200, trust = 12, event = "samples" },
-    MeteorFragment = { credits = 0, trust = 200, fragment = true },
-    MeteorFragmentIron = { credits = 0, trust = 200, fragment = true },
-    MeteorFragmentStonyIron = { credits = 0, trust = 200, fragment = true },
+    MeteorFragment = { credits = 30000, trust = 200, fragment = true },
+    MeteorFragmentIron = { credits = 30000, trust = 200, fragment = true },
+    MeteorFragmentStonyIron = { credits = 30000, trust = 200, fragment = true },
     ExpiredMission = { credits = 1000, trust = 5 },
     MissionItem = { credits = 0, trust = 0 },
     -- Zombie samples by grade (NUMBERS 4 '좀비 시료'). A target mission's sample is its mission's while that runs; after,

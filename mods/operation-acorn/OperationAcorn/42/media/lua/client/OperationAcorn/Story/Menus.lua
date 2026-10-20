@@ -1,10 +1,11 @@
 -- The story's context menus: reading an item's paper, the field call device, leaving the sealed case at a drop, a
--- soil sample from the ground, and a survey stake. Each only offers what the character's mission asks for; the
+-- soil sample from the ground, a survey stake, and what lies round a drop site (named, nothing to do with it). Each only offers what the character's mission asks for; the
 -- server judges the rest. Each goes on top of the game's menu, in the order named here.
 require "ISUI/ISInventoryPane"
 require "ISUI/ISWorldObjectContextMenu"
 require "TimedActions/ISTimedActionQueue"
 require "OperationAcorn/Core"
+require "OperationAcorn/Sprites"
 require "OperationAcorn/Client"
 require "OperationAcorn/Titles"
 require "OperationAcorn/Sync"
@@ -98,6 +99,31 @@ local function stakeObject(worldobjects)
     return nil
 end
 
+-- What lies round a drop site (Sites.PROPS but the stake), by its sprite: a greyed option names it and its tooltip says
+-- what the eye finds. Known by the sprite, so the sites built before keep it too.
+local PROPS = {
+    { sprite = "DAMP_SOIL", key = "Soil" }, { sprite = "CUT_TAPE", key = "Tape" },
+    { sprite = "SAMPLE_BAG", key = "Bag" }, { sprite = "STONE_ROW", key = "Stones" },
+}
+
+local function propOptions(context, worldobjects)
+    local found = {}
+    for _, obj in ipairs(worldobjects) do
+        local sprite = obj.getSprite and obj:getSprite()
+        local name = sprite and sprite:getName()
+        for _, prop in ipairs(PROPS) do
+            if name and name == OA.Sprites[prop.sprite] and not found[prop.key] then
+                found[prop.key] = true
+                local option = context:addOptionOnTop(getText("ContextMenu_OA_Story_SiteProp_" .. prop.key), worldobjects, nil)
+                option.notAvailable = true
+                local tip = ISWorldObjectContextMenu.addToolTip()
+                tip.description = getText("Tooltip_OA_Story_SiteProp_" .. prop.key)
+                option.toolTip = tip
+            end
+        end
+    end
+end
+
 -- Whether soil can be taken on a square: outdoors, its floor natural ground (grass, dirt, sand: the API's `natural`, as
 -- the game's own digging asks it): not a road, a pavement or a floor someone laid.
 local BARE = { outside = true, natural = true }
@@ -160,6 +186,7 @@ local function onFillWorld(playerNum, context, worldobjects, test)
     local player = getSpecificPlayer(playerNum)
     if player:getVehicle() then return end
     OA.try("story menu: a fragment's pick-up", fragmentOptions, playerNum, context, worldobjects)
+    OA.try("story menu: what lies round a site", propOptions, context, worldobjects)
     local m = activeMission(player)
 
     -- the stake is the first of the two options and the soil sample the second, so the stake is added last

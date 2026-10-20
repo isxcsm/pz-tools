@@ -239,6 +239,23 @@ test("the stake comes first and the soil sample second, both on top of the world
     eq(menu:names(), "ContextMenu_OA_Story_ReadStake,ContextMenu_OA_Story_TakeSoil,Vanilla")
 end)
 
+test("what lies round a drop site is named by a greyed option with a tip; a square with two of a kind names it once", function()
+    setup()
+    OA.Client = { record = function() return nil end, id = function() return "p1" end }
+    loadFile("OperationAcorn/Story/Menus", { ["OperationAcorn/Client"] = true })
+    OA.StoryView.live = function() return {} end
+    PZExtAPI = { version = OA.API_VERSION, client = function() return "h" end, squares = TEST.squareApi() }
+    local function prop(sprite) return { getSprite = function() return { getName = function() return sprite end } end } end
+    local menu = newMenu()
+    menu:addOption("Vanilla")
+    TEST.fire("OnFillWorldObjectContextMenu", 0, menu,
+        { prop(OA.Sprites.SAMPLE_BAG), prop(OA.Sprites.SAMPLE_BAG), prop(OA.Sprites.STONE_ROW), prop("blends_natural_01_0") }, false)
+    eq(menu:names(), "ContextMenu_OA_Story_SiteProp_Stones,ContextMenu_OA_Story_SiteProp_Bag,Vanilla")
+    local bag = menu.options[2]
+    eq(bag.notAvailable, true)
+    eq(bag.toolTip.description, "Tooltip_OA_Story_SiteProp_Bag")
+end)
+
 test("the field call and leaving the sample case ask first: nothing is sent until the answer is yes", function()
     setup()
     OA.Client = { record = function() return nil end, id = function() return "p1" end }
