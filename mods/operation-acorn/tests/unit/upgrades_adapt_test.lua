@@ -575,6 +575,10 @@ test("a dose makes the arm sore and the character drowsy, never asleep; 혈청 �
     Serums.inject(c, serum("UpgradeSerumScout"), "se1")
     near(c.arm.pain, Serums.PAIN, 1e-9, "a sore arm")
     near(c.stats.fatigue, 0.6, 1e-9, "drowsy enough for the moodle")
+    local rested = character()
+    rested.stats.fatigue = 0
+    Serums.inject(rested, serum("UpgradeSerumScout"), "se1")
+    near(rested.stats.fatigue, Serums.TIRED, 1e-9, "a rested character shows the moodle too")
     Serums.inject(c, serum("UpgradeSerumScout"), "se1")
     near(c.arm.pain, Serums.PAIN, 1e-9, "the pain does not pile up")
     near(c.stats.fatigue, Serums.FATIGUE_MAX, 1e-9, "never past the most a dose brings")

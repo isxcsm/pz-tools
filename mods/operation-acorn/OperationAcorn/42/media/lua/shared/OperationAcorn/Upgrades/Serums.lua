@@ -20,10 +20,12 @@ local Serums = {}
 OA.Upgrades.Serums = Serums
 
 -- The side effects of an upgrade serum before 혈청 적응: the pain in the arm it went into (the game's pain units, which
--- fade by themselves within the hour) and the tiredness it adds (fatigue, 0 to 1: enough to show the moodle on a rested
--- character), never past FATIGUE_MAX (the character does not drop asleep from a dose).
+-- fade by themselves within the hour; 25 is the game's second pain moodle) and the tiredness it adds (fatigue, 0 to 1),
+-- at least TIRED (the game's first tired moodle, so that a rested character shows it too), never past FATIGUE_MAX (the
+-- character does not drop asleep from a dose).
 Serums.PAIN = 25
 Serums.FATIGUE = 0.5
+Serums.TIRED = 0.6
 Serums.FATIGUE_MAX = 0.95
 -- The infection must be this young (hours) for the polling bite shield to count it as the bite's.
 Serums.BITE_FRESH_HOURS = 2
@@ -61,8 +63,9 @@ end
 
 -- ---- upgrade serums ---------------------------------------------------------------------------------------------
 
--- The side effects: a sore arm and tiredness, smaller with 혈청 적응 (none at rank 2). Set, not added, so the API's
--- hooks do not see them. A character already as tired as FATIGUE_MAX or more is left as tired as it is.
+-- The side effects: a sore arm and tiredness, smaller with 혈청 적응 (none at rank 2; at rank 1 the tiredness is not
+-- raised to TIRED). Set, not added, so the API's hooks do not see them. A character already as tired as FATIGUE_MAX or
+-- more is left as tired as it is.
 function Serums.sideEffects(character, share)
     if share <= 0 then return end
     local arm = character:getBodyDamage():getBodyPart(BodyPartType.UpperArm_L)
@@ -71,7 +74,9 @@ function Serums.sideEffects(character, share)
     local stats = character:getStats()
     local now = stats:get(CharacterStat.FATIGUE)
     if now < Serums.FATIGUE_MAX then
-        stats:set(CharacterStat.FATIGUE, math.min(Serums.FATIGUE_MAX, now + Serums.FATIGUE * share))
+        local tired = now + Serums.FATIGUE * share
+        if share >= 1 then tired = math.max(tired, Serums.TIRED) end
+        stats:set(CharacterStat.FATIGUE, math.min(Serums.FATIGUE_MAX, tired))
     end
 end
 
