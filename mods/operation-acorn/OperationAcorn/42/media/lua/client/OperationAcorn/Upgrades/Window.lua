@@ -1188,7 +1188,7 @@ end
 -- The approval asks first: an approved rank is taken back only by a reset, which costs credits.
 function View:onApprove()
     if #self.steps == 0 then return end
-    self:ask(getText("IGUI_OA_Tree_ApproveConfirm", #self.steps), View.approve)
+    self:ask(getText("IGUI_OA_Tree_ApproveConfirm"), View.approve)
 end
 
 function View:approve()

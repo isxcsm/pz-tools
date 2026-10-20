@@ -468,7 +468,7 @@
     "IGUI_OA_Tree_Approve": "Apply enhancements",
     "IGUI_OA_Tree_ClearPlan": "Clear selection",
     "IGUI_OA_Tree_Reset": "Reset",
-    "IGUI_OA_Tree_ApproveConfirm": "Apply the %1 selected enhancement ranks? Applied enhancements are only undone by a reset, which costs credits.",
+    "IGUI_OA_Tree_ApproveConfirm": "Apply the selected enhancements? Only a reset undoes them.",
     "IGUI_OA_Tree_ResetConfirm": "Reset %1? Cost %2 credits (you have %3). Spent points return, and the Second Enhancement Board closes.",
     "IGUI_OA_Tree_TreeClosed": "Not open yet. Inject this line's serum or a shared serum to open it.",
     "IGUI_OA_Tree_Adapting": "Adapting",

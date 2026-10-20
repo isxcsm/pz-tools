@@ -468,7 +468,7 @@
     "IGUI_OA_Tree_Approve": "적용",
     "IGUI_OA_Tree_ClearPlan": "선택 취소",
     "IGUI_OA_Tree_Reset": "초기화",
-    "IGUI_OA_Tree_ApproveConfirm": "고른 항목 %1단계를 적용할까요? 적용한 항목은 초기화로만 되돌릴 수 있고, 초기화에는 크레딧이 듭니다.",
+    "IGUI_OA_Tree_ApproveConfirm": "고른 항목을 적용할까요? 초기화하기 전에는 되돌릴 수 없습니다.",
     "IGUI_OA_Tree_ResetConfirm": "%1 계열을 초기화할까요? 비용 %2 크레딧(보유 %3). 쓴 포인트는 돌아오고, 연장 투여가 닫힙니다.",
     "IGUI_OA_Tree_TreeClosed": "아직 열리지 않았습니다. 이 계열의 혈청이나 공용 혈청을 맞으면 열립니다.",
     "IGUI_OA_Tree_Adapting": "적응 중",
