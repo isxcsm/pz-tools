@@ -917,6 +917,7 @@ end
 -- tapes go (View:paint), unless `part` says what alone changed: "focus" (the focus moved from a node to a node: their
 -- lights are drawn as they move), "over" (what lies over the nodes: an adapting tree's bar).
 function View:changed(part)
+    self.openTapes = nil
     local tapes = self.tapes
     if part == "over" then
         if tapes then tapes.over = nil end
@@ -1569,9 +1570,8 @@ function View:paintTop(el)
 end
 
 -- A tree's header strip, three rows: its name and the reset button; the points left and what is kept for the 2nd
--- board; its points as a bar the strip's width (spent in its colour, selected in cyan, still to spend pale, the rows'
--- openings as ticks). Column i: it rises with its column and its bar fills in the opening; its points left hop and the
--- bar's changed segment lights when a click changed them (View.bump).
+-- board; under them its points' bar (View:paintBar). Column i: it rises with its column; its points left hop when a
+-- click changed them (View.bump).
 function View:paintStrip(el, panel, i)
     local tree = panel.tree
     local tc = TREE[tree]
@@ -1618,6 +1618,25 @@ function View:paintStrip(el, panel, i)
     if surplus > 0 then
         UI.textRight(el, UI.str("IGUI_OA_Tree_BoardShare", surplus), x + panel.w - 10, y + 27, P.dim)
     end
+end
+
+-- A tree's points as a bar the strip's width, at the strip's foot (spent in its colour, selected in cyan, still to
+-- spend pale, the rows' openings as ticks). Column i: it fills from nothing in the opening; the segment a click changed
+-- lights (View.bump), a take's points flash as its light arrives.
+function View:paintBar(el, panel, i)
+    if self.mode ~= "trees" then return end
+    local tree = panel.tree
+    local tc = TREE[tree]
+    local x, y = panel.x, panel.y + RISE[i]
+    local take = self.take
+    local flash = take and self:takeHeader(tree) or 0
+    local lit, seg = 0, -1
+    local bump = self.bump
+    if bump and bump.tree == tree then
+        local h, l = Motion.bump(NOW - bump.at)
+        if h then lit, seg = l, bump.seg end
+    end
+    local usable = Rules.ownSplit(self.sim, tree)
     local bh = 7
     local bx, by, bw = x + 10, y + panel.strip - bh - 6, panel.w - 20
     UI.fill(el, bx, by, bw, bh, P.inset)
@@ -2222,8 +2241,9 @@ end
 -- dark, the columns' frames, the board's banner, the top and the bar at the bottom). A frame plays the main tape round
 -- the nodes that move (a light under the mouse, a click's answer, a padlock coming off), which are worked out and drawn
 -- in their places, then the over tape. A change of what the tab shows drops the tapes (View:changed; the focus moving
--- between nodes keeps them, a minute of adapting drops the over tape alone). The opening, a take and a bar's bump move
--- the parts themselves: drawn as they are, nothing kept. A drawing a tape cannot keep (said once) is drawn as it is.
+-- between nodes keeps them, a minute of adapting drops the over tape alone). A take and a bar's bump move the parts
+-- themselves: drawn as they are, nothing kept; in the opening the columns and the nodes that have popped in are played
+-- from tapes of their own, moved by the rise (View:openTape), the rest drawn as it is. A drawing a tape cannot keep (said once) is drawn as it is.
 local function tapeRefused(tape)
     if Window.tapeRefused then return end
     Window.tapeRefused = true
@@ -2321,6 +2341,34 @@ local function playMain(self, el, tapes)
     return true
 end
 
+-- A column's body, background and strip (its bar left out), as they stand when it has risen into place.
+local function drawColumn(el, view, panel, i)
+    UI.fill(el, panel.x, panel.y + RISE[i], panel.w, panel.strip + panel.gridH, TREE[panel.tree].body)
+    paintColumnBack(el, panel, RISE[i], TREE[panel.tree])
+    view:paintStrip(el, panel, i)
+end
+
+-- `draw(el, ...)` as it stands once the opening is over: no opening, column i (its own) risen into place, nothing lit.
+local function settled(el, i, draw, ...)
+    local age, rise, still = OPEN_AGE, RISE[i], STILL
+    OPEN_AGE, RISE[i], STILL = nil, 0, true
+    local ok, err = pcall(draw, el, ...)
+    OPEN_AGE, RISE[i], STILL = age, rise, still
+    if not ok then error(err, 0) end
+end
+
+local function settledColumn(el, view, i)
+    settled(el, i, drawColumn, view, view.panels[i], i)
+end
+
+local function nodeOn(el, view, item)
+    view:paintNode(el, item)
+end
+
+local function settledNode(el, view, item)
+    settled(el, item.col, nodeOn, view, item)
+end
+
 function View:paint(el)
     S = UI.S
     STILL = false
@@ -2347,8 +2395,12 @@ function View:paint(el)
     end
     if not (tapes and playMain(self, el, tapes)) then
         self:paintUnder(el)
+        local keep = OPEN_AGE and not self.take
         for _, item in ipairs(self.items) do
-            if item.id then self:paintNode(el, item) end
+            if item.id and not (keep and self:nodeSettled(el, item) and self:openTape(el, item.id, settledNode, item)
+                    and self:playOpen(el, item.id, RISE[item.col])) then
+                self:paintNode(el, item)
+            end
         end
     end
     if tapes then playPart(tapes, "over", el, drawOver, self) else self:paintOver(el) end
@@ -2361,14 +2413,59 @@ function View:paint(el)
     self:updateTip()
 end
 
--- Under the nodes: the background, the columns and their strips, the lines.
+-- In the opening a column only rises (and shows through the covers) and a node that has popped in stands still: their
+-- drawing is kept, each on a tape of its own (a column's body, background and strip by its number, a node's by its id),
+-- and played moved down by the column's rise (the element's scroll, which the game's draws add), so that a frame of
+-- the opening draws again only what moves. Dropped with any change (View:changed), the scale, or another body. False
+-- for a drawing not kept (drawn as it is).
+function View:openTape(el, key, draw, arg)
+    local kept = self.openTapes
+    if not (kept and kept.el == el and kept.S == S) then
+        kept = { el = el, S = S }
+        self.openTapes = kept
+    end
+    local tape = kept[key]
+    if tape == nil then
+        tape = Tape.new()
+        if not Tape.record(el, tape, draw, self, arg) then
+            tapeRefused(tape)
+            tape = false
+        end
+        kept[key] = tape
+    end
+    return tape
+end
+
+-- Plays an opening's tape moved down by `dy` (design units); false when it could not be (dropped: recorded again).
+function View:playOpen(el, key, dy)
+    local tape = self.openTapes and self.openTapes[key]
+    if not tape then return false end
+    local jo = el.javaObject
+    local scroll = jo:getYScroll()
+    jo:setYScroll(scroll + X(dy))
+    local ok, played = pcall(Tape.play, el, tape)
+    jo:setYScroll(scroll)
+    if not ok then error(played, 0) end
+    if not played then self.openTapes[key] = nil end
+    return played
+end
+
+-- Whether a node stands still in the opening: popped in, and nothing else of its own moving.
+function View:nodeSettled(el, item)
+    local grow, shown = Motion.openNode(OPEN_AGE, item.col, item.row)
+    return grow >= 1 and shown >= 1 and not nodeMoves(self, el, item.id)
+end
+
+-- Under the nodes: the background, the columns with their strips and bars, the lines.
 function View:paintUnder(el)
     UI.fill(el, 0, 0, L.VIEW_W, L.VIEW_H, P.bg)           -- opaque: nothing behind shows through
     paintGrit(el, 0, 0, L.VIEW_W, L.VIEW_H)
+    local keep = OPEN_AGE and not self.take and not self.bump
     for i, panel in ipairs(self.panels) do
-        UI.fill(el, panel.x, panel.y + RISE[i], panel.w, panel.strip + panel.gridH, TREE[panel.tree].body)
-        paintColumnBack(el, panel, RISE[i], TREE[panel.tree])
-        self:paintStrip(el, panel, i)
+        if not (keep and self:openTape(el, i, settledColumn, i) and self:playOpen(el, i, RISE[i])) then
+            drawColumn(el, self, panel, i)
+        end
+        self:paintBar(el, panel, i)
     end
     for _, line in ipairs(self.lines) do self:paintLine(el, line) end
 end

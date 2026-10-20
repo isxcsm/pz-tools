@@ -19,10 +19,13 @@ local function stubClass()
     return setmetatable(c, { __index = function() return function() end end })
 end
 
--- A canvas's stand-in: every method there, returning 0; not the kit's fields (its frame time, liveNow, is the clock's
--- then; uiGone and uiFadeRoot unset, as on a body in the UI: a function there read as taken out, its frames dropped).
+-- A canvas's stand-in: every method there, returning 0, and a javaObject whose every method does too (its scroll 0);
+-- not the kit's fields (its frame time, liveNow, is the clock's then; uiGone and uiFadeRoot unset, as on a body in the
+-- UI: a function there read as taken out, its frames dropped).
 local NOT_METHODS = { liveNow = true, uiGone = true, uiFadeRoot = true }
+local JAVA = setmetatable({}, { __index = function() return function() return 0 end end })
 local function canvasMethod(_, key)
+    if key == "javaObject" then return JAVA end
     if not NOT_METHODS[key] then return function() return 0 end end
 end
 
@@ -1001,6 +1004,50 @@ test("the body's parts are kept on tapes: played back, a node under the mouse al
     end)
     View.paintNode = paintNode
     if not ok then error(err, 0) end
+end)
+
+test("in the opening the columns and the nodes that have popped in are played from tapes, moved down by the rise", function()
+    local Motion = OA.Upgrades.Motion
+    local view = onSection(scoutSection())
+    shown(view)
+    PZExtAPI = nil
+    local worked = 0
+    local function drawn(self, ...)
+        worked = worked + 1
+    end
+    ISUIElement = { drawRect = drawn, drawTextureScaled = drawn, drawTextureTiled = drawn }
+    local scroll, scrolls = 0, {}
+    local jo = setmetatable({ getYScroll = function() return scroll end,
+        setYScroll = function(_, v) scroll = v scrolls[#scrolls + 1] = v end }, { __index = function() return function() end end })
+    local el = setmetatable({ javaObject = jo, fx = false, fxFlash = false, uiBase = false, rev = 0 },
+        { __index = canvasMethod })
+    getTexture = function(path) return { path = path } end
+    View.startOpen(view)
+    View.paint(view, el)
+    for i = 1, #view.panels do truthy(view.openTapes[i], "column " .. i .. " kept") end
+    local moved = false
+    for _, v in ipairs(scrolls) do if v > 0 then moved = true end end
+    truthy(moved, "played moved down by the rise")
+    eq(scroll, 0, "the scroll put back")
+    -- late in the opening the nodes have popped in: kept too, and a frame then draws less than the first
+    clock.now = clock.now + Motion.openEnd(#view.panels, Data.ROWS) - 1
+    View.paint(view, el)
+    local kept = 0
+    for _, item in ipairs(view.items) do
+        if item.id and view.openTapes[item.id] then kept = kept + 1 end
+    end
+    truthy(kept > 0, "nodes kept")
+    worked = 0
+    View.paint(view, el)
+    local played = worked
+    view.openTapes = { el = el, S = OA.Trade.UI.S }
+    for i = 1, #view.panels do view.openTapes[i] = false end
+    for _, item in ipairs(view.items) do if item.id then view.openTapes[item.id] = false end end
+    worked = 0
+    View.paint(view, el)
+    truthy(played < worked, "fewer draws worked out: " .. played .. " against " .. worked)
+    view:changed()
+    eq(view.openTapes, nil, "a change drops them")
 end)
 
 test("a steady pulse is kept per step and played back; with the focus on a pulsing node it is worked out", function()
