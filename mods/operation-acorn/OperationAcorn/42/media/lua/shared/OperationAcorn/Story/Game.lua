@@ -858,8 +858,13 @@ function Game.untrack(m, it)
     followed[key], missed[key] = nil, nil
 end
 
+-- The containers of the delivery boxes (Trade Objects.BOX_CONTAINER, ABANDONED_CONTAINER): what is put in one is
+-- handed in, the box's own mark stands for it on the maps.
+local BOXES = { OADeliveryBox = true, OAAbandonedBox = true }
+
 -- Where an item is: the square it lies on, the object or vehicle whose container holds it (through the bags it is in),
--- or the character who carries it (carried true). Nil when it is nowhere in the world (sealed away, burnt).
+-- or the character who carries it (carried true; what is in a delivery box too: it has no mark of its own). Nil when it
+-- is nowhere in the world (sealed away, burnt).
 function Game.whereIs(item)
     for _ = 1, 16 do
         local world = item:getWorldItem()
@@ -870,6 +875,11 @@ function Game.whereIs(item)
         end
         local container = item:getContainer()
         if not container then return nil end
+        if BOXES[container:getType()] then
+            local sq = container:getSourceGrid()
+            if not sq then return nil end
+            return sq:getX(), sq:getY(), sq:getZ(), true
+        end
         local holder = container:getContainingItem()
         if holder then
             item = holder

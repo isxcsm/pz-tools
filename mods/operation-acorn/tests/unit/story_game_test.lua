@@ -315,3 +315,22 @@ test("a piece asked for where all is loaded already, with no container for it, g
     instanceItem = realItem
     getCell, PZExtAPI = nil, nil
 end)
+
+test("an item in a delivery box (in a bag in it too) is where the box stands, with no mark of its own; on a crate it has one", function()
+    local function square(x, y) return { getX = function() return x end, getY = function() return y end, getZ = function() return 0 end } end
+    local function container(kind, sq, holder)
+        return { getType = function() return kind end, getSourceGrid = function() return sq end,
+            getContainingItem = function() return holder end, getParent = function() return nil end,
+            getVehiclePart = function() return nil end }
+    end
+    local function placed(c) return { getWorldItem = function() return nil end, getContainer = function() return c end } end
+    local box = container("OADeliveryBox", square(10, 20))
+    local x, y, z, carried = Game.whereIs(placed(box))
+    eq(x, 10); eq(y, 20); eq(z, 0); eq(carried, true)
+    local bag = placed(box)
+    local inBag = placed(container("Bag_ALICEpack", nil, bag))
+    x, y, z, carried = Game.whereIs(inBag)
+    eq(x, 10); eq(carried, true)
+    x, y, z, carried = Game.whereIs(placed(container("crate", square(3, 4))))
+    eq(x, 3); eq(carried, false)
+end)
