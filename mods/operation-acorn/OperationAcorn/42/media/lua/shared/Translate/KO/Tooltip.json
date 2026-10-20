@@ -31,7 +31,7 @@
     "Tooltip_OA_Tree_Item_UpgradeSerumScout": "감각 식별 계열에 쓸 적응 여력이 1 늘어납니다. 처음 맞으면 이 계열이 열립니다.",
     "Tooltip_OA_Tree_Item_UpgradeSerumLoad": "하중 적응 계열에 쓸 적응 여력이 1 늘어납니다. 처음 맞으면 이 계열이 열립니다.",
     "Tooltip_OA_Tree_Item_UpgradeSerumSurvival": "생존 지속 계열에 쓸 적응 여력이 1 늘어납니다. 처음 맞으면 이 계열이 열립니다.",
-    "Tooltip_OA_Tree_Item_UpgradeSerumShared": "어느 계열에든 쓸 수 있는 공용 여력이 1 늘어납니다.",
+    "Tooltip_OA_Tree_Item_UpgradeSerumShared": "어느 계열에든 적용 가능한 범용 여력이 1 증가합니다.",
     "Tooltip_OA_Tree_Item_DelayDrug": "1일 동안 감염 진행을 멈춥니다. 좀비에게 새로 다치면 약효가 사라집니다. 유효 기간이 없습니다.",
     "Tooltip_OA_Story_AnalysisReply": "2반이 보낸 분석 회신서.",
     "Tooltip_OA_Story_Appendix": "회신서에 딸린 별첨.",

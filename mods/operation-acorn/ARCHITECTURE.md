@@ -92,7 +92,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 | 섹션 | 주인 | 내용 |
 | --- | --- | --- |
-| `trade` | 거래(P2), 경제(P1)가 함께 쓴다 | `credits`(정수, 빚이면 음수), `trust`(소수까지), `stage`(0~5), `milestones`(지난 이정표 수), `bonus`(다음 정산 때 들어올 보너스 크레딧), `sharedSerums`(다음 보급에 실을 공용 혈청 수), `serial`(마지막 보급 명세서 번호), `lastSettle`(마지막 정산 요약 `{ at, credits, trust, boxes }`), `levels`·`pendingLevels`(운항 지원 개량의 받은 단계와 신청한 단계, 개량 id별), `levelsRev`(단계가 바뀔 때마다 오르는 수, 보상 캐시용). P1의 `Trust.add`, `Codex` 함수가 이 칸을 고친다. 나머지 칸은 P2 |
+| `trade` | 거래(P2), 경제(P1)가 함께 쓴다 | `credits`(정수, 빚이면 음수), `trust`(소수까지), `stage`(0~5), `milestones`(지난 이정표 수), `bonus`(다음 정산 때 들어올 보너스 크레딧), `sharedSerums`(다음 보급에 실을 범용 혈청 수), `serial`(마지막 보급 명세서 번호), `lastSettle`(마지막 정산 요약 `{ at, credits, trust, boxes }`), `levels`·`pendingLevels`(운항 지원 개량의 받은 단계와 신청한 단계, 개량 id별), `levelsRev`(단계가 바뀔 때마다 오르는 수, 보상 캐시용). P1의 `Trust.add`, `Codex` 함수가 이 칸을 고친다. 나머지 칸은 P2 |
 | `codex` | P1 | 도감, 털이, 처치 기록 |
 | `shop` | P1 | 품목별 구매 시각, 주간 구매 수, 키트 대상별 사용 수 |
 | `shred` | P1 | 종류별 최근 분해 수(날마다 ×0.9), 처음 분해한 종류 |
@@ -143,20 +143,20 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `OA.Value.context(record)` | 지금 값 매기기에 쓰는 표(계열 시세, 요청 목록, 단계 보상). 하루에 한 번 만들어 둔다 |
 | `OA.Value.appraise(info, ctx)` | `{ credits, trust, category, marks = { request, newRegion, high, low, refused } }` (반올림 전) |
 | `OA.Value.settle(record, entries)` | 한 편의 정산: `entries`는 밀봉 기록(`{ info, count }` 목록). 시세 하락(`Market.ship`)과 요청 수 차감을 하고 `{ credits(한 번 반올림한 정수), trust, lines, cashTrust, shipped, filled(다 채운 요청 줄) }`. 요청 품목은 고정 단가로 사고 시세 공급에는 넣지 않는다. 크레딧·신뢰도를 기록에 더하지는 않는다 (P2가 빚 상환과 함께 더한다) |
-| `OA.Trust.add(record, amount)` | 신뢰도를 더하고 오른 단계·이정표 목록을 돌려준다 (공용 혈청, 새 품목 알림은 P2가 받아 처리) |
+| `OA.Trust.add(record, amount)` | 신뢰도를 더하고 오른 단계·이정표 목록을 돌려준다 (범용 혈청, 새 품목 알림은 P2가 받아 처리) |
 | `OA.Trust.rewards(record)` | 지금 값의 표: 운항 지원 개량 단계에서 오는 `boxCapacity, callInterval(일), arrival = {min, max}(시간), nightDrop, rate, requestCount, requestPrice, discount, softerSupply, marketForecast`와 신뢰도로 오는 `trustAccel, backpack, kits, transferred`. `requestPrice`는 요청 품목 단가 배율(개량 값 × 샌드박스 `RequestPrice`). 단계·이정표·`levelsRev`가 바뀌면 다시 만든다 |
 | `OA.Support.step(id, n)`, `OA.Support.request(record, id, level, field)`, `OA.Support.cancel(record, id)`, `OA.Support.settle(record, balance)` | 운항 지원 개량 (DESIGN-terminal 2.6): 단계표, 신청(정식 단말, 바로 다음 단계, 신뢰도 단계, 빚 없음), 다음 정산 때 결제와 반영. 잔고가 모자란 신청은 다음 정산까지 기다린다 |
 | `OA.Say.define(id, def)`, `OA.Say.pick(state, id, ctx)`, `OA.Say.line(state, id, ctx)`, `OA.Say.say(character, id, ctx)` | 문구 묶음 (DESIGN-terminal 18): 키 `IGUI_OA_Say_<묶음>_<번호>`를 1부터 끊길 때까지 센다(언어마다 줄 수가 달라도 된다). 줄 조건(꼬리표)과 쉬는 시간은 `define`의 표에, 섞은 순서는 호출하는 쪽이 준 표에(혼잣말은 캐릭터 mod data, 서버 글은 레코드). 한 바퀴를 다 쓰기 전에는 같은 줄이 다시 안 나오고, 새 바퀴는 방금 쓴 줄로 시작하지 않는다. `say`는 샌드박스 `Monologue`(기본 켬)일 때 머리 위로 말한다. 서버가 정하는 혼잣말은 `OA.Say.tell(playerId, id, ctx, delay)`(delay = 실제 초, `Trade.Later`로 기다린 뒤 그때의 줄을 뽑음). 감염 묶음(`CureStart`, `Cured`, `TestPositive`, `TestNegative`, `DrugLost`, `Reversal`, `DelayFirst`)은 `Upgrades/Infection.lua`에, `TerminalFirst`(정식 단말 첫 켬)는 `Trade/TabStatus.lua`에서 `define`한다 |
 | `OA.Market.index(category)`, `OA.Market.update(day)`, `OA.Market.ship(category, weight, record)`, `OA.Market.refused(category)`, `OA.Market.history(category)`, `OA.Market.situation()`, `OA.Market.news()`, `OA.Season.current()` | 시세. `situation`은 지금 시세 사건 줄(계열마다 하나, 기록 없음), `news`는 사건이 시작하고 끝난 횟수(납품 탭 점), `Season`은 게임 달로 정한 계절과 가중치 |
 | `OA.Requests.list(record)`, `OA.Requests.entry(record, fullType)`, `OA.Requests.entries(record)` | 이번 주 요청 목록과 줄(`band`, `price`, `qty`, `trust`, `used`, `left`, `full`). 줄은 흔한 정도 띠로 고정 단가와 수량이 정해진다 |
-| `OA.Codex.acquire(record, info)`, `OA.Codex.buildingSearched(record, buildingKey, containers)`, `OA.Codex.kill(record)` | 보너스를 `trade.bonus`에 쌓고, 공용 혈청은 `trade.sharedSerums`에 |
+| `OA.Codex.acquire(record, info)`, `OA.Codex.buildingSearched(record, buildingKey, containers)`, `OA.Codex.kill(record)` | 보너스를 `trade.bonus`에 쌓고, 범용 혈청은 `trade.sharedSerums`에 |
 | `OA.Shop.catalog()`, `OA.Shop.price(entry, record)`, `OA.Shop.available(entry, record)`, `OA.Shop.bought(entry, record, count)`, `OA.Shop.serumPrice(tree, record)` | 상점 |
 | `OA.Shred.yield(info, record, extras)` | 기대 산출 개수(소수), 첫 분해 보너스. 실제 개수는 부른 쪽이 `OA.Shred.roll(expected)`로 굴린다 |
 
 ### P2가 내놓는 것
 
 - `OA.Terminal.addTab(id, titleKey, factory, visible)`: 통신 단말 창에 탭을 단다. P4(수신함, 임무)가 쓴다.
-- `OA.Trade.addToDrop(record, items)`(서버): 다음 보급 상자에 넣을 물건(이야기 문서, 부속 아이템, 공용 혈청).
+- `OA.Trade.addToDrop(record, items)`(서버): 다음 보급 상자에 넣을 물건(이야기 문서, 부속 아이템, 범용 혈청).
 - 이벤트(서버 쪽 Lua 함수 목록): `OA.Trade.onSealed(fn(record, boxId, entries))`, `OA.Trade.onSettled(fn(record, result))`.
   P4는 밀봉 때 임무 아이템 기한을 판정한다.
 - 상태 탭 (DESIGN-terminal 2, 12): `client/OperationAcorn/Trade/StatusModel.lua`(`OA.Trade.StatusModel`)가 기록에서 화면의 글과
