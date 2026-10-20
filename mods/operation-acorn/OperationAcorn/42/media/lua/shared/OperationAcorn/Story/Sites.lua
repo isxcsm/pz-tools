@@ -36,6 +36,9 @@ Sites.FRAGMENT = { stony = "MeteorFragment", iron = "MeteorFragmentIron", stonyI
 Sites.SCORCH = { stony = 9, iron = 5, stonyIron = 7 }
 -- Zone types a site never lies in (judged where the zones are known: B42 loads a cell's zones with the cell).
 Sites.NOT = { "TownZone", "WaterZone", "WaterFlow", "Basement", "TrailerPark" }
+-- A road (the map's Nav zone) within ROAD_FAR squares: land the player can reach. A cell at the map's edge has land
+-- the map does not join (across a river, past its last road), and a cell's data alone lets it pass.
+Sites.ROAD_FAR = 200
 Sites.DATES = 8
 -- Moves made near the old place first (squares from it), before the ring; moves after which a site takes a chunk's
 -- first land square without its footprint; moves tried at once while the new places' chunks are loaded too (the rest
@@ -109,7 +112,16 @@ local function acceptPoint(x, y)
     return getWorld():getMetaGrid():getCellData(math.floor(x / CELL), math.floor(y / CELL)) ~= nil
 end
 
-local SITE_POINTS = { count = 1, ["not"] = Sites.NOT }
+local SITE_POINTS = { count = 1, ["not"] = Sites.NOT, road = { type = "Nav", some = Sites.ROAD_FAR } }
+-- The same, asked of one point (a ring of no width: every try is the point).
+local SITE_HERE = { count = 1, tries = 1, ["not"] = Sites.NOT, road = { type = "Nav", some = Sites.ROAD_FAR } }
+
+-- Whether a site's place is land the player can reach, by the map's zones (Sites.ROAD_FAR). True without the API.
+local function reachable(site)
+    local api = OA.api()
+    if not (api and api.zones) then return true end
+    return api.zones.points(site.x, site.y, 0, 0, SITE_HERE)[1] ~= nil
+end
 
 -- A point of the ring lo to hi squares round x, y at random that may hold a site, or nil.
 local function drawPoint(x, y, lo, hi)
@@ -421,14 +433,27 @@ function Sites.relay(site, accept, int)
 end
 
 -- Every ten minutes: a pending site whose place is loaded and was left waiting (moves at once ran out, or its work
--- failed) is settled again; a placed one whose fragment has gone from its square is marked, and once it has reached
--- nobody in LOST_DAYS, its kind falls again (Sites.relay).
+-- failed) is settled again; one not loaded is checked once for a road near (moved when there is none); a placed one
+-- whose fragment has gone from its square is marked, and once it has reached nobody in LOST_DAYS, its kind falls again
+-- (Sites.relay).
 function Sites.kick(now)
     now = now or OA.hours()
     local got = section().received or {}
     for _, site in ipairs(Sites.list()) do
         if site.state == "pending" and loaded(site.x, site.y) then
             settle(site)
+        elseif site.state == "pending" and not site.reachable then
+            -- a place no road comes near (laid before the rule, or by the ring's last resort) moves until one passes,
+            -- or it has moved LENIENT_AFTER times (a map without roads in its zones); the maps that show it follow
+            if reachable(site) or (site.tries or 0) >= Sites.LENIENT_AFTER then
+                site.reachable = true
+            else
+                Sites.replace(site)
+                OA.log("meteor site", site.n, "lies where no road comes near: moved to", site.x, site.y)
+                settle(site)
+                OA.Sync.changed("sites", nil)
+                if Sites.onRelaid then Sites.onRelaid(site) end
+            end
         elseif site.state == "placed" and not site.relaid and not got[site.kind] then
             if not site.left and loaded(site.x, site.y) and not fragmentThere(site) then site.left = now end
             if site.left and now - site.left >= Sites.LOST_DAYS * 24 then Sites.relay(site) end

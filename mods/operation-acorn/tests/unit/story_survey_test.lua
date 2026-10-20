@@ -157,6 +157,35 @@ test("a fragment gone from its site that reaches nobody in LOST_DAYS: its kind f
     table.remove(Sites.list())
 end)
 
+test("a waiting site where no road comes near (across a river at the map's edge) moves, and the zone follows", function()
+    local r = record(true)
+    Branches.look(r, "approved")
+    play(r, "C_scout")
+    local site = Survey.siteOf("scout")
+    local ox, oy = site.x, site.y
+    site.reachable, site.tries = nil, 0
+    -- (no road near the old place: a point asked there gives none; the ring's draws give one)
+    PZExtAPI = { version = OA.API_VERSION, client = function() return {} end,
+        zones = { points = function(x, y, lo, hi)
+            if hi == 0 and x == ox and y == oy then return {} end
+            return { { x = x + hi, y = y, zones = {} } }
+        end } }
+    getWorld = function() return { getMetaGrid = function() return { getCellData = function() return {} end } end } end
+    notices = {}
+    Sites.kick(1)
+    truthy(site.x ~= ox or site.y ~= oy, "moved")
+    eq(site.state, "pending")
+    eq(notices[#notices], "IGUI_OA_Story_Notice_SiteAgain", "the character whose map shows it is told")
+    local z = Survey.zones(r)[1]
+    truthy(OA.Places.distance(site.x, site.y, z.x, z.y) < z.r, "the zone round its new place")
+    Sites.kick(2)
+    eq(site.reachable, true, "its new place passes: checked once")
+    local x = site.x
+    Sites.kick(3)
+    eq(site.x, x)
+    getWorld, PZExtAPI = nil, nil
+end)
+
 test("the dev reset of the fragment calls: a dropped call forgotten, the capstone sealed again, the call at once", function()
     PZExtDev = { section = function() end }
     local debug = isDebugEnabled
