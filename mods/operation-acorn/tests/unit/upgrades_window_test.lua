@@ -1108,3 +1108,31 @@ test("a steady pulse is kept per step and played back; with the focus on a pulsi
     view:changed()
     eq(view.pulseTapes, nil, "a change drops the steps")
 end)
+
+test("a capstone taken: the character's line of its tree once the tab is left, not before, once", function()
+    local view = laidOut("trees")
+    view.playerNum = 0
+    local said = {}
+    local md = {}
+    getSpecificPlayer = function() return { getModData = function() return md end, Say = function(_, s) said[#said + 1] = s end } end
+    -- (the lines are there: Say counts them by their text)
+    local realNull = getTextOrNull
+    getTextOrNull = function(key) return string.find(key, "^IGUI_OA_Say_Fixed_[123]$") and key or nil end
+    local onScreen = Window.onScreen
+    local shown = true
+    Window.onScreen = function() return shown end
+    -- (a take of an earlier test left one waiting, watched by its own events)
+    for k in pairs(Window.fixedTalk) do Window.fixedTalk[k] = nil end
+    View.fixedTalk(view, { { id = "sight" } })
+    TEST.fire("OnTick")
+    eq(#said, 0, "no capstone: nothing")
+    View.fixedTalk(view, { { id = "sight" }, { id = "armor" } })
+    TEST.fire("OnTick")
+    eq(#said, 0, "while the tab shows")
+    shown = false
+    TEST.fire("OnTick")
+    eq(said[1], "IGUI_OA_Say_Fixed_2", "the tree's line as it is left")
+    TEST.fire("OnTick")
+    eq(#said, 1, "once")
+    Window.onScreen, getSpecificPlayer, getTextOrNull = onScreen, nil, realNull
+end)

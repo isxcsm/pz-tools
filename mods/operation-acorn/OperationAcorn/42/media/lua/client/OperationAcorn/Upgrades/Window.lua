@@ -2868,6 +2868,37 @@ function View:wayUp(id)
     return lines, offs, len
 end
 
+-- A capstone taken: once the player leaves the tab (the window closed, another tab), the character says how the body
+-- took it (the "Fixed" line of its tree). While the tab shows, the moment is the take's and the title's; the line
+-- comes as the eye goes back to the world. Watched each tick only while one waits (three times a game).
+local fixedTalk = {}   -- by player number: the tree
+Window.fixedTalk = fixedTalk
+local function talkWhenLeft()
+    local any = false
+    for playerNum, tree in pairs(fixedTalk) do
+        if Window.onScreen(playerNum) then
+            any = true
+        else
+            fixedTalk[playerNum] = nil
+            OA.Say.say(getSpecificPlayer(playerNum), "Fixed", { tree = tree })
+        end
+    end
+    if not any then Events.OnTick.Remove(talkWhenLeft) end
+end
+
+function View:fixedTalk(steps)
+    local tree
+    for _, step in ipairs(steps or {}) do
+        local node = Data.byId[step.id]
+        if node and node.capstone then tree = node.tree end
+    end
+    if not tree then return end
+    local waiting = false
+    for _ in pairs(fixedTalk) do waiting = true end
+    fixedTalk[self.playerNum] = tree
+    if not waiting then Events.OnTick.Add(talkWhenLeft) end
+end
+
 -- The applied selection came back: starts the take on the nodes of it that are on the screen. Not when the tab is
 -- closed. Everything a frame reads is made here (a frame makes nothing): each node's place in the scan and the ranks
 -- it took, the way of its light and when it arrives, each tree's points and its first arrival, the columns that took
@@ -2875,6 +2906,7 @@ end
 function View:startTake()
     local approved = self.approved
     self.approved = nil
+    if approved then self:fixedTalk(approved.steps) end
     if not approved or not self:getIsVisible() or not self.sim then return end
     hushTake(self.take)
     if getTimestampMs() - approved.at > View.TAKE_WAIT_MS then return end

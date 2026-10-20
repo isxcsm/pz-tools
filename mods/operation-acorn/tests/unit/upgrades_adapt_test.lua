@@ -276,7 +276,7 @@ test("a capstone approved brings the tree's follow-up memo, once", function()
     eq(Adapt.approved(record, before), true)
     truthy(OA.Story.section(record).docs.memo_scout_cap)
     eq(OA.Story.section(record).docs.memo_load_cap, nil)
-    eq(told.notices[#told.notices].key, "IGUI_OA_Tree_GuideSent")
+    eq(#told.notices, 0, "quietly: no call to the terminal")
     eq(Adapt.approved(record, before), false, "the memo is not sent twice")
     eq(Adapt.approved(record, Adapt.capstones(u)), false, "a capstone taken before is not new")
     eq(OA.Story.section(record).docs.memo_board, nil, "the board is not open yet")
@@ -293,11 +293,7 @@ test("the last capstone brings its memo and the board's after it, once", functio
     local docs = OA.Story.section(record).docs
     truthy(docs.memo_survival_cap)
     truthy(docs.memo_board)
-    local guides = 0
-    for _, notice in ipairs(told.notices) do
-        if notice.key == "IGUI_OA_Tree_GuideSent" then guides = guides + 1 end
-    end
-    eq(guides, 1, "told once for both")
+    eq(#told.notices, 0, "quietly")
     eq(Adapt.approved(record, Adapt.capstones(u)), false, "an open board brings nothing more")
 end)
 

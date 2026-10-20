@@ -119,7 +119,9 @@ function Adapt.unsealed(record, tree)
 end
 
 -- A plan is approved: each capstone newly taken (not in `before`, as Adapt.capstones gave it) brings its memo, and the
--- last one the board's after it. The player is told once. Returns true when a memo came.
+-- last one the board's after it. Quietly: the moment is the tab's (the take, the title, the character's line as the
+-- tab is left), and a memo is no reason to send the player to the terminal; it waits there, new, for the next visit.
+-- Returns true when a memo came.
 function Adapt.approved(record, before)
     local u = Rules.section(record)
     local after = Adapt.capstones(u)
@@ -128,8 +130,12 @@ function Adapt.approved(record, before)
         if after[tree] and not before[tree] and Adapt.deliver(record, Adapt.memoId(tree, "cap")) then sent = true end
     end
     if Rules.boardOpen(u) and Adapt.deliver(record, Adapt.BOARD_MEMO) then sent = true end
-    if sent then OA.Sync.notice(record.id, "IGUI_OA_Tree_GuideSent", {}) end
     return sent
 end
+
+-- The character's line once the tab is left after a capstone was taken (client Upgrades/Window): one a tree.
+local fixed = {}
+for n, tree in ipairs(Data.TREES) do fixed[n] = { tree = tree } end
+OA.Say.define("Fixed", { tags = fixed })
 
 return Adapt
