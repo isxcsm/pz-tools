@@ -1143,7 +1143,7 @@
     "IGUI_OA_Terminal_Shop_ReorderNone": "지난 주문 품목은 지금 살 수 없습니다",
     "IGUI_OA_Terminal_Shop_Total": "합계",
     "IGUI_OA_Terminal_Shop_PayNote": "결제는 헬기가 도착할 때 합니다.",
-    "IGUI_OA_Terminal_Shop_Short": "지금 잔고로는 %1 크레딧 모자랍니다. 도착할 때 이번 편 정산분까지 더해 결제합니다.",
+    "IGUI_OA_Terminal_Shop_Short": "지금 잔고로는 %1 크레딧 모자랍니다. 도착할 때 이번 편 정산분을 더해 결제하고, 모자라면 결제되는 만큼만 싣습니다.",
     "IGUI_OA_Terminal_Shop_Line": "%1 ×%2",
     "IGUI_OA_Item_VehicleClass": "%1 (%2)",
     "IGUI_OA_Terminal_Shop_Desc_cure_serum": "감염을 없앱니다. 이후로는 지연제가 필요 없습니다. 받은 날부터 7일 안에 써야 합니다.",
