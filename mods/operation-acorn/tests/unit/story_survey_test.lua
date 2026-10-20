@@ -321,13 +321,22 @@ test("after the handover 관리 7 calls; a team call not played by then gives wa
     eq(#Branches.look(s, "approved"), 0)
 end)
 
-test("a fragment the team had from a character before lets the next one's capstone through, with no call", function()
+test("a fragment the team had from a character before lets the next one's capstone through, with a word on it", function()
     local r = record(true)
     local sec = OA.Store.world("sites")
     Sites.receive(OA.Upgrades.Data.FRAGMENTS.scout)
-    eq(#Branches.look(r, "approved"), 0, "no call")
+    local fired = Branches.look(r, "approved")
+    eq(#fired, 1)
+    eq(fired[1], "C_had_scout", "the team's word, not the search")
     eq(Rules.unsealed(Rules.section(r), "scout"), true, "the capstone opens")
     eq(Rules.blocked(Rules.section(r), "nightEye"), nil)
+    eq(#Branches.look(r, "approved"), 0, "once")
+    play(r, "C_had_scout")
+    eq(#Survey.zones(r), 0, "no zone on the maps")
+    -- after the handover, 관리 7's
+    local k = record(true)
+    OA.Story.section(k).handover = true
+    eq(Branches.look(k, "approved")[1], "C_had_scout_k")
     sec.received = nil
 end)
 

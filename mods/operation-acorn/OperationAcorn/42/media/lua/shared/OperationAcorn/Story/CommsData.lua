@@ -165,17 +165,32 @@ Data.ENTRIES = {
     -- The survey branch (Story/Survey): a tree's capstone waits only for its meteorite fragment; the team's call, or
     -- 관리 7's after the handover, and the drop site's zone on the maps as it is played. Ordered: the second and the
     -- third call of the branch have words of their own (another fall, the last one known).
-    { id = "C_survival", kind = "short", trigger = "survey:survival", tier = 0, branch = "survey", ordered = true, survey = "survival",
+    { id = "C_survival", kind = "short", trigger = "survey:survival", tier = 0, branch = "survey", survey = "survival",
+        ordered = true, greet = true, sign = "oak" },
+    { id = "C_load", kind = "short", trigger = "survey:load", tier = 0, branch = "survey", survey = "load",
+        ordered = true, greet = true, sign = "oak" },
+    { id = "C_scout", kind = "short", trigger = "survey:scout", tier = 0, branch = "survey", survey = "scout",
+        ordered = true, greet = true, sign = "oak" },
+    { id = "C_survival_k", kind = "short", trigger = "survey:survival:admin", tier = 0, branch = "survey",
+        ordered = true, survey = "survival", sign = "admin" },
+    { id = "C_load_k", kind = "short", trigger = "survey:load:admin", tier = 0, branch = "survey", survey = "load",
+        ordered = true, sign = "admin" },
+    { id = "C_scout_k", kind = "short", trigger = "survey:scout:admin", tier = 0, branch = "survey", survey = "scout",
+        ordered = true, sign = "admin" },
+
+    -- A capstone opened on a fragment of its kind the team had before (a character's, Sites.received): the team's word
+    -- that it is checked and the stage may go on, or 관리 7's after the handover.
+    { id = "C_had_survival", kind = "short", trigger = "surveyHad:survival", tier = 0, branch = "survey",
         greet = true, sign = "oak" },
-    { id = "C_load", kind = "short", trigger = "survey:load", tier = 0, branch = "survey", ordered = true, survey = "load",
+    { id = "C_had_load", kind = "short", trigger = "surveyHad:load", tier = 0, branch = "survey",
         greet = true, sign = "oak" },
-    { id = "C_scout", kind = "short", trigger = "survey:scout", tier = 0, branch = "survey", ordered = true, survey = "scout",
+    { id = "C_had_scout", kind = "short", trigger = "surveyHad:scout", tier = 0, branch = "survey",
         greet = true, sign = "oak" },
-    { id = "C_survival_k", kind = "short", trigger = "survey:survival:admin", tier = 0, branch = "survey", ordered = true,
-        survey = "survival", sign = "admin" },
-    { id = "C_load_k", kind = "short", trigger = "survey:load:admin", tier = 0, branch = "survey", ordered = true, survey = "load",
+    { id = "C_had_survival_k", kind = "short", trigger = "surveyHad:survival:admin", tier = 0, branch = "survey",
         sign = "admin" },
-    { id = "C_scout_k", kind = "short", trigger = "survey:scout:admin", tier = 0, branch = "survey", ordered = true, survey = "scout",
+    { id = "C_had_load_k", kind = "short", trigger = "surveyHad:load:admin", tier = 0, branch = "survey",
+        sign = "admin" },
+    { id = "C_had_scout_k", kind = "short", trigger = "surveyHad:scout:admin", tier = 0, branch = "survey",
         sign = "admin" },
 
     -- The fragment branch (Story/Survey): a fragment that opened its tree's capstone at a settlement; the team's word on

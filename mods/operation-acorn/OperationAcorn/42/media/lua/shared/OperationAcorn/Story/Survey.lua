@@ -6,7 +6,8 @@
 -- sight from anywhere in it) is the player's to search. Into the first: a title as a mission's circle has ("unveil")
 -- and a line after it (SurveyIn); into the next: a title and its line (SurveyNear). The zone stays until the fragment
 -- reaches the team; once its fragment is picked up the zone goes, and the maps mark where the fragment lies whenever the
--- character does not carry it (Survey.points; Sites.lookFragments follows it). Before the handover the team calls, after it 관리 7 (each its own call; one fired before the
+-- character does not carry it (Survey.points; Sites.lookFragments follows it). A kind the team had before (Sites.received)
+-- opens the capstone at once, with a call saying so (C_had_<tree>) in the place of the search. Before the handover the team calls, after it 관리 7 (each its own call; one fired before the
 -- handover and not yet played gives way to the other).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -179,12 +180,20 @@ end
 -- A capstone waiting for a fragment the research team has had already (a character before this one delivered it): the
 -- team has it, the capstone opens (Upgrades.fragmentReceived: its memo and word of it), and no call is made.
 local function hadAlready(record)
+    local had = {}
     for _, tree in ipairs(data().TREES) do
         local fullType = data().FRAGMENTS[tree]
-        if Survey.waiting(record, tree) and OA.Sites.received(fullType) and OA.Upgrades.fragmentReceived then
-            OA.Upgrades.fragmentReceived(record, fullType)
+        if Survey.waiting(record, tree) and OA.Sites.received(fullType) and OA.Upgrades.fragmentReceived
+            and OA.Upgrades.fragmentReceived(record, fullType) then
+            had[#had + 1] = tree
         end
     end
+    return had
+end
+
+-- The call ids of a tree whose capstone opened on a fragment the team had before: the team's and 관리 7's.
+function Survey.hadCallOf(tree, admin)
+    return "C_had_" .. tree .. (admin and "_k" or "")
 end
 
 -- Another fall of a lost fragment's kind (Sites.relay): every character still waiting for that kind, whose call was
@@ -206,9 +215,12 @@ end
 OA.StoryBranches.define("survey", {
     at = { "approved", "settled" },
     fires = function(record)
-        hadAlready(record)
         local admin = OA.Story.handedOver(record)
         local triggers = {}
+        -- a capstone opened on a fragment the team had: a word on it, so it does not open unexplained
+        for _, tree in ipairs(hadAlready(record)) do
+            triggers[#triggers + 1] = "surveyHad:" .. tree .. (admin and ":admin" or "")
+        end
         for _, tree in ipairs(data().TREES) do
             local heard = OA.Comms.section(record).played
             if not (heard[Survey.callOf(tree, false)] or heard[Survey.callOf(tree, true)])
