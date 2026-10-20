@@ -388,6 +388,8 @@ local function frame(self)
     local record = self:record()
     local e = record and self:waiting(record)
     if not e then return nil end
+    -- (a great title over the window, a stage's card: the call waits for it to have left, its lines not under it)
+    if OA.Titles and OA.Titles.majorUp() then return 1 end
     -- (the hail, unless the call follows the one just over: a briefing always has it)
     local chained = self.chainUntil and now < self.chainUntil
     self.chainUntil = nil

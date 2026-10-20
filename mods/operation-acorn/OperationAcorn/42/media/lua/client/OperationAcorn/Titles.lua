@@ -123,6 +123,7 @@ function Titles.show(playerId, detail, noSay)
         if handle then drawn, drawnKey = Kit.show(api, handle, spec, OA.log) end
         if drawn then
             shown, key = "title", key or drawnKey
+            if detail.size == "major" and drawnKey then Titles.majorKey = drawnKey end
         elseif not noSay then
             character:Say(sub and (title .. " - " .. sub) or title)
             shown = shown or "said"
@@ -183,6 +184,16 @@ OA.terminalWatchers = OA.terminalWatchers or {}
 table.insert(OA.terminalWatchers, function(_, open)
     if not open then Titles.showHeld(true) end
 end)
+
+-- Whether one of the story's great titles (size "major": a stage's card, the handover...) is on the screen or waiting
+-- to be: what plays in a window waits for it to have left (a call's first line would be under its line).
+function Titles.majorUp()
+    local key = Titles.majorKey
+    if not key then return false end
+    if Kit.shown(OA.api(), OA.handle(), key) then return true end
+    Titles.majorKey = nil
+    return false
+end
 
 -- Takes a title Titles.show drew away at once (its key), one still waiting too. True when there was one.
 function Titles.hide(key)

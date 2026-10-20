@@ -320,3 +320,28 @@ test("a brief title from the world waits while a window is open and comes as it 
     eq(said[#said], "IGUI_OA_Tree_FirstEffect")
     OATerminalWindow = nil
 end)
+
+test("a great title is known to be up while the API shows it: what plays in a window waits for it", function()
+    world()
+    local up = {}
+    PZExtAPI = {
+        version = OA.API_VERSION,
+        client = function() return "handle" end,
+        text = {
+            status = function() return "applied" end,
+            styles = function() return { "stamp", "dust" } end,
+            title = function() up[#up + 1] = true; return #up end,
+            shown = function(_, key) return up[key] == true end,
+        },
+    }
+    local Titles = OA.Titles
+    eq(Titles.majorUp(), false, "none shown")
+    Titles.show("p1", { key = "IGUI_OA_Title_Capstone" })
+    eq(Titles.majorUp(), false, "a title of its style's size does not hold anything")
+    Titles.show("p1", { key = "IGUI_OA_Title_StageNamed", size = "major" })
+    eq(Titles.majorUp(), true, "a stage's card on the screen")
+    up[2] = false
+    eq(Titles.majorUp(), false, "it has left")
+    eq(Titles.majorKey, nil)
+    PZExtAPI = nil
+end)

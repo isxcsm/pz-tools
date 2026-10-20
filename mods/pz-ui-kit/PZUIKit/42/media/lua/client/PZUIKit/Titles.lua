@@ -111,6 +111,14 @@ function Titles.show(api, handle, spec, log)
     return ok, ok and err or nil
 end
 
+-- Whether a title (its key, as Titles.show gave it) is on the screen or waiting to be.
+function Titles.shown(api, handle, key)
+    local t = Titles.textApi(api)
+    if not (t and handle and key and type(t.shown) == "function") then return false end
+    local ok, is = pcall(t.shown, handle, key)
+    return ok and is == true
+end
+
 -- Takes a title away at once (its key, as Titles.show gave it), one still waiting too. True when there was one.
 function Titles.hide(api, handle, key)
     local t = Titles.textApi(api)
