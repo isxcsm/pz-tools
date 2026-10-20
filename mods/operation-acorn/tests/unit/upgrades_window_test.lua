@@ -660,6 +660,34 @@ test("the take of the last capstone turns the tab to the board, which comes up s
     eq(onBoard.openPace, Motion.REVEAL_PACE, "it comes up as it would from the trees")
 end)
 
+test("a capstone its fragment opened is shown once: sealed while the trees come up, then slowly opened", function()
+    local Rules = OA.Upgrades.Rules
+    local Motion = OA.Upgrades.Motion
+    local u = Rules.blank()
+    for _, tree in ipairs(Data.TREES) do u.opened[tree] = true end
+    local view = onSection(u)
+    shown(view)
+    local md = {}
+    local player = { getModData = function() return md end }
+    local real = getSpecificPlayer
+    getSpecificPlayer = function() return player end
+    view.playerNum = 0
+    view:startOpen()
+    eq(view.unlocks, nil, "sealed: nothing to show")
+    Rules.unseal(u, "scout")
+    view:refresh()
+    view:startOpen()
+    local at = view.unlocks and view.unlocks.nightEye
+    eq(at, clock.now + Motion.openEnd(#view.panels, Data.ROWS) + View.REVEAL_WAIT_MS)
+    eq(view.unlockSlow.nightEye, View.REVEAL_SLOW)
+    eq(view.unlockEnd, at + Motion.UNLOCK_MS * View.REVEAL_SLOW)
+    truthy(md.OA_CapShown.scout)
+    view.unlocks, view.unlockFrom, view.unlockEnd, view.unlockSlow = nil, nil, nil, nil
+    view:startOpen()
+    eq(view.unlocks, nil, "once")
+    getSpecificPlayer = real
+end)
+
 test("the opening is followed while it plays and only then", function()
     local UI = OA.Trade.UI
     local Motion = OA.Upgrades.Motion

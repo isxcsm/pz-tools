@@ -1972,8 +1972,9 @@ function View:paintNode(el, item)
     local opening = not grey and not STILL and self.unlocks and self.unlocks[item.id]
     local openStep = 0
     if opening then
-        openStep = filmStep(NOW - opening)
-        lockA, flashA, unlockRing = Motion.unlock(film(NOW - opening))
+        local slow = self.unlockSlow and self.unlockSlow[item.id] or 1
+        openStep = filmStep((NOW - opening) / slow)
+        lockA, flashA, unlockRing = Motion.unlock(film((NOW - opening) / slow))
         if not lockA then
             lockA, flashA, unlockRing = 0, 0, 0
         elseif lockA >= 1 then
@@ -2541,13 +2542,47 @@ function View:startFx(id, kind)
     self:animate()
 end
 
--- A node's padlock comes off at `start` (ms); until then it is drawn locked, whatever its state.
-function View:addUnlock(id, start)
+-- A node's padlock comes off at `start` (ms); until then it is drawn locked, whatever its state. `slow`: the motion
+-- this many times as long (a capstone shown opened: View:revealCapstones), 1 by default.
+function View:addUnlock(id, start, slow)
     local unlocks = self.unlocks or {}
     self.unlocks = unlocks
     unlocks[id] = start
+    if slow and slow ~= 1 then
+        self.unlockSlow = self.unlockSlow or {}
+        self.unlockSlow[id] = slow
+    end
     self.unlockFrom = math.min(self.unlockFrom or start, start)
-    self.unlockEnd = math.max(self.unlockEnd or 0, start + Motion.UNLOCK_MS)
+    self.unlockEnd = math.max(self.unlockEnd or 0, start + Motion.UNLOCK_MS * (slow or 1))
+end
+
+-- How much slower than a click's a capstone's opening plays when it is shown (View:revealCapstones), and how long
+-- after the trees have come up it starts (ms).
+View.REVEAL_SLOW, View.REVEAL_WAIT_MS = 2.5, 250
+
+-- A capstone its fragment opened, not taken yet, is shown the first time the trees come on the screen after: drawn
+-- sealed (locked) while they come up, then its padlock comes off, slowly, with the flash and the ring. Once a tree, kept
+-- in the character's mod data.
+function View:revealCapstones()
+    local player = getSpecificPlayer(self.playerNum)
+    if not (player and self.u and self.mode ~= "board") then return end
+    local md = player:getModData()
+    local shown = md.OA_CapShown or {}
+    local start
+    for _, item in ipairs(self.items or {}) do
+        local node = item.id and Data.byId[item.id]
+        if node and node.capstone and not shown[node.tree] and Rules.unsealed(self.u, node.tree)
+            and Rules.rank(self.u, node.id) == 0 then
+            shown[node.tree] = true
+            start = start or getTimestampMs() + Motion.openEnd(#self.panels, Data.ROWS) * (self.openPace or 1)
+                + View.REVEAL_WAIT_MS
+            self:addUnlock(item.id, start, View.REVEAL_SLOW)
+        end
+    end
+    if start then
+        md.OA_CapShown = shown
+        self:animate()
+    end
 end
 
 -- The nodes locked in `before` (the nodes' states before a change) that are not any more lose their padlocks from
@@ -2596,6 +2631,7 @@ end
 function View:startOpen(pace)
     self.openAt, self.openPace = getTimestampMs(), pace or 1
     self:animate()
+    OA.try("research: a capstone shown opened", self.revealCapstones, self)
 end
 
 -- Each frame while the tab shows, before the UI draws (Trade/UI live): one number for PZ Optimization that changes
@@ -2639,7 +2675,7 @@ function View.tick(body, now)
     end
     if view.unlockEnd then
         if now >= view.unlockEnd then
-            view.unlocks, view.unlockFrom, view.unlockEnd, view.flashTapes = nil, nil, nil, nil
+            view.unlocks, view.unlockFrom, view.unlockEnd, view.flashTapes, view.unlockSlow = nil, nil, nil, nil, nil
         elseif now >= view.unlockFrom then
             moving = true
         else
@@ -3068,7 +3104,7 @@ function View:setVisible(visible, joypadData)
         hushTake(self.take)
         self.take, self.approved = nil, nil
         self.fx, self.openAt, self.bump = nil, nil, nil
-        self.unlocks, self.unlockFrom, self.unlockEnd, self.flashTapes = nil, nil, nil, nil
+        self.unlocks, self.unlockFrom, self.unlockEnd, self.flashTapes, self.unlockSlow = nil, nil, nil, nil, nil
     end
 end
 
