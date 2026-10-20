@@ -130,7 +130,7 @@ end
 local function drawBeat(el)
     local button, tex = el.healthBtn, el.heartIconOn
     if not (tex and button and button:getIsVisible()) then return end
-    local step = Sidebar.step(getTimestampMs())
+    local step = Sidebar.step(UI.frameNow(el))
     if step <= 0 then return end
     local bw, bh = button:getWidth(), button:getHeight()
     local w, h = tex:getWidthOrig(), tex:getHeightOrig()

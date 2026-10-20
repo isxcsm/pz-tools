@@ -52,6 +52,7 @@ require "OperationAcorn/Upgrades/Links"
 require "OperationAcorn/Upgrades/Motion"
 require "OperationAcorn/Trade/UI"
 require "PZUIKit/Confirm"
+require "PZUIKit/Tape"
 require "OperationAcorn/Sounds"
 local OA = OperationAcorn
 local Data = OA.Upgrades.Data
@@ -62,6 +63,7 @@ local Texts = OA.Upgrades.Texts
 local Links = OA.Upgrades.Links
 local Motion = OA.Upgrades.Motion
 local UI = OA.Trade.UI
+local Tape = PZUIKit.Tape
 local Window = {}
 OA.Upgrades.Window = Window
 
@@ -153,6 +155,8 @@ local NOW, CLOCK = 0, 0
 -- opening) and how much of it shows. Kept here: a frame makes nothing.
 local OPEN_AGE = nil
 local RISE, SHOWN = { 0, 0, 0 }, { 1, 1, 1 }
+-- The nodes drawn still (their tape is being recorded, View:paint): no click's answer, light or padlock on them.
+local STILL = false
 
 -- Under this a colour changes no pixel (half a step of the 8 bits a pixel has): it is not drawn.
 local INVISIBLE = 0.002
@@ -877,18 +881,51 @@ function View:enabled(item)
     return true
 end
 
+-- Whether a focus (an item's key, nil for none) is on no button: the body's tapes hold the buttons' lights.
+function View:offButtons(key)
+    local item = key and self.byKey[key]
+    return not item or item.id ~= nil
+end
+
 function View:setHover(item)
     local key = (item and not self:asking()) and item.key or nil
     if key ~= self.hover then
+        local was = self.hover
         self.hover = key
-        self:changed()
+        self:changed(self:offButtons(was) and self:offButtons(key) and "focus" or nil)
     end
 end
 
+-- The doses of a tree (or "shared") adapting in u now, 0 when none.
+local function adapting(u, key)
+    local a = u and u.adapt
+    return a and a.doses[key] or 0
+end
+
+-- How far the adaptation has come (0 to 1) at the world's hour now.
+local function adaptShare(u)
+    local left = Rules.adaptLeft(u, OA.hours())
+    if not left then return 1 end
+    local total = Rules.adaptHours(u)
+    if total <= 0 then return 1 end
+    return math.max(0, math.min(1, 1 - left / total))
+end
+
 -- What the body shows changed (the nodes, the hover, the cursor, a refusal): the tooltip is made again, and a count
--- is written to the body, which PZ Optimization watches (the state is the tab's; the body only paints it).
-function View:changed()
+-- is written to the body, which PZ Optimization watches (the state is the tab's; the body only paints it). The body's
+-- tapes go (View:paint), unless `part` says what alone changed: "focus" (the focus moved from a node to a node: their
+-- lights are drawn as they move), "over" (what lies over the nodes: an adapting tree's bar).
+function View:changed(part)
+    local tapes = self.tapes
+    if part == "over" then
+        if tapes then tapes.over = nil end
+    elseif part ~= "focus" then
+        self.tapes, self.pulseTapes = nil, nil
+    end
     self.tipDirty = true
+    -- (how far an adapting tree has come, read here and not as the body draws: the game's clock is no value PZ
+    -- Optimization can check; Window.adaptMinute calls this each minute)
+    self.adaptShare = self.u and adaptShare(self.u) or 0
     local body = self.body
     if body then body.rev = (body.rev or 0) + 1 end
     self:lightFocus()
@@ -1447,21 +1484,6 @@ end
 
 -- A chip at the top right ending at `right`: an item icon (or none), a text with its number in the value colour.
 -- Returns its left edge.
--- The doses of a tree (or "shared") adapting in u now, 0 when none.
-local function adapting(u, key)
-    local a = u and u.adapt
-    return a and a.doses[key] or 0
-end
-
--- How far the adaptation has come (0 to 1) at the world's hour now.
-local function adaptShare(u)
-    local left = Rules.adaptLeft(u, OA.hours())
-    if not left then return 1 end
-    local total = Rules.adaptHours(u)
-    if total <= 0 then return 1 end
-    return math.max(0, math.min(1, 1 - left / total))
-end
-
 local function chip(el, right, y, h, icon, key, value)
     local pre, post = around(key)
     local v = tostring(value)
@@ -1847,7 +1869,7 @@ function View:paintNode(el, item)
     local bx, by, bs = item.x, item.y + RISE[item.col], item.w
     local x, y, s = bx, by, bs
     local ring, ringA, ringW
-    local f = self.fx and self.fx[item.id]
+    local f = not STILL and self.fx and self.fx[item.id]
     local age = f and NOW - f.start
     if f then
         if f.kind == "shake" then
@@ -1865,7 +1887,7 @@ function View:paintNode(el, item)
     if takeAge then grow = grow * Plan.takePop(takeAge) end
     -- the light under the mouse (only the lit place asks the clock)
     local hover = 0
-    local lights = el.fx
+    local lights = not STILL and el.fx
     if lights then
         local cur, fade = lights.cur, lights.fade
         if (cur and cur.place == item.id) or (fade and fade.place == item.id) then
@@ -1899,7 +1921,7 @@ function View:paintNode(el, item)
     end
     -- a padlock coming off (or waiting to: drawn locked meanwhile)
     local lockA, flashA, unlockRing = 0, 0, 0
-    local opening = not grey and self.unlocks and self.unlocks[item.id]
+    local opening = not grey and not STILL and self.unlocks and self.unlocks[item.id]
     local openStep = 0
     if opening then
         openStep = filmStep(NOW - opening)
@@ -2165,28 +2187,167 @@ function View:paintCovers(el)
     end
 end
 
+-- The body's drawing kept on tapes (PZUIKit.Tape) while nothing moves in it as a whole, so that drawing it again costs
+-- little whoever asks for it (the game each frame; PZ Optimization's retained interface when something on it changed):
+-- the main tape holds what lies under the nodes (the background, the columns with their strips, the lines) and the
+-- nodes, each drawn still and marked where it lies on the tape; the over tape what lies over them (a closed tree's
+-- dark, the columns' frames, the board's banner, the top and the bar at the bottom). A frame plays the main tape round
+-- the nodes that move (a light under the mouse, a click's answer, a padlock coming off), which are worked out and drawn
+-- in their places, then the over tape. A change of what the tab shows drops the tapes (View:changed; the focus moving
+-- between nodes keeps them, a minute of adapting drops the over tape alone). The opening, a take and a bar's bump move
+-- the parts themselves: drawn as they are, nothing kept. A drawing a tape cannot keep (said once) is drawn as it is.
+local function tapeRefused(tape)
+    if Window.tapeRefused then return end
+    Window.tapeRefused = true
+    OA.log("research tab: its drawing is not kept, drawn each time (" .. tostring(tape.bad) .. ")")
+end
+
+local function drawOver(el, view) view:paintOver(el) end
+
+-- The main tape's drawing: under the nodes, then each node still, its place on the tape marked.
+local function drawMain(el, view, marks)
+    view:paintUnder(el)
+    STILL = true
+    for _, item in ipairs(view.items) do
+        local id = item.id
+        if id then
+            local s0, t0 = Tape.mark()
+            view:paintNode(el, item)
+            local s1, t1 = Tape.mark()
+            marks[id] = { s0, t0, s1, t1 }
+        end
+    end
+    STILL = false
+end
+
+-- Whether a node moves now: its light under the mouse (coming, held or going), a click's answer, its padlock.
+local function nodeMoves(view, el, id)
+    if view.fx and view.fx[id] then return true end
+    if view.unlocks and view.unlocks[id] ~= nil then return true end
+    local lights, flashes = el.fx, el.fxFlash
+    if lights then
+        local cur, fade = lights.cur, lights.fade
+        if (cur and cur.place == id) or (fade and fade.place == id) then return true end
+    end
+    local press = flashes and flashes.press
+    return press and press.place == id or false
+end
+
+-- Plays the tape of `key` in `tapes` (recorded first); one that cannot be kept is drawn as it is.
+local function playPart(tapes, key, el, draw, view)
+    local tape = tapes[key]
+    if tape == nil then
+        tape = Tape.new()
+        if Tape.record(el, tape, draw, view) then
+            tapes[key] = tape
+        else
+            tapeRefused(tape)
+            tapes[key], tape = false, false
+        end
+    end
+    if tape and Tape.play(el, tape) then return end
+    -- (a tape whose shapes the API no longer has, a newer one having taken over: recorded again next time)
+    if tape then tapes[key] = nil end
+    draw(el, view)
+end
+
+-- The body under the over tape: the main tape played round the nodes that move. False when it cannot be (no tape kept,
+-- or the API lost it): drawn as it is then.
+local function playMain(self, el, tapes)
+    local main = tapes.main
+    if main == nil then
+        main = Tape.new()
+        local marks = {}
+        STILL = false
+        local ok, kept = pcall(Tape.record, el, main, drawMain, self, marks)
+        STILL = false
+        if not ok then error(kept, 0) end
+        if kept then
+            tapes.main, tapes.marks = main, marks
+        else
+            tapeRefused(main)
+            tapes.main, main = false, false
+        end
+    end
+    if not main then return false end
+    local marks = tapes.marks
+    local s, t = 0, 0
+    for _, item in ipairs(self.items) do
+        local id = item.id
+        if id and nodeMoves(self, el, id) then
+            local m = marks[id]
+            if m then
+                if not Tape.play(el, main, s, t, m[1], m[2]) then
+                    tapes.main = nil
+                    return false
+                end
+                self:paintNode(el, item)
+                s, t = m[3], m[4]
+            end
+        end
+    end
+    if not Tape.play(el, main, s, t) then
+        tapes.main = nil
+        return false
+    end
+    return true
+end
+
 function View:paint(el)
     S = UI.S
-    UI.fill(el, 0, 0, L.VIEW_W, L.VIEW_H, P.bg)           -- opaque: nothing behind shows through
-    paintGrit(el, 0, 0, L.VIEW_W, L.VIEW_H)
+    STILL = false
     if not self.sim then
+        UI.fill(el, 0, 0, L.VIEW_W, L.VIEW_H, P.bg)
+        paintGrit(el, 0, 0, L.VIEW_W, L.VIEW_H)
         UI.textCentre(el, UI.str("IGUI_OA_Tree_NoRecord"), L.VIEW_W / 2, L.VIEW_H / 2, P.text)
         return
     end
-    -- the clock for the motions (kept here, not on the tab: a write to the tab each frame would have PZ Optimization
-    -- draw it afresh each frame)
-    local now = getTimestampMs()
+    -- the clock for the motions: the body's frame time (UI.frameNow), which stands still while nothing moves (a
+    -- drawing that reads the clock is one PZ Optimization cannot keep)
+    local now = UI.frameNow(el)
     NOW, CLOCK = now, now - self.t0
     self:frameState(now)
+    local tapes = nil
+    if not (OPEN_AGE or self.take or self.bump or UI.faded(el, 1) ~= 1) then
+        tapes = self.tapes
+        if not (tapes and tapes.el == el and tapes.S == S) then
+            tapes = { el = el, S = S }
+            self.tapes = tapes
+        end
+    else
+        self.tapes = nil
+    end
+    if not (tapes and playMain(self, el, tapes)) then
+        self:paintUnder(el)
+        for _, item in ipairs(self.items) do
+            if item.id then self:paintNode(el, item) end
+        end
+    end
+    if tapes then playPart(tapes, "over", el, drawOver, self) else self:paintOver(el) end
+    if self.take then self:drawTake(el) end
+    -- the gamepad cursor on a button
+    if self.joypad and self.cursor then
+        local item = self.byKey[self.cursor]
+        if item and not item.id then framePx(el, item.x, item.y, item.w, item.h, WHITE, 1, 2, 2) end
+    end
+    self:updateTip()
+end
+
+-- Under the nodes: the background, the columns and their strips, the lines.
+function View:paintUnder(el)
+    UI.fill(el, 0, 0, L.VIEW_W, L.VIEW_H, P.bg)           -- opaque: nothing behind shows through
+    paintGrit(el, 0, 0, L.VIEW_W, L.VIEW_H)
     for i, panel in ipairs(self.panels) do
         UI.fill(el, panel.x, panel.y + RISE[i], panel.w, panel.strip + panel.gridH, TREE[panel.tree].body)
         paintColumnBack(el, panel, RISE[i], TREE[panel.tree])
         self:paintStrip(el, panel, i)
     end
     for _, line in ipairs(self.lines) do self:paintLine(el, line) end
-    for _, item in ipairs(self.items) do
-        if item.id then self:paintNode(el, item) end
-    end
+end
+
+-- Over the nodes: a closed tree's dark (with why), the columns' frames, the board's banner, the opening's covers, the
+-- top and the bar at the bottom.
+function View:paintOver(el)
     local fh = UI.fontHeight()
     local boardClosed = self.mode == "board" and not Rules.boardOpen(self.sim)
     for p, panel in ipairs(self.panels) do
@@ -2215,7 +2376,7 @@ function View:paint(el)
                 local bw = panel.w - 4 * L.GRID_PAD
                 local bx = panel.gx + (panel.w - bw) / 2
                 UI.fill(el, bx, ty, bw, bh, P.inset)
-                UI.fill(el, bx, ty, bw * adaptShare(self.u), bh, tc.c)
+                UI.fill(el, bx, ty, bw * (self.adaptShare or 0), bh, tc.c)
             else
                 local ty = panel.gy + dy + (panel.gridH - #lines * fh) / 2
                 for i, line in ipairs(lines) do UI.textCentre(el, line, cx, ty + (i - 1) * fh, CLOSED_TEXT) end
@@ -2228,13 +2389,6 @@ function View:paint(el)
     if OPEN_AGE then self:paintCovers(el) end
     self:paintTop(el)
     self:paintPlanBar(el)
-    if self.take then self:drawTake(el) end
-    -- the gamepad cursor on a button
-    if self.joypad and self.cursor then
-        local item = self.byKey[self.cursor]
-        if item and not item.id then framePx(el, item.x, item.y, item.w, item.h, WHITE, 1, 2, 2) end
-    end
-    self:updateTip()
 end
 
 -- ---- motion ----------------------------------------------------------------------------------------------------
@@ -2414,7 +2568,7 @@ end
 function View:paintFlow(el)
     if not self.sim or self.take or not self.lighting then return end
     S = UI.S
-    local now = getTimestampMs()
+    local now = UI.frameNow(el)
     NOW, CLOCK = now, now - self.t0
     self:frameState(now)
     -- (the batch of rectangles is ended whatever happens in the frame)
@@ -2447,12 +2601,34 @@ local function pulseFrames(self, el, now)
     end
 end
 
+-- Whether the pulse's frame is its step alone: no node held back, the focus on none of them, not opening. Such a frame
+-- is kept on a tape for each step (the pulse goes through the same steps over and over).
+local function pulseSteady(self, now)
+    if OPEN_AGE or not self.pulseLevel then return false end
+    local focus = self.hover or (self.joypad and self.cursor)
+    for _, item in ipairs(self.pulsing) do
+        if item.key == focus or self:pulseHeld(item, now) then return false end
+    end
+    return true
+end
+
+local function drawPulses(el, view) pulseFrames(view, el, NOW) end
+
 function View:paintPulses(el)
     if not self.sim or self.take or not self.pulsingOn then return end
     S = UI.S
-    local now = getTimestampMs()
+    local now = UI.frameNow(el)
     NOW, CLOCK = now, now - self.t0
     self:frameState(now)
+    if pulseSteady(self, now) then
+        local tapes = self.pulseTapes
+        if not (tapes and tapes.el == el and tapes.S == S) then
+            tapes = { el = el, S = S }
+            self.pulseTapes = tapes
+        end
+        playPart(tapes, self.pulseLevel, el, drawPulses, self)
+        return
+    end
     beginRects(el)
     local ok, err = pcall(pulseFrames, self, el, now)
     endRects()
@@ -2741,8 +2917,9 @@ function View:step(dx, dy)
         end
     end
     if best then
+        local was = self.cursor
         self.cursor = best.key
-        self:changed()
+        self:changed(self:offButtons(was) and self:offButtons(best.key) and "focus" or nil)
     end
 end
 
@@ -2956,7 +3133,7 @@ end
 -- A game minute while doses adapt: a tab on the screen draws the time adapted again.
 function Window.adaptMinute()
     for playerNum, view in pairs(views) do
-        if Window.onScreen(playerNum) then view:changed() end
+        if Window.onScreen(playerNum) and view.u and view.u.adapt then view:changed("over") end
     end
 end
 OA.Sync.listen("upgrades", onChanged)

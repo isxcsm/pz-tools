@@ -19,6 +19,11 @@ local function stubClass()
     return setmetatable(c, { __index = function() return function() end end })
 end
 
+-- A canvas's stand-in: every method there, returning 0; no fields (its frame time, liveNow, is the clock's then).
+local function canvasMethod(_, key)
+    if key ~= "liveNow" then return function() return 0 end end
+end
+
 -- Loads the tab with the stand-ins; returns its view class.
 local function loadWindow()
     for _, name in ipairs(UI) do _G[name] = stubClass() end
@@ -432,7 +437,7 @@ test("an idle comet or a node held back costs no drawing; a pulse is drawn on it
     local view = onSection(scoutSection())
     shown(view)
     local drawn = 0
-    local el = setmetatable({}, { __index = function() return function() return 0 end end })
+    local el = setmetatable({}, { __index = canvasMethod })
     ISUIElement = { drawRect = function() drawn = drawn + 1 end, drawTextureScaled = function() drawn = drawn + 1 end }
     View.paintFlow(view, el)
     eq(drawn, 0, "nothing lit or selected: the lights panel draws nothing")
@@ -666,7 +671,7 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     local el = view.body
     el.drawRect, el.uiBase, el.uiScaled, el.uiDesign = rect, false, false, false
     el.fx, el.fxFlash, el.rev, el.liveLook = false, false, 0, false
-    setmetatable(el, { __index = function() return function() return 0 end end })
+    setmetatable(el, { __index = canvasMethod })
     View.startOpen(view)
     View.paint(view, el)
     eq(covers, 3, "the opening starts with the columns hidden")
@@ -775,7 +780,7 @@ test("the pulse's frames go to the API as one list of rectangles, the same ones 
     local view = onSection(scoutSection())
     shown(view)
     view.pulseLevel = nil
-    local el = setmetatable({}, { __index = function() return function() return 0 end end })
+    local el = setmetatable({}, { __index = canvasMethod })
     local plain = frameOf(View.paintPulses, view, el, false)
     truthy(#plain > 4, "the nodes that can be taken pulse")
     local batched, calls = frameOf(View.paintPulses, view, el, true)
@@ -794,7 +799,7 @@ test("the flow's rectangles are drawn before a picture asked after them, and a f
     local view = onSection(u)
     shown(view)
     getTexture = function(path) return { path = path } end
-    local el = setmetatable({}, { __index = function() return function() return 0 end end })
+    local el = setmetatable({}, { __index = canvasMethod })
     -- a moment when the lit line's light is on the line
     local plain, batched, calls
     for ms = 0, 6000, 250 do
@@ -856,4 +861,93 @@ test("a sealed capstone is an outline: no name, no way into it, no rank; unseale
     eq(view.nodes.nightEye.hidden, nil)
     eq(view.nodes.armor.hidden, true)
     truthy(View.tipRows(view, "nightEye")[1].text ~= "???")
+end)
+
+test("the body's parts are kept on tapes: played back, a node under the mouse alone worked out; a change drops them", function()
+    local u = scoutSection()
+    local view = onSection(u)
+    shown(view)
+    view.getIsVisible = function() return true end
+    view.updateTip = function() end
+    PZExtAPI = nil
+    ISUIElement = { drawRect = function() end, drawTextureScaled = function() end, drawTextureTiled = function() end }
+    getTexture = function(path) return { path = path } end
+    -- the body draws through its javaObject, which logs the game's calls
+    local calls = 0
+    local jo = setmetatable({}, { __index = function(_, k)
+        if k == "getAbsoluteX" or k == "getAbsoluteY" or k == "getXScroll" or k == "getYScroll" then return function() return 0 end end
+        return function() calls = calls + 1 end
+    end })
+    local el = view.body
+    el.javaObject = jo
+    el.drawRect = function(self, x, y, w, h, a, r, g, b) self.javaObject:DrawTextureScaledColor(nil, x, y, w, h, r, g, b, a) end
+    el.drawRectBorder = el.drawRect
+    el.uiBase, el.fx, el.fxFlash, el.liveLook, el.rev = false, false, false, false, 0
+    setmetatable(el, { __index = canvasMethod })
+    ISUIElement.drawRect = function(self, ...) return self:drawRect(...) end
+    local worked = {}
+    local paintNode = View.paintNode
+    View.paintNode = function(v, e, item)
+        worked[#worked + 1] = item.id
+        return paintNode(v, e, item)
+    end
+    local ok, err = pcall(function()
+        View.paint(view, el)
+        local nodes = #worked
+        truthy(nodes > 0, "the first frame works every node out (recorded)")
+        eq(calls > 0, true, "and draws them")
+        local first = calls
+        worked, calls = {}, 0
+        View.paint(view, el)
+        eq(#worked, 0, "played back: no node worked out")
+        eq(calls, first, "the same draws")
+        -- the mouse on a node: that node alone, the rest played
+        local item
+        for _, it in ipairs(view.items) do if it.id then item = it; break end end
+        View.setHover(view, item)
+        el.fx = { cur = { place = item.id, from = 0, to = 1, at = 0, dur = 1 } }
+        worked = {}
+        View.paint(view, el)
+        eq(#worked, 1)
+        eq(worked[1], item.id)
+        -- a change of what the tab shows: every node recorded again (still), the one under the mouse drawn lit
+        view:changed()
+        worked = {}
+        View.paint(view, el)
+        eq(#worked, nodes + 1)
+        eq(worked[#worked], item.id)
+    end)
+    View.paintNode = paintNode
+    if not ok then error(err, 0) end
+end)
+
+test("a steady pulse is kept per step and played back; with the focus on a pulsing node it is worked out", function()
+    local view = onSection(scoutSection())
+    shown(view)
+    PZExtAPI = nil
+    local worked, drawn = 0, {}
+    ISUIElement = { drawRect = function(self, x, y, w, h, a, r, g, b)
+        worked = worked + 1
+        self.javaObject:DrawTextureScaledColor(nil, x, y, w, h, r, g, b, a)
+    end }
+    local jo = { DrawTextureScaledColor = function(_, _, x, y, w, h, r, g, b, a)
+        drawn[#drawn + 1] = table.concat({ x, y, w, h, r, g, b, a }, ",")
+    end }
+    local el = setmetatable({ javaObject = jo }, { __index = canvasMethod })
+    view.pulseLevel = 12
+    View.paintPulses(view, el)
+    truthy(worked > 0, "recorded")
+    truthy(view.pulseTapes[12], "kept for its step")
+    local first = drawn
+    worked, drawn = 0, {}
+    View.paintPulses(view, el)
+    eq(worked, 0, "played back")
+    eq(table.concat(drawn, ";"), table.concat(first, ";"), "the same rectangles")
+    view.hover = view.pulsing[1].key
+    worked = 0
+    View.paintPulses(view, el)
+    truthy(worked > 0, "the focus on a pulsing node: worked out")
+    view.hover = nil
+    view:changed()
+    eq(view.pulseTapes, nil, "a change drops the steps")
 end)
