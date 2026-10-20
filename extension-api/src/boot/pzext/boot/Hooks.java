@@ -145,13 +145,16 @@ public final class Hooks {
 
         /**
          * The weight an item adds to a container when {@code ItemContainer.hasRoomFor(character, item)} asks whether
-         * it fits. {@code viaBag} when the container is a worn bag and it is the carrying character's inventory the
-         * item is weighed against.
+         * it fits; {@code asker} is that character (or null). {@code viaBag} when the container is a worn bag and it is the
+         * carrying character's inventory the item is weighed against.
          */
-        default float incoming(Object item, float vanilla, Object container, boolean viaBag) { return vanilla; }
+        default float incoming(Object item, float vanilla, Object container, Object asker, boolean viaBag) { return vanilla; }
 
         /** {@code IsoGameCharacter.getMaxWeight()}. */
         default int maxWeight(int vanilla, Object character) { return vanilla; }
+
+        /** {@code ItemContainer.getCapacityWeight()}: the weight the room left in a container is counted from. */
+        default float capacityWeight(float vanilla, Object container) { return vanilla; }
 
         /** {@code ItemContainer.getEffectiveCapacity(character)}. */
         default int effectiveCapacity(int vanilla, Object container, Object character) { return vanilla; }
@@ -572,7 +575,7 @@ public final class Hooks {
         ITEM_REMOVED("itemRemoved", Group.FORMULAS), LIST_CLEARED("listCleared", Group.FORMULAS),
         LIST_CHANGED("listChanged", Group.FORMULAS), ITEMS_REPLACING("itemsReplacing", Group.FORMULAS),
         WEIGHT_CHANGED("weightChanged", Group.FORMULAS), FLUID_CHANGED("fluidChanged", Group.FORMULAS),
-        INCOMING("incoming", Group.FORMULAS), MAX_WEIGHT("maxWeight", Group.FORMULAS),
+        INCOMING("incoming", Group.FORMULAS), MAX_WEIGHT("maxWeight", Group.FORMULAS), CAPACITY_WEIGHT("capacityWeight", Group.FORMULAS),
         EFFECTIVE_CAPACITY("effectiveCapacity", Group.FORMULAS), CAPACITY("capacity", Group.FORMULAS),
         BAG_CAPACITY("bagCapacity", Group.FORMULAS), BAG_EFFECTIVE_CAPACITY("bagEffectiveCapacity", Group.FORMULAS),
         OVERLOAD("overload", Group.FORMULAS), RUN_PENALTY("runPenalty", Group.FORMULAS),
@@ -687,9 +690,10 @@ public final class Hooks {
                     code.dup();
                     code.with(element);
                     code.aload(0);
+                    code.aload(1);
                     code.loadConstant(viaBag);
                     code.invokestatic(HOOKS, "incoming", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object, ConstantDescs.CD_float,
-                        ConstantDescs.CD_Object, ConstantDescs.CD_int));
+                        ConstantDescs.CD_Object, ConstantDescs.CD_Object, ConstantDescs.CD_int));
                 })),
             Site.atReturns("getEffectiveCapacity", "(Lzombie/characters/IsoGameCharacter;)I", 2, (code, owner) -> {
                 code.aload(0); code.aload(1);
@@ -699,6 +703,11 @@ public final class Hooks {
             Site.atReturns("getCapacity", "()I", 1, (code, owner) -> {
                 code.aload(0);
                 code.invokestatic(HOOKS, "capacity", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object));
+            }),
+            Site.atReturns("getCapacityWeight", "()F", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "capacityWeight", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float,
+                    ConstantDescs.CD_Object));
             }),
             // The list of items is a Tracked list wherever the game makes it; setItems and emptyIt replace it.
             Site.track("items", ARRAY_LIST, Tracked.ITEMS),
@@ -2456,11 +2465,19 @@ public final class Hooks {
     }
 
     /** Put after each read of the item's weight in {@code ItemContainer.hasRoomFor(character, item)}. */
-    public static float incoming(Object item, float vanilla, Object container, int viaBag) {
+    public static float incoming(Object item, float vanilla, Object container, Object asker, int viaBag) {
         Formulas current = formulas;
         if (current == null) return vanilla;
-        try { return current.incoming(item, vanilla, container, viaBag != 0); }
+        try { return current.incoming(item, vanilla, container, asker, viaBag != 0); }
         catch (Throwable problem) { reportOnce(Call.INCOMING, problem); return vanilla; }
+    }
+
+    /** Put before each return of {@code ItemContainer.getCapacityWeight()}. */
+    public static float capacityWeight(float vanilla, Object container) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.capacityWeight(vanilla, container); }
+        catch (Throwable problem) { reportOnce(Call.CAPACITY_WEIGHT, problem); return vanilla; }
     }
 
     /** Put before each return of {@code IsoGameCharacter.getMaxWeight()}. */

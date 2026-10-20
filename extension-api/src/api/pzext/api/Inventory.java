@@ -983,17 +983,54 @@ final class Inventory {
 
     /**
      * The weight an item adds when the game asks whether it fits in a container, for the character whose body it
-     * would be on; {@code vanilla} is the game's, the item's weight with nothing equipped.
+     * would be on; {@code vanilla} is the game's, the item's weight with nothing equipped. A bag's own room (the
+     * container is the inside of a bag) counts what comes in as the load does when this game's player asks (bagWeight
+     * counts its items so); another character's question, the real weight.
      */
-    float incoming(Formulas.Active now, Object item, float vanilla, Object container, boolean viaBag, Players players) throws Throwable {
+    float incoming(Formulas.Active now, Object item, float vanilla, Object container, Object asker, boolean viaBag, Players players)
+            throws Throwable {
         Object character = viaBag ? wornBy(container) : characterOf(container);
-        if (character == null || !players.local(character)) return vanilla;
+        boolean bagRoom = !viaBag && character == null && bagOf(container) != null && asker != null && players.local(asker);
+        if (!bagRoom && (character == null || !players.local(character))) return vanilla;
         if (!bagType.isInstance(item)) {
             float factor = factor(now, item);
             return factor == 1f ? vanilla : vanilla * factor;
         }
         float whole = unequipped(now, item);
         return whole == vanilla ? vanilla : whole;
+    }
+
+    /** The bag a container is the inside of, or null (a character's inventory, an object's, the floor, a vehicle part's). */
+    private Object bagOf(Object container) throws Throwable {
+        Object item = (Object)containingItem.invokeExact(container);
+        return bagType.isInstance(item) ? item : null;
+    }
+
+    /**
+     * The weight the room left in a bag is counted from ({@code ItemContainer.getCapacityWeight}): its items as the load
+     * of this game's player counts them (the declarations are this game's), wherever the bag is (worn, carried, on the
+     * floor, in a car), so that a bag the player filled holds the same when it is put down, and what the player puts in is
+     * weighed the same way ({@link #incoming}; another character's question takes the real weight). What the bag itself weighs in
+     * the container it is in stays the game's (its own weight and its items' as they are): the floor, a car or a crate
+     * holds a bag by what it really weighs. Any other container keeps the game's answer. A bag whose items count heavier
+     * than when it was filled (the efficiencies taken away) is over its room: nothing more goes in, nothing falls out.
+     */
+    float bagWeight(Formulas.Active now, float vanilla, Object container) throws Throwable {
+        Object bag = bagOf(container);
+        if (bag == null) return vanilla;
+        if ((Object)itemsGet.invokeExact(container) instanceof Tracked list && list.kept instanceof Kept kept && kept.owner == this
+                && pendingCount == 0 && live(kept, now) && kept.character == null)
+            return (float)kept.sum;
+        lock.lock();
+        try {
+            settle(now);
+            boolean outer = computing;
+            computing = true;
+            try {
+                Kept kept = inner(now, bag, null);
+                return kept == null ? vanilla : (float)kept.sum;
+            } finally { computing = outer; }
+        } finally { lock.unlock(); }
     }
 
     /** The character whose inventory the container is, or null. */

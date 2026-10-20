@@ -95,7 +95,8 @@ final class Formulas implements Hooks.Formulas {
     private static Point anim(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), Needs.ANIMATIONS); }
 
     // The load needs the game's weight to be followed exactly (see Inventory): every hook that tells the API of a change.
-    private static final String[] CARRIED = { "IsoGameCharacter.getInventoryWeight", "ItemContainer.hasRoomFor", "ItemContainer.items:tracked",
+    private static final String[] CARRIED = { "IsoGameCharacter.getInventoryWeight", "ItemContainer.hasRoomFor",
+        "ItemContainer.getCapacityWeight", "ItemContainer.items:tracked",
         "ItemContainer.emptyIt", "ItemContainer.setItems", "WornItems.items:tracked", "InventoryItem.writes:weight", "InventoryItem.addExtraItem",
         "Food.writes:weight", "HandWeapon.writes:weight", "HandWeapon.clearAllWeaponParts", "HandWeapon.clearWeaponPart:part",
         "HandWeapon.clearWeaponPart:name", "HandWeapon.setWeaponPart", "HandWeapon.attachWeaponPart", "InventoryContainer.writes:weight",
@@ -1050,10 +1051,17 @@ final class Formulas implements Hooks.Formulas {
         catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 
-    @Override public float incoming(Object item, float vanilla, Object container, boolean viaBag) {
+    @Override public float incoming(Object item, float vanilla, Object container, Object asker, boolean viaBag) {
         Active now = active;
         if (!now.carry) return vanilla;
-        try { return inventory.incoming(now, item, vanilla, container, viaBag, players); }
+        try { return inventory.incoming(now, item, vanilla, container, asker, viaBag, players); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public float capacityWeight(float vanilla, Object container) {
+        Active now = active;
+        if (!now.carry) return vanilla;
+        try { return inventory.bagWeight(now, vanilla, container); }
         catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 

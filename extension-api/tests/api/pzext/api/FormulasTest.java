@@ -1070,6 +1070,19 @@ final class FormulasTest {
         call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
         check(near(player.getInventoryWeight(), 27.5) && other.getInventoryWeight() == vanilla,
             "Material at +100% did not halve the plank and the nails, or another character's weight changed: " + player.getInventoryWeight());
+        // A bag's room counts its items as the load does (the nails halved, the ring as it is), wherever the bag is; what comes in
+        // is weighed the same way. What the bag weighs where it lies stays the game's.
+        var bag = (InventoryContainer)mine[4];
+        check(near(bag.getInventory().getCapacityWeight(), 1.5), "A bag's room did not count the nails at +100%: "
+            + bag.getInventory().getCapacityWeight());
+        check(bag.getInventory().hasRoomFor(player, item("Material", 57f)) && !bag.getInventory().hasRoomFor(player, item("Material", 58f)),
+            "What comes into a bag is not weighed as its room counts");
+        check(near(bag.getUnequippedWeight(), 3.5), "The bag itself weighs other than the game's: " + bag.getUnequippedWeight());
+        player.inventory.Remove(bag);
+        check(near(bag.getInventory().getCapacityWeight(), 1.5) && near(bag.getUnequippedWeight(), 3.5),
+            "A bag put down counts its room otherwise: " + bag.getInventory().getCapacityWeight());
+        put(player, bag);
+        check(near(player.inventory.getCapacityWeight(), player.getInventoryWeight()), "A character's own room is not its load");
         // An item's efficiencies add: its category's and its type's.
         call(formulas, "set", mod, "carry.itemEfficiency", table("base:moveable", 1.0));
         check(near(player.getInventoryWeight(), 17.5), "The moveable type at +100% did not halve the sofa: " + player.getInventoryWeight());
@@ -1722,15 +1735,25 @@ final class FormulasTest {
         call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
         check(player.inventory.hasRoomFor(player, incoming), "An item at half its weight did not fit");
         check(!other.inventory.hasRoomFor(other, incoming), "An item fit another character at half its weight");
-        // A worn bag: against the carrier's inventory by efficiency, against the bag's own room by the real weight.
+        // A worn bag: against the carrier's inventory and against the bag's own room by efficiency (a bag's room counts its items as
+        // the load does, wherever it is).
         player.inventory.items.clear();
         put(player, item("Tool", 10f));
         var bag = new InventoryContainer("Bag", 1f, 30);
         put(player, bag);
         bag.equipParent = player;
         player.wear(bag);
-        check(bag.getInventory().hasRoomFor(player, item("Material", 29f)), "An item that fits the bag did not fit");
-        check(!bag.getInventory().hasRoomFor(player, item("Material", 31f)), "An item fit a bag by less than its real weight");
+        check(bag.getInventory().hasRoomFor(player, item("Material", 60f)), "An item at half its weight did not fit the bag");
+        check(!bag.getInventory().hasRoomFor(player, item("Material", 61f)), "An item fit a bag by less than half its weight");
+        check(bag.getInventory().hasRoomFor(player, item("Tool", 30f)) && !bag.getInventory().hasRoomFor(player, item("Tool", 31f)),
+            "An item with no efficiency did not fit a bag by its real weight");
+        // Another character's question (a bag of the player's it puts into): the real weight.
+        player.takeOff(bag);
+        bag.equipParent = null;
+        check(!bag.getInventory().hasRoomFor(other, item("Material", 31f)), "An item fit a bag at another character's question by its efficiency");
+        check(bag.getInventory().hasRoomFor(player, item("Material", 60f)), "A bag not worn did not count what the player puts in by efficiency");
+        bag.equipParent = player;
+        player.wear(bag);
         player.inventory.items.clear();
         put(player, item("Tool", 44f));
         put(player, bag);
