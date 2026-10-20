@@ -1198,3 +1198,23 @@ test("a capstone taken: the character's line of its tree once the tab is left, n
     OA.Trade.Later.after = realAfter
     Window.onScreen, getSpecificPlayer, getTextOrNull = onScreen, nil, realNull
 end)
+
+test("the closed 2nd board's banner names only the capstones whose trees show them: a sealed one is ???", function()
+    local Rules = OA.Upgrades.Rules
+    local UI = OA.Trade.UI
+    local u = Rules.blank()
+    for _, tree in ipairs(Data.TREES) do u.opened[tree] = true end
+    Rules.unseal(u, "load")
+    local view = laidOut("trees")
+    view.sim = u
+    local texts = {}
+    local realText, realFill, realFrame, realLock = UI.text, UI.fill, UI.frame, UI.lock
+    UI.text = function(_, s) texts[#texts + 1] = s end
+    UI.fill, UI.frame, UI.lock = function() end, function() end, function() end
+    View.paintBoardBanner(view, {})
+    UI.text, UI.fill, UI.frame, UI.lock = realText, realFill, realFrame, realLock
+    local names = table.concat(texts, "|")
+    truthy(string.find(names, OA.Upgrades.Texts.nodeName("armor"), 1, true), "the unsealed one named: " .. names)
+    eq(string.find(names, OA.Upgrades.Texts.nodeName("nightEye"), 1, true), nil, "a sealed one not named")
+    eq(string.find(names, OA.Upgrades.Texts.nodeName("dash"), 1, true), nil)
+end)

@@ -2140,7 +2140,7 @@ function View:paintPlanBar(el)
     button(el, approve, UI.str("IGUI_OA_Tree_Approve"), has and "strong" or "off", has and self.hover == "approve")
 end
 
--- The 2nd board while closed: what opens it, the three capstones with the approved ones lit.
+-- The 2nd board while closed: what opens it, the three capstones with the approved ones lit (a sealed one unnamed).
 local BANNER_BG = { 0.02, 0.02, 0.02 }
 
 function View:paintBoardBanner(el)
@@ -2158,7 +2158,9 @@ function View:paintBoardBanner(el)
         local lit = Rules.rank(self.sim, cap.id) >= 1
         local sx = bx + 40 + (i - 1) * (segW + 8)
         UI.fill(el, sx, by + 60, segW, 6, lit and TREE[tree].c or P.border, lit and 1 or 0.35)
-        UI.text(el, UI.fitMemo(Texts.nodeName(cap.id), segW), sx, by + 68, lit and TREE[tree].light or P.dim)
+        -- (a capstone still sealed is not named here either: its tree shows it as ???)
+        local name = Rules.unsealed(self.sim, tree) and Texts.nodeName(cap.id) or "???"
+        UI.text(el, UI.fitMemo(name, segW), sx, by + 68, lit and TREE[tree].light or P.dim)
     end
 end
 
