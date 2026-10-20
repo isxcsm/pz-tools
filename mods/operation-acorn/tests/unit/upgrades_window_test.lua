@@ -1223,3 +1223,32 @@ test("the closed 2nd board's banner names only the capstones whose trees show th
     eq(string.find(names, OA.Upgrades.Texts.nodeName("nightEye"), 1, true), nil, "a sealed one not named")
     eq(string.find(names, OA.Upgrades.Texts.nodeName("dash"), 1, true), nil)
 end)
+
+test("the open 2nd board shows each tree's points left at the right of its band's name, not on the top bar", function()
+    local Rules = OA.Upgrades.Rules
+    local UI = OA.Trade.UI
+    local u = Rules.blank()
+    for _, tree in ipairs(Data.TREES) do u.opened[tree] = true end
+    for _ = 1, 3 do Rules.inject(u, "load") end
+    local view = laidOut("board")
+    view.sim, view.u, view.spentPlan = u, u, { board = 0, scout = 0, load = 0, survival = 0 }
+    local texts = {}
+    local stubbed = { "text", "textCentre", "textRight", "fill", "frame", "icon", "lock" }
+    local real = { open = Rules.boardOpen }
+    for _, k in ipairs(stubbed) do real[k] = UI[k]; UI[k] = function() end end
+    UI.text = function(_, s, x) texts[#texts + 1] = { s = s, x = x } end
+    Rules.boardOpen = function() return true end
+    local panel
+    for _, p in ipairs(view.panels) do if p.tree == "load" then panel = p end end
+    View.paintStrip(view, {}, panel, 1)
+    local value
+    for _, t in ipairs(texts) do if t.s == tostring(Rules.ownPool(u, "load")) then value = t end end
+    truthy(value and value.x > panel.x + panel.w / 2, "the load band's points at its right")
+    texts = {}
+    View.paintTop(view, {})
+    for _, t in ipairs(texts) do
+        truthy(not string.find(t.s, "BadgeTree", 1, true), "no tree's chip on the top bar: " .. t.s)
+    end
+    for _, k in ipairs(stubbed) do UI[k] = real[k] end
+    Rules.boardOpen = real.open
+end)

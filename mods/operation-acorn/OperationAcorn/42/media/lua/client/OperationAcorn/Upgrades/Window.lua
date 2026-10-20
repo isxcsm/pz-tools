@@ -1508,8 +1508,6 @@ local function chip(el, right, y, h, icon, key, value)
 end
 
 local MODE_KEYS = { "mode:trees", "mode:board" }
--- Each tree's serum (its points' picture on the board's top bar).
-local TREE_SERUM = { scout = "UpgradeSerumScout", load = "UpgradeSerumLoad", survival = "UpgradeSerumSurvival" }
 
 function View:paintTop(el)
     local hoverKey = self.hover
@@ -1552,13 +1550,6 @@ function View:paintTop(el)
         UI.text(el, t, right, y + (h - UI.fontHeight()) / 2, P.text, nil, 0.85)
         right = right - 8
     end
-    -- the board spends every tree's points left (and the shared): each tree's, by its serum
-    if self.mode == "board" and Rules.boardOpen(self.sim) then
-        for i = #Data.TREES, 1, -1 do
-            local tree = Data.TREES[i]
-            right = chip(el, right, y, h, TREE_SERUM[tree], "IGUI_OA_Tree_BadgeTree_" .. tree, Rules.ownPool(self.sim, tree)) - 6
-        end
-    end
     local planned = self.spentPlan.board
     for _, tree in ipairs(Data.TREES) do planned = planned + self.spentPlan[tree] end
     if planned > 0 then
@@ -1590,7 +1581,21 @@ function View:paintStrip(el, panel, i)
     -- a long name (another language) ends in "..." before the reset button, never under it or past the strip
     local room = panel.w - 20 - (self.mode == "trees" and 28 or 0)
     UI.text(el, UI.fitMemo(Texts.treeName(tree), room, UIFont.Medium), x + 10, y + 5, tc.light, UIFont.Medium)
-    if self.mode ~= "trees" then return end
+    if self.mode ~= "trees" then
+        -- the open 2nd board spends what each tree has left: its points at the right of its band's name
+        if Rules.boardOpen(self.sim) then
+            local pre, post = around("IGUI_OA_Tree_OwnLeft")
+            local n = Rules.ownPool(self.sim, tree)
+            local v = tostring(n)
+            local ty = y + 5 + (UI.fontHeight(UIFont.Medium) - UI.fontHeight()) / 2
+            local tx = x + panel.w - 10 - UI.textWidth(pre) - UI.textWidth(v) - UI.textWidth(post)
+            UI.text(el, pre, tx, ty, P.dim)
+            tx = tx + UI.textWidth(pre)
+            UI.text(el, v, tx, ty, n > 0 and P.value or P.dim)
+            UI.text(el, post, tx + UI.textWidth(v), ty, P.dim)
+        end
+        return
+    end
     -- the reset
     local item = self.byKey["reset:" .. tree]
     if item and self:reachable(item) then
