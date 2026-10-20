@@ -325,7 +325,7 @@
     "IGUI_OA_Tree_Node_sense_Rank1": "웅크려 걸을 때 주변 좀비의 기척이 어느 쪽에서 나는지 들립니다.",
     "IGUI_OA_Tree_Node_sense_Rank2": "기척이 얼마나 멀리서 나는지도 들립니다.",
     "IGUI_OA_Tree_Node_keen_Name": "시료 감별",
-    "IGUI_OA_Tree_Node_keen_Rank": "시료 묶음이 하나 나올 때마다 %1 확률로 선별 시료가 하나 더 나옵니다.",
+    "IGUI_OA_Tree_Node_keen_Rank": "분해해서 나오는 시료 묶음마다 %1 확률로 선별 시료가 함께 나옵니다.",
     "IGUI_OA_Tree_Node_ammo_Name": "탄약 수색",
     "IGUI_OA_Tree_Node_ammo_Desc": "아직 아무도 열지 않은 보관함에만 적용됩니다.",
     "IGUI_OA_Tree_Node_ammo_Rank": "보관함과 좀비 시체에서 탄약이 나올 확률이 %1 높아집니다.",
