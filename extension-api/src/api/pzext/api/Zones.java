@@ -3,7 +3,9 @@ package pzext.api;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.random.RandomGenerator;
 
@@ -13,10 +15,17 @@ import java.util.random.RandomGenerator;
  * each reads the zones at it and at up to 64 points round it for a road; in Java that is a few thousand handle calls and one list of
  * the points kept.
  *
- * <p>The map's zones are kept by the game for the cells it has loaded, so a point far off is judged by what the game knows of it.
+ * <p>The zones are the game's list, the whole map's (zones thousands of squares from the player are in it, unloaded).
  * The points are taken as the mods do: an angle and a radius ({@code lo + random * (hi - lo)}) at random, the point the squares the
  * ring's point falls on; the zones are those at level 0. A road is looked for on eight directions (the diagonals as 0.7 of a step, as
  * the mods have it), every 4 squares.
+ *
+ * <p>With {@code near} the points are drawn from round the zones of a type instead (a road's: a camp off a road, a site a road comes
+ * near): a part of a zone of the type touching the ring (a box, a polyline's segment), by its length, a point of it, and a step of
+ * {@code min} to {@code max} squares from it in any direction; kept when it lies in the ring, and no zone of the type is within
+ * {@code min}. Where few points of the ring pass (roads are thin), it finds them in a few tries where a random point needs hundreds,
+ * and none at once where there are none. The zones of a type are read from the map's list of zones once (again when the list
+ * changes).
  */
 final class Zones {
     /** The most points a call keeps and the most it tries: a bound on the work of one call, not a rule of play. */
@@ -33,13 +42,21 @@ final class Zones {
     private final Kahlua lua;
     private final Game game;
     private final Generation generation;
-    // IsoMetaGrid.getBuildingAt(x, y), getZonesAt(x, y, z, list); Zone.getType().
-    private final MethodHandle buildingAt, zonesAt, type;
+    // IsoMetaGrid.getBuildingAt(x, y), getZonesAt(x, y, z, list), its zones; Zone.getType(), its box, whether a polyline and its points.
+    private final MethodHandle buildingAt, zonesAt, allZones, type, zoneX, zoneY, zoneW, zoneH, polyline, linePoints;
     // The zones at a point, read into one list of the area's own.
     private final ArrayList<Object> zones = new ArrayList<>();
 
-    /** What a call wants of a point. */
-    private record Wanted(String[] not, String road, int none, int some, double spacing) { }
+    /** What a call wants of a point. {@code near}: the zone type points are drawn round (null: at random in the ring). */
+    private record Wanted(String[] not, String road, int none, int some, double spacing, String near, int min, int max) { }
+
+    /** A zone of the type, as the points are drawn from it: its box, and for a polyline its points ({@code x0, y0, x1, y1, ...}). */
+    private record Shape(int x, int y, int w, int h, int[] line) { }
+
+    // The zones of each type asked, read from the map's list (that list, and its size then).
+    private final Map<String, Shape[]> shapes = new HashMap<>();
+    private Object shapesOf;
+    private int shapesSize = -1;
 
     Zones(Kahlua lua, Game game, Object meta, ClassLoader loader) throws ReflectiveOperationException {
         this.lua = lua;
@@ -49,7 +66,17 @@ final class Zones {
         buildingAt = Game.exact(grid.getMethod("getBuildingAt", int.class, int.class), MethodType.methodType(Object.class, Object.class, int.class, int.class));
         zonesAt = Game.exact(grid.getMethod("getZonesAt", int.class, int.class, int.class, ArrayList.class),
             MethodType.methodType(ArrayList.class, Object.class, int.class, int.class, int.class, ArrayList.class));
-        type = Game.exact(Game.type(loader, "zombie.iso.zones.Zone").getMethod("getType"), MethodType.methodType(String.class, Object.class));
+        Class<?> zone = Game.type(loader, "zombie.iso.zones.Zone");
+        type = Game.exact(zone.getMethod("getType"), MethodType.methodType(String.class, Object.class));
+        allZones = java.lang.invoke.MethodHandles.publicLookup().unreflectGetter(grid.getField("zones"))
+            .asType(MethodType.methodType(List.class, Object.class));
+        MethodType number = MethodType.methodType(int.class, Object.class);
+        zoneX = Game.exact(zone.getMethod("getX"), number);
+        zoneY = Game.exact(zone.getMethod("getY"), number);
+        zoneW = Game.exact(zone.getMethod("getWidth"), number);
+        zoneH = Game.exact(zone.getMethod("getHeight"), number);
+        polyline = Game.exact(zone.getMethod("isPolyline"), MethodType.methodType(boolean.class, Object.class));
+        linePoints = Game.exact(zone.getMethod("getPointsToLua"), MethodType.methodType(List.class, Object.class));
     }
 
     /** Sets the function into the zones' table. */
@@ -77,13 +104,44 @@ final class Zones {
         var keptY = new int[count];
         int found = 0;
         try {
+            // near: the parts of the type's zones a point of the ring may be drawn from (cut to the ring's box), their lengths summed up
+            double[][] from = null;
+            double[] sums = null;
+            if (wanted.near() != null) {
+                from = pieces(shapes(meta, wanted.near()), ax, ay, lo - wanted.max(), hi + wanted.max());
+                if (from.length == 0) return lua.list(kept);
+                sums = new double[from.length];
+                double sum = 0;
+                for (int at = 0; at < from.length; at++) sums[at] = sum += Math.max(1, from[at][5]);
+            }
             for (int attempt = 0; attempt < tries && found < count; attempt++) {
-                double angle = dice.nextDouble() * 2 * Math.PI, radius = lo + dice.nextDouble() * (hi - lo);
-                int x = (int)Math.floor(ax + Math.cos(angle) * radius), y = (int)Math.floor(ay + Math.sin(angle) * radius);
+                int x, y;
+                if (from != null) {
+                    double[] piece = from[pick(sums, dice.nextDouble() * sums[sums.length - 1])];
+                    double t = dice.nextDouble(), u = dice.nextDouble();
+                    // (a box's part anywhere in it; a polyline's segment along it)
+                    double[] at = piece[0] == 0
+                        ? new double[] { piece[1] + t * (piece[3] - piece[1]), piece[2] + u * (piece[4] - piece[2]) }
+                        : new double[] { piece[1] + t * (piece[3] - piece[1]), piece[2] + t * (piece[4] - piece[2]) };
+                    double angle = dice.nextDouble() * 2 * Math.PI, step = wanted.min() + dice.nextDouble() * (wanted.max() - wanted.min());
+                    x = (int)Math.floor(at[0] + Math.cos(angle) * step);
+                    y = (int)Math.floor(at[1] + Math.sin(angle) * step);
+                    double dx = x + 0.5 - ax, dy = y + 0.5 - ay, d = Math.sqrt(dx * dx + dy * dy);
+                    if (d < lo || d > hi + 1) continue;
+                } else {
+                    double angle = dice.nextDouble() * 2 * Math.PI, radius = lo + dice.nextDouble() * (hi - lo);
+                    x = (int)Math.floor(ax + Math.cos(angle) * radius);
+                    y = (int)Math.floor(ay + Math.sin(angle) * radius);
+                }
                 if ((Object)buildingAt.invokeExact(meta, x, y) != null) continue;
                 if (spaced(keptX, keptY, found, x, y, wanted.spacing())) continue;
                 read(meta, x, y);
                 if (listed(wanted.not())) continue;
+                if (from != null && wanted.min() > 0) {
+                    // (none of the type nearer than min: the step took it off the zone it was drawn from, not off another)
+                    if (!offRoad(meta, new Wanted(wanted.not(), wanted.near(), wanted.min(), 0, 0, null, 0, 0), x, y)) continue;
+                    read(meta, x, y);
+                }
                 if (wanted.road() != null) {
                     if (!offRoad(meta, wanted, x, y)) continue;
                     read(meta, x, y);
@@ -94,6 +152,96 @@ final class Zones {
             }
         } catch (Throwable failure) { throw Game.thrown(failure); }
         return lua.list(kept);
+    }
+
+    /** The zones of a type in the map's list, read once (again when the list or its size changes). */
+    private Shape[] shapes(Object meta, String wanted) throws Throwable {
+        List<?> list = (List<?>)allZones.invokeExact(meta);
+        if (list != shapesOf || list.size() != shapesSize) {
+            shapes.clear();
+            shapesOf = list;
+            shapesSize = list.size();
+        }
+        Shape[] known = shapes.get(wanted);
+        if (known != null) return known;
+        var found = new ArrayList<Shape>();
+        for (Object zone : list) {
+            if (!wanted.equals((String)type.invokeExact(zone))) continue;
+            int x = (int)zoneX.invokeExact(zone), y = (int)zoneY.invokeExact(zone), w = (int)zoneW.invokeExact(zone), h = (int)zoneH.invokeExact(zone);
+            int[] line = null;
+            if ((boolean)polyline.invokeExact(zone)) {
+                List<?> points = (List<?>)linePoints.invokeExact(zone);
+                if (points != null && points.size() >= 4) {
+                    line = new int[points.size() / 2 * 2];
+                    for (int at = 0; at < line.length; at++) line[at] = ((Number)points.get(at)).intValue();
+                }
+            }
+            found.add(new Shape(x, y, w, h, line));
+        }
+        known = found.toArray(new Shape[0]);
+        shapes.put(wanted, known);
+        return known;
+    }
+
+    /**
+     * The parts of the zones a point between {@code lo} and {@code hi} squares of {@code ax, ay} may be drawn from: each zone's box, or
+     * each segment of a polyline, cut to the square round the point out to {@code hi} and kept when it reaches into that ring. A part is
+     * {@code { 0 for a box | 1 for a segment, x0, y0, x1, y1, length }} (a box's length its longer side).
+     */
+    private static double[][] pieces(Shape[] all, double ax, double ay, double lo, double hi) {
+        double left = ax - hi, top = ay - hi, right = ax + hi, bottom = ay + hi;
+        var kept = new ArrayList<double[]>();
+        for (Shape shape : all) {
+            if (shape.x() > right || shape.x() + shape.w() < left || shape.y() > bottom || shape.y() + shape.h() < top) continue;
+            if (shape.line() == null) {
+                double x0 = Math.max(shape.x(), left), y0 = Math.max(shape.y(), top);
+                double x1 = Math.min(shape.x() + shape.w(), right), y1 = Math.min(shape.y() + shape.h(), bottom);
+                if (reaches(x0, y0, x1, y1, ax, ay, lo, hi)) kept.add(new double[] { 0, x0, y0, x1, y1, Math.max(x1 - x0, y1 - y0) });
+                continue;
+            }
+            int[] line = shape.line();
+            for (int at = 0; at + 3 < line.length; at += 2) {
+                double[] cut = clip(line[at], line[at + 1], line[at + 2], line[at + 3], left, top, right, bottom);
+                if (cut == null) continue;
+                double x0 = Math.min(cut[0], cut[2]), y0 = Math.min(cut[1], cut[3]), x1 = Math.max(cut[0], cut[2]), y1 = Math.max(cut[1], cut[3]);
+                if (reaches(x0, y0, x1, y1, ax, ay, lo, hi))
+                    kept.add(new double[] { 1, cut[0], cut[1], cut[2], cut[3], Math.hypot(cut[2] - cut[0], cut[3] - cut[1]) });
+            }
+        }
+        return kept.toArray(new double[0][]);
+    }
+
+    /** Whether a box comes between {@code lo} and {@code hi} squares of the point (some of it in that ring). */
+    private static boolean reaches(double x0, double y0, double x1, double y1, double ax, double ay, double lo, double hi) {
+        double nx = Math.max(Math.max(x0 - ax, 0), ax - x1), ny = Math.max(Math.max(y0 - ay, 0), ay - y1);
+        double fx = Math.max(Math.abs(x0 - ax), Math.abs(x1 - ax)), fy = Math.max(Math.abs(y0 - ay), Math.abs(y1 - ay));
+        return Math.hypot(nx, ny) <= hi && Math.hypot(fx, fy) >= lo;
+    }
+
+    /** A segment cut to a box (Liang-Barsky): its ends {@code x0, y0, x1, y1}, or null when none of it is in the box. */
+    private static double[] clip(double x0, double y0, double x1, double y1, double left, double top, double right, double bottom) {
+        double dx = x1 - x0, dy = y1 - y0, from = 0, to = 1;
+        double[] p = { -dx, dx, -dy, dy }, q = { x0 - left, right - x0, y0 - top, bottom - y0 };
+        for (int at = 0; at < 4; at++) {
+            if (p[at] == 0) {
+                if (q[at] < 0) return null;
+            } else {
+                double r = q[at] / p[at];
+                if (p[at] < 0) from = Math.max(from, r); else to = Math.min(to, r);
+            }
+        }
+        if (from > to) return null;
+        return new double[] { x0 + from * dx, y0 + from * dy, x0 + to * dx, y0 + to * dy };
+    }
+
+    /** The index of the sums (rising) the value falls under. */
+    private static int pick(double[] sums, double value) {
+        int low = 0, high = sums.length - 1;
+        while (low < high) {
+            int middle = (low + high) >>> 1;
+            if (sums[middle] <= value) low = middle + 1; else high = middle;
+        }
+        return low;
     }
 
     /** Whether a kept point is nearer than the spacing. */
@@ -188,7 +336,19 @@ final class Zones {
         Object spacing = lua.get(options, "spacing");
         if (spacing != null && (!(spacing instanceof Double number) || !(number >= 0 && number <= LIMIT)))
             throw new IllegalArgumentException(AREA + ": options.spacing must be a number from 0 to " + LIMIT);
-        return new Wanted(not, road, none, some, spacing == null ? 0 : (Double)spacing);
+        String near = null;
+        int min = 0, max = 0;
+        Object nearby = lua.get(options, "near");
+        if (nearby != null) {
+            if (!lua.isTable(nearby) || !(lua.get(nearby, "type") instanceof String named))
+                throw new IllegalArgumentException(AREA + ": options.near must be a table with the zone type");
+            near = named;
+            min = integer(nearby, "min", 0, 0, 1000);
+            max = integer(nearby, "max", -1, 1, 1000);
+            if (max < 1) throw new IllegalArgumentException(AREA + ": options.near.max must be a whole number from 1 to 1000");
+            if (max < min) throw new IllegalArgumentException(AREA + ": options.near.max must not be less than min");
+        }
+        return new Wanted(not, road, none, some, spacing == null ? 0 : (Double)spacing, near, min, max);
     }
 
     private String[] strings(Object list, String name) throws ReflectiveOperationException {

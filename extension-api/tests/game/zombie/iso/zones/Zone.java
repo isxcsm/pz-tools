@@ -16,4 +16,8 @@ public class Zone {
     public int getY() { return y; }
     public int getWidth() { return w; }
     public int getHeight() { return h; }
+    /** Synthetic: a polyline's points (x0, y0, x1, y1, ...), its box the points' (as the game keeps it); null for a box. */
+    public java.util.List<Integer> line;
+    public boolean isPolyline() { return line != null; }
+    public java.util.List<Integer> getPointsToLua() { return line; }
 }

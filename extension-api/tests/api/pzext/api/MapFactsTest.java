@@ -319,6 +319,32 @@ final class MapFactsTest {
                 near |= roadAround(grid, "Trail", (int)number(each, "x"), (int)number(each, "y"), 4)
                     || roadAround(grid, "Trail", (int)number(each, "x"), (int)number(each, "y"), 8);
             check(trail.size() > 5 && near, "The trail test is empty");
+            // near: drawn round the zones of a type; every point in the ring, none of the type within min, the zone within max.
+            var drawn = items(FormulasTest.call(zones, "points", 60000.0, 60000.0, 10.0, 30.0,
+                table("count", 20, "tries", 1000, "near", table("type", "Nav", "min", 8, "max", 40))).get(0));
+            check(drawn.size() == 20, "Points round the road were not found: " + drawn.size());
+            for (Object each : drawn) {
+                int x = (int)number(each, "x"), y = (int)number(each, "y");
+                double d = Math.hypot(x + 0.5 - 60000, y + 0.5 - 60000), off = Math.max(Math.max(60040 - x, 0), x - 60045);
+                check(d >= 9 && d <= 32, "A point round the road is off the ring: " + d);
+                check(grid.getBuildingAt(x, y) == null, "A point round the road is in a building");
+                check(!roadAround(grid, "Nav", x, y, 4) && !roadAround(grid, "Nav", x, y, 8), "A road lies within 8 of a point drawn round it");
+                check(off <= 41, "A point drawn round the road is " + off + " from it");
+            }
+            check(items(FormulasTest.call(zones, "points", 60000.0, 60000.0, 10.0, 30.0,
+                table("count", 5, "near", table("type", "Nowhere", "max", 40))).get(0)).isEmpty(), "Points were drawn round no zone");
+            // a polyline (a road on the slant): round its line, not its box; the list read again once a zone came
+            var slant = new Zone("", "Nav", 70000, 70000, 0, 400, 400);
+            slant.line = List.of(70000, 70000, 70400, 70400);
+            grid.zones.add(slant);
+            var onSlant = items(FormulasTest.call(zones, "points", 70300.0, 70100.0, 0.0, 200.0,
+                table("count", 30, "tries", 300, "near", table("type", "Nav", "max", 20))).get(0));
+            check(onSlant.size() == 30, "Points round a polyline were not found: " + onSlant.size());
+            for (Object each : onSlant) {
+                double x = number(each, "x") + 0.5, y = number(each, "y") + 0.5;
+                check(Math.abs(x - y) / Math.sqrt(2) <= 21, "A point is not round the polyline: " + x + "," + y);
+            }
+            grid.zones.remove(slant);
             // Mistakes.
             rejects("options must be a table", zones, "points", 0.0, 0.0, 0.0, 1.0);
             rejects("options.count must be a whole number from 1 to 1000", zones, "points", 0.0, 0.0, 0.0, 1.0, table("count", 0));
@@ -327,6 +353,10 @@ final class MapFactsTest {
             rejects("options.road must be a table with the zone type", zones, "points", 0.0, 0.0, 0.0, 1.0, table("road", table("none", 8)));
             rejects("options.spacing must be a number", zones, "points", 0.0, 0.0, 0.0, 1.0, table("spacing", -1));
             rejects("lo must not be more than hi", zones, "points", 0.0, 0.0, 9.0, 1.0, table("count", 1));
+            rejects("options.near must be a table with the zone type", zones, "points", 0.0, 0.0, 0.0, 1.0, table("near", table("max", 8)));
+            rejects("options.near.max must be a whole number from 1 to 1000", zones, "points", 0.0, 0.0, 0.0, 1.0, table("near", table("type", "Nav")));
+            rejects("options.near.max must not be less than min", zones, "points", 0.0, 0.0, 0.0, 1.0,
+                table("near", table("type", "Nav", "min", 9, "max", 8)));
             pointsCost(zones, grid);
         } finally {
             Zones.random = null;
@@ -352,6 +382,14 @@ final class MapFactsTest {
                 best = Math.min(best, System.nanoTime() - start);
             }
             System.out.println("COST: zones.points, 300 tries with a road test over 3000 buildings: best " + best / 1000 + " us");
+            var near = table("count", 1, "tries", 300, "not", list("TownZone", "DeepForest"), "near", table("type", "Nav", "min", 8, "max", 40));
+            best = Long.MAX_VALUE;
+            for (int round = 0; round < 20; round++) {
+                long start = System.nanoTime();
+                FormulasTest.call(zones, "points", 60000.0, 60000.0, 10.0, 60.0, near);
+                best = Math.min(best, System.nanoTime() - start);
+            }
+            System.out.println("COST: zones.points, the same drawn round the road (near): best " + best / 1000 + " us");
         } finally {
             forget(grid, many.toArray(new BuildingDef[0]));
         }
