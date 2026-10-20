@@ -123,3 +123,35 @@ test("an element's entries are dropped with its last one: nothing animated stays
     eq(entries, 0)
     eq(kept, 0, "no element is kept once every entry has ended")
 end)
+
+test("an element draws at the frame its look last changed in: no clock read once it holds still", function()
+    local UI = load()
+    local el = element(element(nil))
+    local ends = 1100
+    UI.live(el, function(_, t) return t < ends and t or nil end)
+    now = 1050
+    UI.liveFrame()
+    eq(UI.frameNow(el), 1050, "moving: the frame's time")
+    now = 1100
+    UI.liveFrame()
+    eq(UI.frameNow(el), 1100, "the frame it stopped in")
+    now = 5000
+    UI.liveFrame()
+    eq(UI.frameNow(el), 1100, "still: it stands")
+    -- a light that has come up is read at that time, without the clock
+    local lit = element(element(nil))
+    eq(UI.hoverLight(lit, "a", true), 0, "comes up from nothing")
+    for _ = 1, 20 do
+        now = now + 16
+        UI.liveFrame()
+    end
+    eq(UI.hoverLight(lit, "a", true), 1, "up")
+    local reads = 0
+    getTimestampMs = function() reads = reads + 1; return now end
+    now = now + 1000
+    eq(UI.hoverLight(lit, "a", true), 1, "held up")
+    eq(select(1, UI.placeLevels(lit, "x")), 0)
+    eq(reads, 0, "a still light reads no clock")
+    eq(UI.hoverLight(lit, "a", false), 1, "going down starts where it was")
+    truthy(reads > 0, "a light set off reads the clock")
+end)

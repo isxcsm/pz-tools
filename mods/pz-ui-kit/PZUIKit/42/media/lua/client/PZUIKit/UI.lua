@@ -1206,17 +1206,19 @@ end
 
 -- Drawing that follows the clock ----------------------------------------------------------------------------------
 -- PZ Optimization's retained UI (on in its default profile) replays an element's last drawing while nothing it watches
--- has changed: input, the mouse over it, its size or place, a write to its Lua table made before it draws. Once a
--- drawing has held still for a quarter second it is drawn afresh only now and then, up to a second apart, so a drawing
--- that changes by the clock after a pause (a cursor's blink, a line printed on time, a stage of a sequence) would show
--- up to a second late. Such an element registers here with `frame(el, now)`: it does what the element needs every frame
--- and gives a value that changes exactly when the element's drawing does, nil once it no longer moves by itself. Every
--- frame, before the UI draws, a changed value is written to the element (liveLook) and a count to each element it is
--- in (a window held still is replayed with all it holds). An element hidden (it or one it is in) waits, its frame not
--- asked, and goes on once shown again: the game hides every window for its pause menu (ToggleEscapeMenu) and its UI
--- toggle, and shows them again after. An element taken out of the UI (it or one it is in: removeFromUIManager,
--- removeChild) is let go. The handler stays on once used: taking it off from inside the event would make the game skip
--- the next handler of that frame, and with nothing registered it returns at once.
+-- has changed: input, the mouse over it, its size or place, a value its drawing read (a field of a Lua table, what a
+-- function gave) that is no longer the same. A drawing that reads the clock (getTimestampMs and the like) is drawn
+-- afresh each frame, so a drawing takes its time from UI.frameNow instead (below). A drawing it cannot check is drawn
+-- afresh only now and then once it has held still for a quarter second, up to a second apart, so a drawing that
+-- changes by the clock after a pause (a cursor's blink, a line printed on time, a stage of a sequence) would show up to
+-- a second late. Such an element registers here with `frame(el, now)`: it does what the element needs every frame and
+-- gives a value that changes exactly when the element's drawing does, nil once it no longer moves by itself. Every
+-- frame, before the UI draws, a changed value is written to the element (liveLook, with the frame's time: liveNow) and
+-- a count to each element it is in (a window held still is replayed with all it holds). An element hidden (it or one it
+-- is in) waits, its frame not asked, and goes on once shown again: the game hides every window for its pause menu
+-- (ToggleEscapeMenu) and its UI toggle, and shows them again after. An element taken out of the UI (it or one it is in:
+-- removeFromUIManager, removeChild) is let go. The handler stays on once used: taking it off from inside the event
+-- would make the game skip the next handler of that frame, and with nothing registered it returns at once.
 local live, liveHooked, liveCount = {}, false, 0
 -- (the order the entries were made in)
 local liveSeq = 0
@@ -1316,6 +1318,7 @@ local function liveFrame()
         elseif state == "gone" then look = nil end
         if state ~= "hidden" and look ~= entry.look then
             entry.look = look
+            el.liveNow = now
             local tick
             if grouped then
                 if groupTick == nil then
@@ -1380,6 +1383,14 @@ function UI.live(el, frame)
     frames[frame] = entry
     frames.n = frames.n + 1
     live[#live + 1] = entry
+end
+
+-- The time an element draws at (ms): the frame its look last changed in (el.liveNow), so that a drawing reads no clock
+-- (PZ Optimization's retained UI draws an element that read the clock afresh each frame, the clock having moved). While
+-- the element moves it is each frame's; once it holds still, the frame it stopped in. An element never followed reads
+-- the clock.
+function UI.frameNow(el)
+    return el.liveNow or getTimestampMs()
 end
 
 -- How many entries are followed, and how many elements are kept for the once of UI.live (the tests').
@@ -1580,13 +1591,14 @@ end
 -- goes down over HOVER_OUT_MS when it leaves, and a flash on a click that dies out over FLASH_MS (easing out). Each light
 -- is kept on its element (el.fx[key] for the hover, el.fxFlash[key] for the flash, so that one key can have both:
 -- where it set off from, where it goes, when); its level is worked out from the
--- clock when drawn. While one moves the element is followed each frame (UI.live: PZ Optimization draws the steps);
+-- element's frame time when drawn (UI.frameNow; a light set off as the element draws, from the clock). While one moves the element is followed each frame (UI.live: PZ Optimization draws the steps);
 -- once they are all still it is let go. Made only when a light changes; nothing is kept for an element never hovered.
 UI.HOVER_IN_MS, UI.HOVER_OUT_MS, UI.FLASH_MS = 90, 220, 260
 
 local function fxLevel(f, now)
     local d = now - f.at
     if d >= f.dur then return f.to end
+    if d <= 0 then return f.from end
     local u = 1 - d / f.dur
     return f.from + (f.to - f.from) * (1 - u * u)
 end
@@ -1623,17 +1635,16 @@ end
 function UI.hoverLight(el, key, on)
     local f = el.fx and el.fx[key]
     if not f and not on then return 0 end
+    local to = on and 1 or 0
+    if f and f.to == to then return fxLevel(f, UI.frameNow(el)) end
     local now = getTimestampMs()
     if not f then
         f = { from = 0, to = 0, at = now, dur = 1 }
         fxOf(el, "fx")[key] = f
     end
-    local to = on and 1 or 0
-    if f.to ~= to then
-        f.from, f.to, f.at, f.dur = fxLevel(f, now), to, now, on and UI.HOVER_IN_MS or UI.HOVER_OUT_MS
-        UI.live(el, fxFrame)
-    end
-    return fxLevel(f, now)
+    f.from, f.to, f.at, f.dur = fxLevel(f, now), to, now, on and UI.HOVER_IN_MS or UI.HOVER_OUT_MS
+    UI.live(el, fxFrame)
+    return f.from
 end
 
 -- Clicks: every drawn control (a button, a card, a tab, a row, a node) answers a click through UI.click, UI.placeClick
@@ -1662,7 +1673,7 @@ end
 function UI.flashLevel(el, key)
     local f = el.fxFlash and el.fxFlash[key]
     if not f then return 0 end
-    return fxLevel(f, getTimestampMs())
+    return fxLevel(f, UI.frameNow(el))
 end
 
 -- Places on one element lit one at a time (a screen's cards and buttons, a list's rows): a place is any value that
@@ -1707,7 +1718,7 @@ function UI.placeLevels(el, place)
     local k, f = 0, 0
     local fx, flashes = el.fx, el.fxFlash
     if not (fx or flashes) then return 0, 0 end
-    local now = getTimestampMs()
+    local now = UI.frameNow(el)
     if fx then
         local cur, fade = fx.cur, fx.fade
         if cur and cur.place == place then
