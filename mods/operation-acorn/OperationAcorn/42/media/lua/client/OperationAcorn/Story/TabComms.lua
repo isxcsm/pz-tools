@@ -173,24 +173,18 @@ function OATabComms:playedRows(rows, e, l)
     end
 end
 
--- The record's blocks: a head for each call (a short one too: each can be played again), one for a run of field
--- monologues of a tier, and its lines' rows. A block's key is the place in the log of its first entry (the log only
--- grows).
+-- The record's blocks: a head for each call (a short one too: each can be played again) and its lines' rows. A block's
+-- key is the place in the log of its first entry (the log only grows). Field monologues never went through the
+-- terminal: none is shown (an older record may still list them).
 function OATabComms:recordBlocks(record)
     local blocks = {}
-    local block, lastGroup
     for index, item in ipairs(Comms.section(record).log) do
         local e = Data.BY_ID[item.id]
-        if e then
-            local grouped = e.kind == "say"
-            local group = grouped and (e.kind .. ":" .. tostring(item.tier)) or nil
-            if not grouped or group ~= lastGroup or not block then
-                local head = self:headRow(headText(e, item.tier), not grouped and item or nil)
-                head.block = index
-                block = { head = head, rows = {} }
-                blocks[#blocks + 1] = block
-            end
-            lastGroup = group
+        if e and e.kind ~= "say" then
+            local head = self:headRow(headText(e, item.tier), item)
+            head.block = index
+            local block = { head = head, rows = {} }
+            blocks[#blocks + 1] = block
             for _, l in ipairs(Script.lines(e, context(record, item.tier))) do self:playedRows(block.rows, e, l) end
             -- a short call has no name: its folded head shows how it begins
             if e.kind == "short" then

@@ -180,14 +180,13 @@ test("after the handover the department's calls come one a tier, in turn, and st
     eq(Comms.next(r, "terminal"), nil, "nothing after the fourth")
 end)
 
-test("a field monologue is said once and kept in the record", function()
+test("a field monologue is said once; the comms record keeps only what went through the terminal", function()
     local r = fresh()
     eq(Comms.say(r, "evidence", "pickup", 1, 5), "S1F_pickup")
     eq(Comms.say(r, "evidence", "pickup", 1, 6), nil)
     eq(Comms.say(r, "evidence", "nothing", 1, 6), nil)
-    local log = Comms.section(r).log
-    eq(log[1].id, "S1F_pickup")
-    eq(log[1].tier, 1)
+    eq(#Comms.section(r).log, 0)
+    truthy(Comms.section(r).played.S1F_pickup)
 end)
 
 test("the after-handover monologues come in turn and end", function()

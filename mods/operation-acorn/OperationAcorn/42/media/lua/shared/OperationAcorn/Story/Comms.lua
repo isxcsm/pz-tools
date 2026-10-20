@@ -217,8 +217,8 @@ function Comms.played(record, id, tier, now)
     return true
 end
 
--- A field monologue's id for a story mission's event ("say:<story id>:<event>"), said once: it goes into the record.
--- Returns the id when it is to be said, or nil.
+-- A field monologue's id for a story mission's event ("say:<story id>:<event>"), said once (kept as played; not in the
+-- record's log: it never went through the terminal). Returns the id when it is to be said, or nil.
 function Comms.say(record, storyId, event, tier, now)
     local s = Comms.section(record)
     local trigger = "say:" .. storyId .. ":" .. event
@@ -226,7 +226,6 @@ function Comms.say(record, storyId, event, tier, now)
         if e.kind == "say" and e.trigger == trigger then
             if s.played[e.id] then return nil end
             s.played[e.id] = now or OA.hours()
-            addLog(s, e.id, tier or s.tier)
             revision = revision + 1
             return e.id
         end
@@ -241,7 +240,6 @@ function Comms.afterSay(record, tier, now)
     if not id then return nil end
     s.afterSays = s.afterSays + 1
     s.played[id] = now or OA.hours()
-    addLog(s, id, tier or s.tier)
     revision = revision + 1
     return id
 end

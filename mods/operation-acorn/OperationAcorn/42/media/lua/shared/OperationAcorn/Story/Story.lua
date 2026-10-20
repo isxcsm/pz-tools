@@ -221,7 +221,7 @@ function Story.callsDue(record)
 end
 
 -- A story mission's monologue at one of its events ("enter", "pickup", ...; CommsData's "say:<story>:<event>"): said
--- over the player's head once, and kept in the comms tab as a field record. Returns its id, or nil when there is none
+-- over the player's head once (the comms tab keeps only what went through the terminal). Returns its id, or nil when there is none
 -- or it was said before. `delay`: real seconds before it is said (Say.story).
 function Story.monologue(record, storyId, event, delay)
     local id = OA.Comms.say(record, storyId, event, Story.tier(record))

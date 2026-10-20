@@ -123,8 +123,7 @@ test("a story monologue is said once and kept; the after-handover ones run out",
     eq(delays[#delays], 0, "at once")
     eq(Story.monologue(record, "evidence", "pickup"), nil, "once")
     eq(Story.monologue(record, "evidence", "nothing"), nil)
-    local log = Comms.section(record).log
-    eq(log[#log].id, "S1F_pickup")
+    for _, item in ipairs(Comms.section(record).log) do truthy(item.id ~= "S1F_pickup", "not in the comms record") end
     eq(Story.monologue(record, "evidence", "enter", 5) ~= nil, true)
     eq(delays[#delays], 5, "after the wait it is given")
     local after = setup("w9", 5, 4)
