@@ -22,7 +22,7 @@ OA.StorySurvey = Survey
 -- The zones' radii (squares), stage by stage, and how far from the site a zone's middle lies, a share of its radius
 -- from OFFSET_MIN to OFFSET_MAX that the site's place picks: the site is inside, never at the middle nor always as far
 -- from it. R: the first.
-Survey.STAGES = { 150, 60, 25 }
+Survey.STAGES = { 150, 90, 25 }
 Survey.R = Survey.STAGES[1]
 Survey.OFFSET_MIN, Survey.OFFSET_MAX = 0.2, 0.7
 -- Real seconds from a title to its line (the title is read first, as Scene.ARRIVE_SAY).
@@ -126,7 +126,9 @@ function Survey.minute(record, x, y, isNight)
     for _, tree in ipairs(data().TREES) do
         local site = surveyed(record, tree)
         local at = site and not site.taken and stageOf(record, tree, site)
-        if at and at < last then
+        -- only inside the zone the maps show: a smaller one may reach out of it, and the player has not seen that one
+        local shown = at and at < last and Survey.zone(site, at)
+        if shown and OA.Places.distance(x, y, shown.x, shown.y) <= shown.r then
             local to = at
             for stage = last - 1, at, -1 do
                 local z = Survey.zone(site, stage)

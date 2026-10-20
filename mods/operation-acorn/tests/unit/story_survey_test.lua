@@ -148,6 +148,28 @@ test("walked into, the zone narrows stage by stage: its title and line each time
     done()
 end)
 
+test("a smaller zone that reaches out of the one the maps show is not entered from outside the shown one", function()
+    local r = record(true)
+    Branches.look(r, "approved")
+    local titles, lines, done = caught()
+    play(r, "C_scout")
+    local site = Survey.siteOf("scout")
+    local wide, next = Survey.zone(site, 1), Survey.zone(site, 2)
+    -- a point of the next zone outside the wide one (the sites are placed so that one exists; else this checks nothing)
+    local px, py
+    for deg = 0, 359, 5 do
+        local a = deg * math.pi / 180
+        local x, y = math.floor(next.x + math.cos(a) * (next.r - 2)), math.floor(next.y + math.sin(a) * (next.r - 2))
+        if OA.Places.distance(x, y, wide.x, wide.y) > wide.r + 2 then px, py = x, y break end
+    end
+    if px then
+        Survey.minute(r, px, py, day)
+        eq(Survey.zones(r)[1].stage, 1, "still the wide zone")
+        eq(#titles, 0)
+    end
+    done()
+end)
+
 test("walked straight to the site: the last stage at once, its title and line alone; the site's own title kept quiet", function()
     local r = record(true)
     Branches.look(r, "approved")
