@@ -164,7 +164,7 @@ local function onNotice(playerId, detail)
         OA.Titles.notice(playerId, { key = "IGUI_OA_Title_FieldCalling", style = "notice" }, detail.key, args)
         return
     end
-    if detail.key == "IGUI_OA_Story_Notice_BranchCall" then
+    if detail.key == "IGUI_OA_Story_Notice_BranchCall" or detail.key == "IGUI_OA_Story_Notice_SiteAgain" then
         -- word on the terminal: a radio title
         OA.Titles.notice(playerId, { alone = true, style = "notice" }, detail.key, args)
     elseif TERMINAL[detail.key] then

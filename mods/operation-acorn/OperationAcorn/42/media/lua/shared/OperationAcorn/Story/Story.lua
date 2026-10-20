@@ -349,6 +349,7 @@ function Story.onSettled(record, result)
     for _, line in ipairs(result and result.lines or {}) do
         if line.marks and line.marks.fragment then
             s.fragmentSeen = true
+            if OA.Sites then OA.Sites.receive(line.fullType) end
             if OA.Upgrades and OA.Upgrades.fragmentReceived then OA.Upgrades.fragmentReceived(record, line.fullType) end
         end
     end

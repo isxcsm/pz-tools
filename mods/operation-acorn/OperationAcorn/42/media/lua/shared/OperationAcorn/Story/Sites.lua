@@ -8,6 +8,10 @@
 -- stands somewhere (after LENIENT_AFTER moves any land square of a chunk will do). A site then gets its props (scorched ground, rocks, a survey stake with
 -- its number and a date, and round them 2 or 3 things someone left) and its fragment, all through OA.Chunks. No sound
 -- is changed around a site and nothing there gives light (FEASIBILITY: visual clues only).
+-- A fragment is one of its kind in the world, and a character's capstone needs one: a kind the research team has had
+-- once (any character's delivery) is had for good (Sites.received: the next character after a death is let through),
+-- and a fragment that has left its site and reached nobody in LOST_DAYS is taken for lost (died with a character,
+-- burnt, thrown away): the team finds another fall of its kind (Sites.relay), a new site in the ring.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -39,6 +43,7 @@ Sites.DATES = 8
 Sites.NEAR_MOVES, Sites.NEAR_LO, Sites.NEAR_HI = 6, 16, 60
 Sites.LENIENT_AFTER = 12
 Sites.MOVES_AT_ONCE = 24
+Sites.LOST_DAYS = 7
 -- What someone left round a site (LORE 7, story-improvements 10), 2 or 3 of them: dark soil that looks wet, a second
 -- stake with another date, a cut length of marker tape, an empty sample bag, stones laid in a row.
 Sites.PROPS = { "soil", "stake", "tape", "bag", "stones" }
@@ -49,7 +54,8 @@ local function section()
     return OA.Store.world("sites")
 end
 
--- The sites, in number order: { { n =, x =, y =, kind =, stake =, date =, state = "pending" | "placed", tries = moves } }.
+-- The sites, in number order: { { n =, x =, y =, kind =, stake =, date =, state = "pending" | "placed", tries = moves,
+-- left = world hour its fragment was found gone from it, relaid = true once another site of its kind was laid } }.
 function Sites.list()
     return section().list or {}
 end
@@ -352,11 +358,81 @@ function Sites.onChunk(entry, chunk)
     return true
 end
 
+-- The kind of a fragment's full type, or nil.
+function Sites.kindOf(fullType)
+    for kind, item in pairs(Sites.FRAGMENT) do
+        if fullType == OA.StoryData.fullType(item) then return kind end
+    end
+    return nil
+end
+
+-- A fragment of a kind reached the research team (anyone's delivery): had for good.
+function Sites.receive(fullType)
+    local kind = Sites.kindOf(fullType)
+    if not kind then return false end
+    local sec = section()
+    sec.received = sec.received or {}
+    sec.received[kind] = true
+    return true
+end
+
+function Sites.received(fullType)
+    local kind = Sites.kindOf(fullType)
+    local got = section().received
+    return kind ~= nil and got ~= nil and got[kind] == true
+end
+
+-- Whether a placed site's fragment still lies on its square (loaded).
+local function fragmentThere(site)
+    local sq = getCell():getGridSquare(site.x, site.y, 0)
+    local objects = sq and sq:getWorldObjects()
+    if not objects then return true end
+    local fullType = OA.StoryData.fullType(Sites.FRAGMENT[site.kind])
+    for i = 0, objects:size() - 1 do
+        local item = objects:get(i):getItem()
+        if item and item:getFullType() == fullType then return true end
+    end
+    return false
+end
+
+-- Another fall of a lost fragment's kind: a new site in the ring, the old one's left as it stands. Returns it.
+function Sites.relay(site, accept, int)
+    local sec = section()
+    int = int or OA.random
+    local others = {}
+    for _, s in ipairs(sec.list) do others[#others + 1] = { x = s.x, y = s.y } end
+    local draw
+    if not accept then accept, draw = acceptPoint, drawPoint end
+    local points = OA.Places.ringSites(sec.origin, #others + 1, Sites.RING_LO, Sites.RING_HI, Sites.SPACING, accept,
+        others, int, draw)
+    if #points <= #others then
+        points = OA.Places.ringSites(sec.origin, #others + 1, Sites.RING_LO, Sites.RING_HI, Sites.SPACING, nil, others, int)
+    end
+    local p = points[#points]
+    local new = { n = #sec.list + 1, x = p.x, y = p.y, kind = site.kind, stake = newStake(sec.list, int),
+        date = Sites.otherDate(site.date, int), state = "pending", tries = 0 }
+    sec.list[#sec.list + 1] = new
+    site.relaid = true
+    OA.log("meteor site", site.n, "lost its fragment: site", new.n, "laid at", new.x, new.y)
+    settle(new)
+    OA.Sync.changed("sites", nil)
+    if Sites.onRelaid then Sites.onRelaid(new) end
+    return new
+end
+
 -- Every ten minutes: a pending site whose place is loaded and was left waiting (moves at once ran out, or its work
--- failed) is settled again.
-function Sites.kick()
+-- failed) is settled again; a placed one whose fragment has gone from its square is marked, and once it has reached
+-- nobody in LOST_DAYS, its kind falls again (Sites.relay).
+function Sites.kick(now)
+    now = now or OA.hours()
+    local got = section().received or {}
     for _, site in ipairs(Sites.list()) do
-        if site.state == "pending" and loaded(site.x, site.y) then settle(site) end
+        if site.state == "pending" and loaded(site.x, site.y) then
+            settle(site)
+        elseif site.state == "placed" and not site.relaid and not got[site.kind] then
+            if not site.left and loaded(site.x, site.y) and not fragmentThere(site) then site.left = now end
+            if site.left and now - site.left >= Sites.LOST_DAYS * 24 then Sites.relay(site) end
+        end
     end
 end
 

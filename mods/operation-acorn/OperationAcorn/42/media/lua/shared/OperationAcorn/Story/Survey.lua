@@ -27,16 +27,16 @@ function Survey.callOf(tree, admin)
     return "C_" .. tree .. (admin and "_k" or "")
 end
 
--- The drop site of a tree's fragment kind, or nil (none decided, or it failed).
+-- The drop site of a tree's fragment kind (the latest fall: one whose fragment was lost has another), or nil (none
+-- decided yet).
 function Survey.siteOf(tree)
     local fullType = data().FRAGMENTS[tree]
+    local found
     for _, site in ipairs(OA.Sites.list()) do
         local item = OA.Sites.FRAGMENT[site.kind]
-        if item and fullType == "OperationAcorn." .. item then
-            return site
-        end
+        if item and fullType == "OperationAcorn." .. item and not site.relaid then found = site end
     end
-    return nil
+    return found
 end
 
 -- The zone of a site: { x, y, r }, its middle OFFSET * R from the site in a direction the site's place picks (the same
@@ -61,13 +61,12 @@ local function marked(record)
 end
 
 -- The zones the maps show: { { x, y, r, tree }, ... } for each tree whose call was played and whose fragment has not
--- reached the team.
+-- reached the team (round its latest fall: a lost fragment's kind fell again).
 function Survey.zones(record)
     local list = {}
     local u = rules().section(record)
     for _, tree in ipairs(data().TREES) do
-        local n = marked(record)[tree]
-        local site = n and OA.Sites.byNumber(n)
+        local site = marked(record)[tree] and Survey.siteOf(tree)
         if site and not rules().unsealed(u, tree) then
             local z = Survey.zone(site)
             z.tree = tree
@@ -77,9 +76,37 @@ function Survey.zones(record)
     return list
 end
 
+-- A capstone waiting for a fragment the research team has had already (a character before this one delivered it): the
+-- team has it, the capstone opens (Upgrades.fragmentReceived: its memo and word of it), and no call is made.
+local function hadAlready(record)
+    for _, tree in ipairs(data().TREES) do
+        local fullType = data().FRAGMENTS[tree]
+        if Survey.waiting(record, tree) and OA.Sites.received(fullType) and OA.Upgrades.fragmentReceived then
+            OA.Upgrades.fragmentReceived(record, fullType)
+        end
+    end
+end
+
+-- Another fall of a lost fragment's kind (Sites.relay): every character still waiting for that kind, whose call was
+-- played, is told the maps show the new place.
+function OA.Sites.onRelaid(site)
+    for _, record in pairs(OA.Store.players()) do
+        if OA.Store.alive(record) then
+            for _, tree in ipairs(data().TREES) do
+                local waits = not rules().unsealed(rules().section(record), tree)
+                if waits and marked(record)[tree] and Survey.siteOf(tree) == site then
+                    OA.Sync.notice(record.id, "IGUI_OA_Story_Notice_SiteAgain", {})
+                    OA.Sync.changed("story", record.id)
+                end
+            end
+        end
+    end
+end
+
 OA.StoryBranches.define("survey", {
     at = { "approved", "settled" },
     fires = function(record)
+        hadAlready(record)
         local admin = OA.Story.handedOver(record)
         local triggers = {}
         for _, tree in ipairs(data().TREES) do

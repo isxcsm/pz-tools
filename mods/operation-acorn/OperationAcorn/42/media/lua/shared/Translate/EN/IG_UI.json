@@ -1881,6 +1881,7 @@
     "IGUI_OA_Title_FieldCalling": "Helicopter inbound",
     "IGUI_OA_Tree_GuideSent": "A notice in the terminal's inbox",
     "IGUI_OA_Story_Notice_BranchCall": "A call on the terminal",
+    "IGUI_OA_Story_Notice_SiteAgain": "Another fall site found · maps updated",
     "IGUI_OA_Story_DocTitle_infection_guide": "Infected person handling notice",
     "IGUI_OA_Story_DocTitle_cure_cert_short": "Cure certificate",
     "IGUI_OA_Story_DocTitle_cure_cert_normal": "Cure certificate",

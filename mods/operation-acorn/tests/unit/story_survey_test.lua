@@ -5,6 +5,7 @@ require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Story/Survey"
 require "OperationAcorn/Story/View"
+require "OperationAcorn/Upgrades/Api"
 local OA = OperationAcorn
 local Survey, Branches, Comms, Sites = OA.StorySurvey, OA.StoryBranches, OA.Comms, OA.Sites
 local Rules = OA.Upgrades.Rules
@@ -117,4 +118,41 @@ test("after the handover 관리 7 calls; a team call not played by then gives wa
     play(s, "C_scout")
     OA.Story.section(s).handover = true
     eq(#Branches.look(s, "approved"), 0)
+end)
+
+test("a fragment the team had from a character before lets the next one's capstone through, with no call", function()
+    local r = record(true)
+    local sec = OA.Store.world("sites")
+    Sites.receive(OA.Upgrades.Data.FRAGMENTS.scout)
+    eq(#Branches.look(r, "approved"), 0, "no call")
+    eq(Rules.unsealed(Rules.section(r), "scout"), true, "the capstone opens")
+    eq(Rules.blocked(Rules.section(r), "nightEye"), nil)
+    sec.received = nil
+end)
+
+test("a fragment gone from its site that reaches nobody in LOST_DAYS: its kind falls again, the zone follows", function()
+    local r = record(true)
+    Branches.look(r, "approved")
+    play(r, "C_scout")
+    local site = Survey.siteOf("scout")
+    site.state, site.left = "placed", 100
+    local n = #Sites.list()
+    -- (the ring's places as the game's: any map cell, a point from the API)
+    PZExtAPI = { version = OA.API_VERSION, client = function() return {} end,
+        zones = { points = function(x, y, lo, hi) return { { x = x + hi, y = y, zones = {} } } end } }
+    getWorld = function() return { getMetaGrid = function() return { getCellData = function() return {} end } end } end
+    Sites.kick(100 + Sites.LOST_DAYS * 24 - 1)
+    eq(#Sites.list(), n, "not lost yet")
+    Sites.kick(100 + Sites.LOST_DAYS * 24)
+    eq(#Sites.list(), n + 1, "another fall")
+    local new = Survey.siteOf("scout")
+    truthy(new ~= site and new.kind == site.kind and new.state == "pending", "of its kind, waiting for its chunk")
+    eq(site.relaid, true)
+    local z = Survey.zones(r)[1]
+    truthy(OA.Places.distance(new.x, new.y, z.x, z.y) < z.r, "the zone round the new site")
+    eq(notices[#notices], "IGUI_OA_Story_Notice_SiteAgain", "the waiting character is told")
+    Sites.kick(100 + Sites.LOST_DAYS * 48)
+    eq(#Sites.list(), n + 1, "once")
+    getWorld, PZExtAPI = nil, nil
+    table.remove(Sites.list())
 end)
