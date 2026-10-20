@@ -98,3 +98,56 @@ test("the tooltip lines kept are those of the last half second: the items hovere
     eq(Appraisal.cache.n, 1, "the expired entries went")
     eq(Appraisal.cache.t[items[1]], nil)
 end)
+
+test("the estimate panel puts a long note under the item's name, the row taller by its lines; a short one beside", function()
+    load(nil, 30000)
+    local Trade = OA.Trade
+    local notes = { ["OperationAcorn.Long"] = string.rep("word ", 30), ["OperationAcorn.Short"] = "new" }
+    Trade.Text.markText = function(marks) return marks.note end
+    Trade.Text.itemName = function(fullType) return fullType end
+    Trade.Boxes = { group = function(infos) return infos end }
+    Trade.Things.sealable = function() return { infos = {}, taken = {}, refused = {}, weight = 0 } end
+    Trade.Estimate.entries = function(_, entries)
+        local lines = {}
+        for i, e in ipairs(entries) do lines[i] = { credits = 30000, marks = { note = notes[e.info.fullType] } } end
+        return { lines = lines, credits = 30000, trust = 200 }
+    end
+    Trade.Things.sealable = function()
+        return { infos = { { info = { fullType = "OperationAcorn.Long" }, count = 1 },
+            { info = { fullType = "OperationAcorn.Short" }, count = 1 } }, taken = {}, refused = {}, weight = 0 }
+    end
+    local realRecord, realText = OA.Client, getText
+    OA.Client = { record = function() return nil end }
+    getText = function(key, a) return a or key end
+    OA.round = OA.round or function(n) return n end
+    local list = { width = 320, fontHgt = 12, itemheight = 20, itemPadY = 3, items = {}, scroll = 0, font = "Small" }
+    function list:clear() self.items, self.scroll = {}, 0 end
+    function list:addItem(name, item)
+        local i = { text = name, item = item, height = self.itemheight }
+        self.items[#self.items + 1] = i
+        self.scroll = self.scroll + i.height
+        return i
+    end
+    function list:getScrollHeight() return self.scroll end
+    function list:setScrollHeight(h) self.scroll = h end
+    Trade.UI.fitPx = function(text) return text end
+    local panel = setmetatable({ list = list }, { __index = OAEstimatePanel })
+    OAEstimatePanel.fill(panel, {})
+    local long, short = list.items[1], list.items[2]
+    truthy(long.item.below and #long.item.below >= 2, "the long note in lines under the name")
+    eq(long.height, 20 + #long.item.below * 12)
+    eq(short.item.below, nil, "the short note beside the value")
+    eq(short.height, 20)
+    eq(list.scroll, long.height + short.height)
+    -- drawn: the name whole, the note's lines from the name's left edge, none over the value
+    local drawn = {}
+    function list:drawText(text, x, y) drawn[#drawn + 1] = { text = text, x = x, y = y } end
+    OAEstimatePanel.drawRow(list, 0, long)
+    eq(drawn[1].text, "OperationAcorn.Long x1", "the name not cut")
+    for i = 3, #drawn do
+        eq(drawn[i].x, 8)
+        eq(drawn[i].y, 3 + (i - 2) * 12)
+        truthy(8 + #drawn[i].text * 6 <= 320 - 16, "a note line within the width")
+    end
+    OA.Client, getText = realRecord, realText
+end)

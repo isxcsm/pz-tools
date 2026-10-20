@@ -106,30 +106,43 @@ end
 
 local REFUSED_COLOR, TAKEN_COLOR, NOTE_COLOR = { 0.9, 0.55, 0.5 }, { 0.9, 0.9, 0.9 }, { 0.6, 0.6, 0.6 }
 
--- A row is { name, value (on the right), note (what marks the value, dim, left of it), refused, valueW and noteW (their
--- widths in pixels, measured when the row is made), cut (the name cut to what is left of the width, made at the
--- width cutFor) }: a frame measures nothing.
+-- A row is { name, value (on the right), note (what marks the value, dim, left of it, or under the name in `below`'s
+-- lines when name, note and value do not fit on one line), refused, valueW and noteW (their widths in pixels, measured
+-- when the row is made), cut (the name cut to what is left of the width, made at the width cutFor) }: a frame measures
+-- nothing.
 function OAEstimatePanel.drawRow(list, y, item)
     local row = item.item
     local pad = list.itemPadY
     local c = row.refused and REFUSED_COLOR or TAKEN_COLOR
     local width = list.width
     local textX = width - 16 - row.valueW
-    local noteX = row.note and textX - 10 - row.noteW or textX
+    local beside = row.note and not row.below
+    local noteX = beside and textX - 10 - row.noteW or textX
     if row.cutFor ~= width then
         row.cut, row.cutFor = UI.fitPx(row.name, noteX - 16, list.font), width
     end
     list:drawText(row.cut, 8, y + pad, c[1], c[2], c[3], 1, list.font)
-    if row.note then
+    if beside then
         list:drawText(row.note, noteX, y + pad, NOTE_COLOR[1], NOTE_COLOR[2], NOTE_COLOR[3], 1, list.font)
     end
     list:drawText(row.value, textX, y + pad, c[1], c[2], c[3], 1, list.font)
+    if row.below then
+        for i, line in ipairs(row.below) do
+            list:drawText(line, 8, y + pad + i * list.fontHgt, NOTE_COLOR[1], NOTE_COLOR[2], NOTE_COLOR[3], 1, list.font)
+        end
+    end
 end
 
--- The row of a name and a value, with the value's note when it has one.
-local function makeRow(name, value, refused, note)
-    return { name = name, value = value, refused = refused, valueW = UI.textWidthPx(value), note = note,
+-- The row of a name and a value, with the value's note when it has one: beside the value when the three fit on a
+-- line `width` wide, else under the name, in as many lines as it takes.
+local WRAP = { eps = 0.001 }
+local function makeRow(name, value, refused, note, width)
+    local row = { name = name, value = value, refused = refused, valueW = UI.textWidthPx(value), note = note,
         noteW = note and UI.textWidthPx(note) or 0 }
+    if note and width and 8 + UI.textWidthPx(name) + 16 + row.noteW + 10 + row.valueW + 16 > width then
+        row.below = OA.wrap(note, width - 8 - 16, UI.textWidthPx, WRAP)
+    end
+    return row
 end
 
 -- The container of the page's pane, when it is an open delivery box: the object, or nil.
@@ -180,8 +193,15 @@ function OAEstimatePanel:fill(container)
                 value = getText("IGUI_OA_Trade_Estimate_Credits", Text.credits(OA.round(line.credits)))
                 note = Text.markText(line.marks)
             end
-            self.list:addItem(entry.info.fullType,
-                makeRow(Text.itemName(entry.info.fullType) .. " x" .. entry.count, value, false, note))
+            local row = makeRow(Text.itemName(entry.info.fullType) .. " x" .. entry.count, value, false, note,
+                self.list.width)
+            local added = self.list:addItem(entry.info.fullType, row)
+            -- a note under the name: the row takes its lines too
+            if row.below then
+                local more = #row.below * self.list.fontHgt
+                added.height = added.height + more
+                self.list:setScrollHeight(self.list:getScrollHeight() + more)
+            end
         end
     end
     for i, item in ipairs(plan.refused) do
@@ -231,8 +251,10 @@ end
 -- The panel's height for its rows: what they take, at least MIN_ROWS of them and MIN_H, at most the box's window's.
 function OAEstimatePanel:fitHeight(page)
     local list = self.list
-    local rows = math.max(#list.items, OAEstimatePanel.MIN_ROWS)
-    local h = UI.fontHeightPx() * 2 + UI.PAD + rows * list.itemheight + 4
+    local rowsH = 0
+    for _, item in ipairs(list.items) do rowsH = rowsH + item.height end
+    rowsH = rowsH + math.max(0, OAEstimatePanel.MIN_ROWS - #list.items) * list.itemheight
+    local h = UI.fontHeightPx() * 2 + UI.PAD + rowsH + 4
     return math.min(math.max(h, OAEstimatePanel.MIN_H), math.max(page:getHeight(), OAEstimatePanel.MIN_H))
 end
 
