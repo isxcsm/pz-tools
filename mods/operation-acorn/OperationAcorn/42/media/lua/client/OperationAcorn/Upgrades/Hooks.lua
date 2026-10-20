@@ -154,7 +154,12 @@ function Hooks.treeOpened(playerId, tree, guide, points, shared)
         key = "IGUI_OA_Title_TreesOpened"
         args, title = {}, getText(key)
     end
-    local line = (shared and "IGUI_OA_Title_OpenedSubShared" or "IGUI_OA_Title_OpenedSub") .. (guide and "Guide" or "")
+    local line
+    if shared then
+        line = guide and "IGUI_OA_Title_OpenedSubSharedGuide" or "IGUI_OA_Title_OpenedSubShared"
+    else
+        line = guide and "IGUI_OA_Title_OpenedSubGuide" or "IGUI_OA_Title_OpenedSub"
+    end
     local detail = { key = key, args = args, sub = line, subArgs = { points or 1 }, style = "dust" }
     if OA.Titles.show(playerId, detail, true) == "title" then return end
     Hooks.banner(title .. "<LINE>" .. getText(line, points or 1))
