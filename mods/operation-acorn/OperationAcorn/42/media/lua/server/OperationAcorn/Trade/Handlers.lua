@@ -200,9 +200,9 @@ Chunks.handle("trade.removeBox", function(entry)
         Objects.remove(object)
         return true
     end
-    -- The chunk may not be whole yet: look a few more times, then let it go.
-    entry.tries = (entry.tries or 0) + 1
-    return entry.tries >= 3
+    -- The chunk may not be whole yet: looked for again as it loads next (a box let go here stayed in the world, sealed,
+    -- after the helicopter had taken it). Nothing else waits on this: a box gone some other way costs a look a load.
+    return false
 end)
 
 -- A drop that waited for its place: the box and the crate are set down.
