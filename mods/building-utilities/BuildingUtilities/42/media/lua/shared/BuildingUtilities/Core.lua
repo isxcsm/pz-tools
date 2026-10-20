@@ -454,7 +454,7 @@ function BU.partKeys(object)
     return keys
 end
 
--- What players call an object: its moveable name, or its sprite name when the square is not loaded. A moveable
+-- What players call an object: its moveable name (its sprite's when the square is not loaded). A moveable
 -- name the game has no translation for ("Light Switch") may have one here.
 local function translated(name)
     return getTextOrNull("IGUI_BU_Name_" .. name:gsub("%W", "")) or name
@@ -472,6 +472,16 @@ function BU.displayName(x, y, z, sprite)
     if object then
         local name = Translator.getMoveableDisplayName(object)
         if name and name ~= "" then return translated(name) end
+    end
+    -- None found under that look (its square not loaded, the thing turned since): the moveable name its sprite gives,
+    -- as the game's menus make it (GroupName and CustomName).
+    local look = not object and sprite and getSprite(sprite)
+    local props = look and look.getProperties and look:getProperties()
+    if props and props:has("CustomName") then
+        local name = props:get("CustomName")
+        if props:has("GroupName") then name = props:get("GroupName") .. " " .. name end
+        local shown = Translator.getMoveableDisplayName(name)
+        if shown and shown ~= "" then return translated(shown) end
     end
     local tileset = sprite and sprite:match("^(.+)_%d+$")
     local named = tileset and getTextOrNull("IGUI_BU_Name_" .. tileset:gsub("%W", ""))
