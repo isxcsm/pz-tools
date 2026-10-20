@@ -225,18 +225,20 @@ function Sites.replace(site, accept, int)
 end
 
 -- Has the player been near a site (within `range`): the soil sample mission may then use it. A site seen for the first
--- time has a title (one, however many came into range at once).
+-- time has a title (one, however many came into range at once), but one Sites.quiet(record, site) keeps quiet (a site
+-- searched by its survey zone: Story/Survey).
 function Sites.visit(record, x, y, range)
     local seen = Sites.seenOf(record)
-    local changed = false
+    local changed, titled = false, false
     for _, site in ipairs(Sites.list()) do
         if site.state == "placed" and not seen[site.n]
             and OA.Places.distance(x, y, site.x, site.y) <= (range or 80) then
             seen[site.n] = true
             changed = true
+            titled = titled or not (Sites.quiet and Sites.quiet(record, site))
         end
     end
-    if changed then
+    if titled then
         OA.Sync.title(record.id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SiteSub", style = "discovery" })
     end
     return changed

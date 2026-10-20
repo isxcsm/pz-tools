@@ -95,8 +95,7 @@ function Dev.resetSurvey(record)
     end
     forgetCalls(record, ids)
     OA.Story.section(record).surveys = nil
-    OA.Story.section(record).surveysNear = nil
-    OA.Story.section(record).surveysIn = nil
+    OA.Story.section(record).surveysStage = nil
     local u = OA.Upgrades.Rules.section(record)
     for _, tree in ipairs(OA.Upgrades.Data.TREES) do
         local cap = OA.Upgrades.Data.capstone(tree)

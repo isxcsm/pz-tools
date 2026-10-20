@@ -93,113 +93,106 @@ test("the call played marks the site's zone: the site inside, away from the midd
     eq(#Branches.look(r, "approved"), 0, "played once, never again")
 end)
 
-test("walked into: a line once; near the site the zone narrows round it, a title and a line, once; the site seen", function()
-    local r = record(true)
-    Branches.look(r, "approved")
-    local site = Survey.siteOf("scout")
+local function caught()
     local titles, lines = {}, {}
     local title, tell = OA.Sync.title, OA.Say.tell
     OA.Sync.title = function(_, detail) titles[#titles + 1] = detail end
     OA.Say.tell = function(_, id, ctx, delay) lines[#lines + 1] = { id = id, ctx = ctx, delay = delay } end
-    local function day() return false end
+    return titles, lines, function() OA.Sync.title, OA.Say.tell = title, tell end
+end
+
+-- A point in a zone near its rim, on the side away from the site (in no deeper stage's zone).
+local function rimOf(z, site)
+    local dx, dy = z.x - site.x, z.y - site.y
+    local d = math.max(1, math.sqrt(dx * dx + dy * dy))
+    return math.floor(z.x + dx / d * (z.r - 3)), math.floor(z.y + dy / d * (z.r - 3))
+end
+
+local function day() return false end
+
+test("walked into, the zone narrows stage by stage: its title and line each time, once; the last stays", function()
+    local r = record(true)
+    Branches.look(r, "approved")
+    local site = Survey.siteOf("scout")
+    local titles, lines, done = caught()
     Survey.minute(r, site.x, site.y, day)
     eq(#titles + #lines, 0, "nothing before the call is heard")
     play(r, "C_scout")
     local wide = Survey.zones(r)[1]
+    eq(wide.stage, 1); eq(wide.r, Survey.STAGES[1])
     Survey.minute(r, wide.x + wide.r + 5, wide.y, day)
-    eq(#lines, 0, "outside")
-    -- in the zone, on its far side from the site (more than NEAR off it)
-    local dx, dy = wide.x - site.x, wide.y - site.y
-    local d = math.sqrt(dx * dx + dy * dy)
-    local ix, iy = math.floor(wide.x + dx / d * (wide.r - 5)), math.floor(wide.y + dy / d * (wide.r - 5))
-    truthy(OA.Places.distance(ix, iy, site.x, site.y) > Survey.NEAR)
-    Survey.minute(r, ix, iy, function() return true end)
-    eq(#lines, 1)
-    eq(lines[1].id, "SurveyIn")
-    eq(lines[1].delay, Survey.SAY)
+    eq(#titles, 0, "outside")
+    local x, y = rimOf(wide, site)
+    local next = Survey.zone(site, 2)
+    truthy(OA.Places.distance(x, y, next.x, next.y) > next.r, "the rim is outside the next zone")
+    Survey.minute(r, x, y, function() return true end)
+    local z = Survey.zones(r)[1]
+    eq(z.stage, 2); eq(z.r, Survey.STAGES[2])
+    local d = OA.Places.distance(site.x, site.y, z.x, z.y)
+    truthy(d >= z.r * Survey.OFFSET_MIN - 1 and d <= z.r * Survey.OFFSET_MAX + 1, d)
     eq(#titles, 1)
-    eq(titles[1].key, "IGUI_OA_Title_SurveyIn")
-    eq(titles[1].style, "unveil")
-    eq(lines[1].ctx.night, true)
-    eq(lines[1].ctx.seen, false)
-    Survey.minute(r, ix, iy, day)
-    eq(#lines, 1, "once")
-    eq(Survey.zones(r)[1].r, Survey.R, "wide while far")
-    Survey.minute(r, site.x + Survey.NEAR - 5, site.y, day)
-    local z = Survey.zones(r)[1]
-    eq(z.r, Survey.NEAR_R)
-    local dn = OA.Places.distance(site.x, site.y, z.x, z.y)
-    truthy(dn >= Survey.NEAR_R * Survey.OFFSET_MIN - 1 and dn <= Survey.NEAR_R * Survey.OFFSET_MAX + 1, dn)
-    eq(#titles, 2)
-    eq(titles[2].sub, "IGUI_OA_Title_SurveyNear")
-    eq(lines[2].id, "SurveyNear")
-    eq(lines[2].ctx.night, false)
-    eq(lines[2].delay, Survey.SAY)
+    eq(titles[1].key, "IGUI_OA_Title_SurveyIn"); eq(titles[1].style, "unveil")
+    eq(lines[1].id, "SurveyIn"); eq(lines[1].delay, Survey.SAY)
+    eq(lines[1].ctx.night, true); eq(lines[1].ctx.seen, false)
+    Survey.minute(r, x, y, day)
+    eq(#titles, 1, "once")
+    x, y = rimOf(z, site)
+    Survey.minute(r, x, y, day)
+    z = Survey.zones(r)[1]
+    eq(z.stage, 3); eq(z.r, Survey.STAGES[3])
+    eq(titles[2].key, "IGUI_OA_Title_SurveyClose")
+    eq(lines[2].id, "SurveyNear"); eq(lines[2].ctx.night, false)
     Survey.minute(r, site.x, site.y, day)
-    eq(#titles, 2, "once")
-    eq(#lines, 2)
-    eq(Sites.visit(r, site.x, site.y), false, "seen: no second title")
-    OA.Sync.title, OA.Say.tell = title, tell
+    eq(#titles, 2, "the last stage stays")
+    eq(Survey.zones(r)[1].stage, 3)
+    done()
 end)
 
-test("the inner part of the zone narrows it too, on the side away from the site", function()
+test("walked straight to the site: the last stage at once, its title and line alone; the site's own title kept quiet", function()
     local r = record(true)
     Branches.look(r, "approved")
     local site = Survey.siteOf("scout")
-    local title, tell = OA.Sync.title, OA.Say.tell
-    OA.Sync.title, OA.Say.tell = function() end, function() end
+    local titles, lines, done = caught()
     play(r, "C_scout")
-    local z = Survey.zones(r)[1]
-    local dx, dy = z.x - site.x, z.y - site.y
-    local d = math.sqrt(dx * dx + dy * dy)
-    local share = z.r * Survey.INNER - 3
-    local x, y = math.floor(z.x + dx / d * share), math.floor(z.y + dy / d * share)
-    truthy(OA.Places.distance(x, y, site.x, site.y) > Survey.NEAR)
-    Survey.minute(r, x, y, function() return false end)
-    eq(Survey.zones(r)[1].r, Survey.NEAR_R)
-    OA.Sync.title, OA.Say.tell = title, tell
+    Survey.minute(r, site.x, site.y, day)
+    eq(Survey.zones(r)[1].stage, #Survey.STAGES)
+    eq(#titles, 1); eq(titles[1].key, "IGUI_OA_Title_SurveyClose")
+    eq(#lines, 1); eq(lines[1].id, "SurveyNear")
+    site.state = "placed"
+    eq(Sites.visit(r, site.x, site.y), true, "seen")
+    eq(#titles, 1, "no title of the site's own")
+    truthy(Sites.seenOf(r)[site.n])
+    done()
 end)
 
-test("walked straight near the site: only the narrowing's line; a site stood near before tells so on entering", function()
+test("a site stood near before tells so on walking into its zone", function()
     local r = record(true)
     Branches.look(r, "approved")
     local site = Survey.siteOf("scout")
-    local lines = {}
-    local title, tell = OA.Sync.title, OA.Say.tell
-    OA.Sync.title = function() end
-    OA.Say.tell = function(_, id, ctx) lines[#lines + 1] = { id = id, ctx = ctx } end
+    local _, lines, done = caught()
     play(r, "C_scout")
-    Survey.minute(r, site.x, site.y, function() return false end)
-    eq(#lines, 1)
-    eq(lines[1].id, "SurveyNear")
-    local s = record(true)
-    Branches.look(s, "approved")
-    play(s, "C_scout")
-    Sites.seenOf(s)[site.n] = true
-    local z = Survey.zones(s)[1]
-    local dx, dy = z.x - site.x, z.y - site.y
-    local d = math.sqrt(dx * dx + dy * dy)
-    Survey.minute(s, math.floor(z.x + dx / d * (z.r - 5)), math.floor(z.y + dy / d * (z.r - 5)), function() return false end)
-    eq(lines[2].id, "SurveyIn")
-    eq(lines[2].ctx.seen, true)
-    OA.Sync.title, OA.Say.tell = title, tell
+    Sites.seenOf(r)[site.n] = true
+    local x, y = rimOf(Survey.zones(r)[1], site)
+    Survey.minute(r, x, y, day)
+    eq(lines[1].id, "SurveyIn"); eq(lines[1].ctx.seen, true)
+    done()
 end)
 
-test("the site lies at different shares of the radius and ways from the middle, the small zone's its own", function()
+test("the site lies at different shares of the radius and ways from the middle, the next stage's its own", function()
     local shares, same = {}, 0
     for i = 0, 199 do
         local site = { x = 9000 + i * 37, y = 6000 + i * 53 }
-        local z, n = Survey.zone(site), Survey.zone(site, true)
+        local z, n = Survey.zone(site), Survey.zone(site, 2)
         local share = OA.Places.distance(site.x, site.y, z.x, z.y) / z.r
         truthy(share >= Survey.OFFSET_MIN - 0.01 and share <= Survey.OFFSET_MAX + 0.01, share)
         shares[math.floor(share * 10)] = true
-        -- the small zone's middle on the same side of the site as the wide one's
+        -- the next stage's middle on the same side of the site as the first one's
         local a = math.atan2(z.y - site.y, z.x - site.x)
         local b = math.atan2(n.y - site.y, n.x - site.x)
         if math.abs(math.cos(a - b) - 1) < 0.05 then same = same + 1 end
     end
     for tenth = 2, 6 do truthy(shares[tenth], "a share near " .. tenth / 10) end
-    truthy(same < 40, "the small zone's way is its own: " .. same)
+    truthy(same < 40, "the next stage's way is its own: " .. same)
 end)
 
 test("a fragment that arrives first drops the call not yet played", function()
