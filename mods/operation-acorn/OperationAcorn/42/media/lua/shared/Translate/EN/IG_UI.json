@@ -464,6 +464,7 @@
     "IGUI_OA_Tree_NoRecord": "No enhancement record yet.",
     "IGUI_OA_Tree_WhereHint": "Choose where to spend enhancement points from the heart icon on the left",
     "IGUI_OA_Tree_HeartTip": "New enhancement points have come",
+    "IGUI_OA_Tree_HeartTipOpen": "A trait can be fixed now",
     "IGUI_OA_Tree_Approve": "Apply enhancements",
     "IGUI_OA_Tree_ClearPlan": "Clear selection",
     "IGUI_OA_Tree_Reset": "Reset",

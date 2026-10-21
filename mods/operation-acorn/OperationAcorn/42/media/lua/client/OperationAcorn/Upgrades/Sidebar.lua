@@ -2,8 +2,9 @@
 -- research points have come that the tab has not been seen with, the heart beats: the game's own lit heart (the one
 -- it shows while the window is open) comes over it in a double beat and goes, then rests (not the game's shake, which
 -- says the character was hurt); its tooltip says so, and a click on it opens the window on the adaptation tab instead
--- of the health one. Seeing the tab (Sidebar.seen) stops it. What was seen is the
--- count of points that came (the trees' doses adapted and the shared ones), kept in the character's modData.
+-- of the health one. It beats too once a capstone was unsealed (its fragment reached the team: the trait may be fixed
+-- now). Seeing the tab (Sidebar.seen) stops it. What was seen is the count of points that came (the trees' doses
+-- adapted and the shared ones) and of the capstones unsealed, kept in the character's modData.
 require "ISUI/ISEquippedItem"
 require "OperationAcorn/Client"
 require "OperationAcorn/Trade/UI"
@@ -22,12 +23,21 @@ Sidebar.BEATS = { 0, 260 }
 Sidebar.RISE_MS, Sidebar.FALL_MS = 70, 300
 Sidebar.PEAK, Sidebar.SECOND = 0.95, 0.7
 Sidebar.LEVELS = 32
-Sidebar.SEEN = "OA_AdaptSeen"
+Sidebar.SEEN, Sidebar.SEEN_OPEN = "OA_AdaptSeen", "OA_AdaptSeenOpen"
 
 -- Every point that came to u: the trees' doses adapted and the shared ones.
 function Sidebar.gained(u)
     local n = (u.sharedInjected or 0) + (u.sharedBonus or 0)
     for _, count in pairs(u.injected or {}) do n = n + count end
+    return n
+end
+
+-- How many trees' capstones were unsealed.
+function Sidebar.unsealed(u)
+    local n = 0
+    for _, open in pairs(u.unsealed or {}) do
+        if open then n = n + 1 end
+    end
     return n
 end
 
@@ -38,11 +48,18 @@ local function stateOf(playerNum)
     return player, Rules.section(record)
 end
 
--- Whether points came that the tab has not been seen with.
-function Sidebar.fresh(playerNum)
+-- What came that the tab has not been seen with: points, a capstone unsealed (each true or false).
+function Sidebar.news(playerNum)
     local player, u = stateOf(playerNum)
-    if not player then return false end
-    return Sidebar.gained(u) > (player:getModData()[Sidebar.SEEN] or 0)
+    if not player then return false, false end
+    local md = player:getModData()
+    return Sidebar.gained(u) > (md[Sidebar.SEEN] or 0), Sidebar.unsealed(u) > (md[Sidebar.SEEN_OPEN] or 0)
+end
+
+-- Whether anything came that the tab has not been seen with.
+function Sidebar.fresh(playerNum)
+    local points, opened = Sidebar.news(playerNum)
+    return points or opened
 end
 
 -- The lit heart's alpha at `now` (ms): the stronger of the two beats, each eased up and down.
@@ -86,13 +103,15 @@ local function tick(el, now)
     return Sidebar.step(now)
 end
 
--- The heart's tooltip: the game's, and a line while points wait.
-local function tooltip(el, fresh)
+-- The heart's tooltip: the game's, and a line for each news that waits (points, a capstone unsealed).
+local function tooltip(el, points, opened)
     for _, entry in ipairs(el.mouseOverList or {}) do
         if entry.object == el.healthBtn then
             entry.oaBase = entry.oaBase or entry.displayString
-            entry.displayString = fresh and (entry.oaBase .. " <LINE> " .. getText("IGUI_OA_Tree_HeartTip"))
-                or entry.oaBase
+            local text = entry.oaBase
+            if points then text = text .. " <LINE> " .. getText("IGUI_OA_Tree_HeartTip") end
+            if opened then text = text .. " <LINE> " .. getText("IGUI_OA_Tree_HeartTipOpen") end
+            entry.displayString = text
         end
     end
 end
@@ -103,15 +122,22 @@ function Sidebar.update(playerNum)
     local Window = OA.Upgrades.Window
     if Window and Window.onScreen(playerNum) then
         local player, u = stateOf(playerNum)
-        if player then player:getModData()[Sidebar.SEEN] = Sidebar.gained(u) end
+        if player then
+            player:getModData()[Sidebar.SEEN] = Sidebar.gained(u)
+            player:getModData()[Sidebar.SEEN_OPEN] = Sidebar.unsealed(u)
+        end
     end
     local el = sidebarOf(playerNum)
     if not (el and el.healthBtn) then return end
-    local fresh = Sidebar.fresh(playerNum)
-    if el.oaFresh == fresh then return end
+    local points, opened = Sidebar.news(playerNum)
+    local fresh = points or opened
+    local key = tostring(points) .. tostring(opened)
+    if el.oaNews == key then return end
+    el.oaNews = key
+    local was = el.oaFresh
     el.oaFresh = fresh
-    tooltip(el, fresh)
-    if fresh then UI.live(el, tick) end
+    tooltip(el, points, opened)
+    if fresh and not was then UI.live(el, tick) end
 end
 
 -- The tab came on the screen: the points that came so far are known (Sidebar.update notes them).
@@ -122,7 +148,7 @@ end
 -- (the developer's research reset: no point seen yet)
 function Sidebar.forget(playerNum)
     local player = getSpecificPlayer(playerNum)
-    if player then player:getModData()[Sidebar.SEEN] = nil end
+    if player then player:getModData()[Sidebar.SEEN], player:getModData()[Sidebar.SEEN_OPEN] = nil, nil end
     Sidebar.update(playerNum)
 end
 
