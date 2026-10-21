@@ -675,18 +675,23 @@ function OACommsLog:toFoot()
 end
 
 -- New rows: the record stays at its foot when it was there, or when `foot`. The foot is the newest call (the one
--- playing) at the top, the older ones scrolled up above it, for as long as it is shorter than the record's height.
+-- playing) near the top, the row before it (an older call's folded head) left in sight above it so the record is
+-- known to go on up, the older ones scrolled up above that, for as long as it is shorter than the record's height.
 function OACommsLog:setRows(rows, foot)
     local atFoot = foot or self.scroll >= self:maxScroll() - 2
     local y = 4
-    local newest
-    for _, row in ipairs(rows) do
+    local newest, before
+    for i, row in ipairs(rows) do
         row.y = y
         y = y + row.h
-        if row.kind == "head" then newest = row end
+        if row.kind == "head" then newest, before = row, rows[i - 1] end
     end
     self.rows, self.full = rows, y
-    if newest then self.full = math.max(y, newest.y + self.height - 12) end
+    if newest then
+        -- (a row of lines before it, from a block opened: as much of it as a head's height)
+        local peek = before and math.min(before.h, newest.h) or 0
+        self.full = math.max(y, newest.y - peek + self.height - 12)
+    end
     if atFoot then self:toFoot() else self:setScroll(self.scroll) end
 end
 
