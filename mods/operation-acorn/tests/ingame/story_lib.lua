@@ -4,7 +4,7 @@
 --   started in the comms tab (id), and each entry the record keeps (comms played, a monologue said), with the real
 --   seconds since the lib ran and the game's day and hour.
 -- Moves: ST.open() the base terminal (booted at once), ST.tab(id), ST.skip() a call playing, ST.yes() / ST.no() the
--- last question asked, ST.launch(option) the mission tab's start (or a choice's option), ST.call() the helicopter
+-- last question asked, ST.launch() the mission tab's start, ST.call() the helicopter
 -- tab's call, ST.seal() the active box's seal (asked, then walked to and sealed), ST.close() the window,
 -- ST.state() what stands now.
 local OA = OperationAcorn
@@ -169,14 +169,8 @@ function ST.missions(sub)
     return ST.view("missions")
 end
 
-function ST.launch(option)
-    local v = ST.missions()
-    if option then
-        local b = v.optionButtons[option]
-        v:onChoose(b)
-    else
-        v:onLaunch()
-    end
+function ST.launch()
+    ST.missions():onLaunch()
 end
 
 function ST.call()

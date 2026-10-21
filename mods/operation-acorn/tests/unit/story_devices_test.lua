@@ -64,21 +64,21 @@ local function setup(stage, list)
 end
 
 
--- Missions wait to be started (Missions.launch); these tests look at them running: a tick starts what it offered (a
--- choice with `option`, "a" if none), and a story's briefing is over at once.
-local function taken(record, option)
+-- Missions wait to be started (Missions.launch); these tests look at them running: a tick starts what it offered, and
+-- a story's briefing is over at once.
+local function taken(record)
     local m = M.active(record)
     if m and m.state == "waiting" then
-        M.launch(record, option or "a")
+        M.launch(record)
         m = M.active(record)
         if m and m.state == "briefing" then M.briefed(record, m.brief) end
     end
     return M.active(record)
 end
 
-local function tick(record, option)
+local function tick(record)
     M.tick(record)
-    taken(record, option)
+    taken(record)
 end
 
 -- A generator that spreads (Park-Miller: its products stay within what a double holds): the harness's own repeats a

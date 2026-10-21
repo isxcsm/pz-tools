@@ -23,16 +23,16 @@ E2E.OUTSIDE = 12
 E2E.AROUND = 10
 
 -- The team's calls in the order the play meets them (SCENES 3): everything before a beat's first call has been played.
--- The pairs of a choice (B3a/B3b, BS1/BS2) are played on their first and dropped on the other.
+-- The soil sample's pair (BS1/BS2, by its place) is played on its first and dropped on the other.
 E2E.ORDER = { "S0", "S1", "B1", "S1F", "S2", "S2B", "s2_filter", "s2_correction", "B2", "S2F", "S3",
     "s3_fragment", "B3a", "B3b", "S4", "S4B", "s4_committee", "B4", "S4F", "S5", "B5", "S5F", "S6",
     "s6_list", "B6", "S6F", "S7", "s7_list", "B7", "S7F", "BS1", "BS2", "s8_handover", "B8", "S8F", "S8", "S9", "K1",
     "BR1", "K2", "BR2", "K3", "BR3", "K4" }
-local OTHER_OF = { B3b = "B3a", BS2 = "BS1" }
+local OTHER_OF = { BS2 = "BS1" }
 
 -- A briefing played means its story mission is behind: the story and the key of its field monologues.
 local STORY_OF = {
-    B1 = { "evidence", "evidence" }, B2 = { "clinic", "clinic" }, B3a = { "observation", "observation_a", "a" },
+    B1 = { "evidence", "evidence" }, B2 = { "clinic", "clinic" }, B3a = { "observation", "observation" }, B3b = { "journal", "journal" },
     B4 = { "cooler", "cooler" }, B5 = { "gym", "gym" }, B6 = { "ward", "ward" }, B7 = { "cells", "cells" },
     BS1 = { "soil", "soil" }, B8 = { "handover", "handover" },
 }
@@ -54,6 +54,7 @@ E2E.BEATS = {
     { id = "04", stage = 1, from = "S2", serum = true },
     { id = "05", stage = 2, from = "s2_filter", offer = true },
     { id = "06", stage = 3, from = "S3", offer = true },
+    { id = "06J", stage = 3, from = "B3b", offer = true },
     { id = "07", stage = 4, from = "S4", fill = true },
     { id = "08", stage = 4, from = "B4", offer = true },
     { id = "09", stage = 5, from = "S5", offer = true },
@@ -142,7 +143,7 @@ local function joinAs(r, beat)
 end
 
 -- The calls before the beat's first: played a day before (in the tab's record as they were; a short call coming next
--- is not held by its gap after the last), the other of a choice dropped; the story missions their briefings stand for
+-- is not held by its gap after the last), the other of a pair dropped; the story missions their briefings stand for
 -- done, with their field monologues. Returns the stories done.
 local function playBefore(r, from)
     local Data = OA.CommsData
@@ -164,7 +165,6 @@ local function playBefore(r, from)
     local says = {}
     for _, entry in ipairs(stories) do
         st.done[entry[1]] = "done"
-        if entry[3] then st.chosen[entry[1]] = entry[3] end
         says["say:" .. entry[2] .. ":"] = true
     end
     for _, e in ipairs(Data.ENTRIES) do

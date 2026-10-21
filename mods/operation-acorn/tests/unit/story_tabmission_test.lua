@@ -44,10 +44,8 @@ local function tab(h, state)
     local t = setmetatable({ width = 600, height = h }, { __index = OATabMission })
     for _, k in ipairs({ "mapButton", "launchButton", "commsButton", "rerollButton", "shopButton", "acceptButton",
         "specialMapButton" }) do t[k] = button() end
-    t.optionButtons = { a = button(), b = button() }
     t.info = { state = state }
-    t.card = { brief = "short brief", lines = {}, badges = {}, title = "t", right = { w = 40 }, where = {},
-        options = { a = "A", b = "B" } }
+    t.card = { brief = "short brief", lines = {}, badges = {}, title = "t", right = { w = 40 }, where = {} }
     t.special = { kind = "offer", head = "special", hint = "pick", options = { a = { title = "a", form = "f", where = "w" },
         b = { title = "b", form = "f", where = "w" } } }
     return t

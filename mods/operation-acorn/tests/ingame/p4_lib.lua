@@ -25,15 +25,15 @@ end
 
 -- Sets the record's trade numbers as if the stage were reached (the story part sees it at its next ten-minute tick,
 -- or at once through OA.Story.onStage).
--- The next mission offered and started (Missions.launch; a choice with `option`), as the terminal's 착수 button would,
+-- The next mission offered and started (Missions.launch), as the terminal's 착수 button would,
 -- its briefing call over at once. The call that opens the missions (S1) counts as played. Returns the mission.
-function P4T.takeMission(record, option)
+function P4T.takeMission(record)
     local OA = OperationAcorn
     if not OA.Comms.done(record, OA.Missions.OPENING_CALL) then OA.Comms.played(record, OA.Missions.OPENING_CALL, 1) end
     OA.Missions.tick(record)
     local m = OA.Missions.active(record)
     if m and m.state == "waiting" then
-        OA.Missions.launch(record, option or "a")
+        OA.Missions.launch(record)
         m = OA.Missions.active(record)
         if m and m.state == "briefing" then
             OA.Comms.played(record, m.brief)

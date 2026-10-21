@@ -334,7 +334,7 @@ function Scene.arrivalLine(record, m, night, delay)
             local knew = OA.Story.section(record).sites[revisit.from]
             said = knew and OA.Story.afterMonologue(record, delay) or false
         else
-            said = OA.Story.monologue(record, m.chosen and (m.story .. "_" .. m.chosen) or m.story, "enter", delay)
+            said = OA.Story.monologue(record, m.story, "enter", delay)
         end
         if said then return nil end
     end

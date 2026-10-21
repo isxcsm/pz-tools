@@ -107,12 +107,6 @@ function OATabMission:createChildren()
     self.launchButton = PZUIButton:new(0, 0, 88, bh, getText("IGUI_OA_Story_UI_Launch"), p, self, OATabMission.onLaunch, "strong")
     self.commsButton = PZUIButton:new(0, 0, 88, bh, getText("IGUI_OA_Story_UI_ToComms"), p, self, OATabMission.onComms, "strong")
     self.rerollButton = PZUIButton:new(0, 0, 88, bh, getText("IGUI_OA_Story_UI_Reroll"), p, self, OATabMission.onReroll)
-    self.optionButtons = {}
-    for _, option in ipairs({ "a", "b" }) do
-        local b = PZUIButton:new(0, 0, 170, bh, "", p, self, OATabMission.onChoose)
-        b.internal = option
-        self.optionButtons[option] = b
-    end
     self.shopButton = PZUIButton:new(0, 0, 120, bh - 4, getText("IGUI_OA_Story_UI_ShowInShop"), p, self, OATabMission.onShop)
     self.acceptButton = PZUIButton:new(0, 0, 120, bh - 4, getText("IGUI_OA_Story_UI_SpecialAccept"), p, self,
         OATabMission.onAccept, "strong")
@@ -128,7 +122,7 @@ end
 
 -- Every button of the screen (layout shows the ones the screen needs).
 function OATabMission:buttons()
-    return { self.mapButton, self.launchButton, self.commsButton, self.rerollButton, self.optionButtons.a, self.optionButtons.b, self.shopButton,
+    return { self.mapButton, self.launchButton, self.commsButton, self.rerollButton, self.shopButton,
         self.acceptButton, self.specialMapButton }
 end
 
@@ -137,21 +131,15 @@ function OATabMission:onMap()
     if info and info.area then OA.StoryTabs.showOnMap(self:character()) end
 end
 
--- What cannot be taken back asks first: a start sets the deadline going, a choice closes the other option for good,
--- 'take another' costs trust and the week's one, a special request closes the other one offered.
+-- What cannot be taken back asks first: a start sets the deadline going, 'take another' costs trust and the week's one, a special request closes the other one offered.
 function OATabMission:onLaunch()
     local text = getText("IGUI_OA_Story_UI_LaunchAsk", self.card and self.card.title or "")
     UI.confirm(self:character(), string.gsub(text, "\\n", "\n"), self, OATabMission.doLaunch)
 end
 
-function OATabMission:onChoose(button)
-    local text = getText("IGUI_OA_Story_ChooseAsk", button.title or "")
-    UI.confirm(self:character(), string.gsub(text, "\\n", "\n"), self, OATabMission.doLaunch, button.internal)
-end
-
 -- Started: a story mission's briefing plays in the comms tab's calls (the call comes in with the record's next change).
-function OATabMission:doLaunch(option)
-    self:send("story_launch", { option = option })
+function OATabMission:doLaunch()
+    self:send("story_launch", {})
     if self.info and self.info.kind == "story" then OA.StoryTabs.openCalls(self.window) end
 end
 
@@ -273,7 +261,6 @@ function OATabMission:buildCard(record, info)
     -- The conditions at the place, as the card has always told them.
     card.lines = {}
     local function line(text) card.lines[#card.lines + 1] = text end
-    if info.options and info.state == "waiting" then line(getText("IGUI_OA_Story_UI_Offer")) end
     if info.swap then line(getText("IGUI_OA_Story_UI_Swap_" .. info.swap)) end
     if info.field then line(getText("IGUI_OA_Story_UI_Field_" .. info.field)) end
     if info.cooler and info.cooler.started then
@@ -322,7 +309,7 @@ function OATabMission:buildCard(record, info)
         card.bonus = measure(bonus, p)
     end
     if info.credits then
-        -- an offer with no place yet (a story mission's is found as it starts, a choice's as it is made) has no distance
+        -- an offer with no place yet (a story mission's is found as it starts) has no distance
         -- pay yet: its base
         local key = info.state == "waiting" and not info.area and "IGUI_OA_Story_UI_RewardBase" or "IGUI_OA_Story_UI_Reward"
         local reward = runsOf("text", key, Text.credits(info.credits), info.trust or 0)
@@ -330,14 +317,6 @@ function OATabMission:buildCard(record, info)
             if run.num then run.kind = "value" end
         end
         card.reward = measure(reward, p)
-    end
-    if info.options then
-        card.options = {}
-        for _, option in ipairs({ "a", "b" }) do
-            if info.options[option] then
-                card.options[option] = getText("IGUI_OA_Story_Option_" .. tostring(info.title) .. "_" .. option)
-            end
-        end
     end
     return card
 end
@@ -531,8 +510,8 @@ function OATabMission:layout()
         local by = cardH - self.mapButton.height - 8
         local x = w - 12
         local state = self.info.state
-        -- an offer is started here (a choice by its option buttons); a mission taken has its area on the map
-        local first = state == "waiting" and (not card.options and self.launchButton) or nil
+        -- an offer is started here; a mission taken has its area on the map
+        local first = state == "waiting" and self.launchButton or nil
         if state == "briefing" then first = self.commsButton end
         if state ~= "waiting" and state ~= "briefing" then first = self.mapButton end
         if first then
@@ -551,18 +530,6 @@ function OATabMission:layout()
             self.rerollButton.enable = (self.info.reroll.left or 0) > 0
             self.rerollButton.tooltip = getText("IGUI_OA_Story_UI_RerollTip", self.info.reroll.trust or 0)
             self.buttonsLeft = x
-        end
-        for _, option in ipairs({ "b", "a" }) do
-            local label = state == "waiting" and card.options and card.options[option]
-            if label then
-                local b = self.optionButtons[option]
-                b:setTitle(label)
-                x = x - 8 - b.width
-                b:setX(x)
-                b:setY(by)
-                b:setVisible(true)
-                self.buttonsLeft = x
-            end
         end
         -- the title and its badges, cut to what the deadline leaves
         local badgesW = 0

@@ -30,9 +30,8 @@ function Story.section(record)
         s.handover = false
         s.handoverCrates = 0 -- crates loaded since the handover; handoverShown: its card and Admin 7's first call came
         s.docs = {}          -- read documents: id -> true (or the place variant it was read at)
-        s.queue = {}         -- story missions waiting: { id =, fresh =, option = }
+        s.queue = {}         -- story missions waiting: { id =, fresh = }
         s.done = {}          -- story id -> "done" | "missed"
-        s.chosen = {}        -- the choice missions: story id -> option
         s.supply = {}        -- sent to the next supply crate, not yet taken by the trade part: { type =, doc = }
         s.noteQueue = {}     -- manifest notes that come before the order: ids
         s.noteIndex = {}     -- pool key -> notes used
@@ -438,16 +437,16 @@ end
 
 -- Queues a story mission for the next mission slot. `fresh` ones come before anything else (a stage just entered);
 -- the others wait for a regular mission between.
-function Story.queueStory(record, id, fresh, option)
+function Story.queueStory(record, id, fresh)
     local s = Story.section(record)
     if s.done[id] == "done" then return end
     for _, q in ipairs(s.queue) do
         if q.id == id then return end
     end
     if fresh then
-        table.insert(s.queue, 1, { id = id, fresh = true, option = option })
+        table.insert(s.queue, 1, { id = id, fresh = true })
     else
-        s.queue[#s.queue + 1] = { id = id, fresh = false, option = option }
+        s.queue[#s.queue + 1] = { id = id, fresh = false }
     end
 end
 
@@ -460,11 +459,12 @@ function Story.enterStage(record, stage)
     local def = Data.STAGES[stage]
     if not def or Story.joinedAfterHandover(record) then return end
     local s = Story.section(record)
-    -- A stage's own missions are fresh (an optional one waits for a regular mission between); their order is kept.
+    -- A stage's own missions are fresh (an optional one, or one after another, waits for a regular mission between);
+    -- their order is kept.
     local fresh, rest = {}, {}
     for _, id in ipairs(def.stories or {}) do
         local story = Data.STORIES[id]
-        if story and story.optional then rest[#rest + 1] = id else fresh[#fresh + 1] = id end
+        if story and (story.optional or story.trigger.after) then rest[#rest + 1] = id else fresh[#fresh + 1] = id end
     end
     for i = #fresh, 1, -1 do Story.queueStory(record, fresh[i], true) end
     for _, id in ipairs(rest) do Story.queueStory(record, id, false) end
@@ -557,11 +557,14 @@ function Story.freshQueued(record)
 end
 
 -- The next story mission to start: the queue's first fresh one, or the first other one once a regular mission has
--- come between. Removes it. Returns the queue entry or nil.
+-- come between (one that comes after another story: once that one has been delivered). Removes it. Returns the queue
+-- entry or nil.
 function Story.nextStory(record)
     local s = Story.section(record)
     for i, q in ipairs(s.queue) do
-        if q.fresh or (s.regularsSince or 0) >= 1 then
+        local def = Data.STORIES[q.id]
+        local after = def and def.trigger and def.trigger.after
+        if (q.fresh or (s.regularsSince or 0) >= 1) and not (after and s.done[after] ~= "done") then
             table.remove(s.queue, i)
             return q
         end

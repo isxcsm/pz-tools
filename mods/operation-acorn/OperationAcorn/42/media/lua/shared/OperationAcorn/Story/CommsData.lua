@@ -48,14 +48,14 @@ OA.CommsData = Data
 --            the team says it is sent; the tab tells the server, comms_cue)
 Data.ENTRIES = {
     -- The briefings (SCENES 4): played as the player starts a story mission, before any other call waiting; the mission
-    -- begins when one is over. Keyed by the story (a choice's option, the soil sample's place).
+    -- begins when one is over. Keyed by the story (the soil sample's by its place).
     { id = "B1", kind = "scene", trigger = "brief:evidence", tier = 1, mission = true, sign = "oak", lines = {
         { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
     { id = "B2", kind = "scene", trigger = "brief:clinic", tier = 2, mission = true, sign = "oak", lines = {
         { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
-    { id = "B3a", kind = "scene", trigger = "brief:observation_a", tier = 3, mission = true, sign = "oak", lines = {
+    { id = "B3a", kind = "scene", trigger = "brief:observation", tier = 3, mission = true, sign = "oak", lines = {
         { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
-    { id = "B3b", kind = "scene", trigger = "brief:observation_b", tier = 3, mission = true, sign = "oak", lines = {
+    { id = "B3b", kind = "scene", trigger = "brief:journal", tier = 3, mission = true, sign = "oak", lines = {
         { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
     { id = "B4", kind = "scene", trigger = "brief:cooler", tier = 4, mission = true, sign = "oak", lines = {
         { "me" }, { "oak" }, { "me" }, { "oak" }, { "noise", s = 1 } } },
@@ -219,8 +219,8 @@ Data.ENTRIES = {
     { id = "S2F_put", kind = "say", trigger = "say:clinic:put", tier = 2 },
     { id = "S2F_waited", kind = "say", trigger = "say:clinic:waited", tier = 2 },
     { id = "S2F_pickup", kind = "say", trigger = "say:clinic:pickup", tier = 2 },
-    { id = "P3a_enter", kind = "say", trigger = "say:observation_a:enter", tier = 3 },
-    { id = "P3b_enter", kind = "say", trigger = "say:observation_b:enter", tier = 3 },
+    { id = "P3a_enter", kind = "say", trigger = "say:observation:enter", tier = 3 },
+    { id = "P3b_enter", kind = "say", trigger = "say:journal:enter", tier = 3 },
     { id = "P4_enter", kind = "say", trigger = "say:cooler:enter", tier = 4 },
     { id = "S4F_pickup", kind = "say", trigger = "say:cooler:pickup", tier = 4 },
     { id = "P5_enter", kind = "say", trigger = "say:gym:enter", tier = 5 },

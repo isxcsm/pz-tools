@@ -49,11 +49,11 @@ Stage.READY = 40   -- the zombies are made once the player is this near the site
 Stage.ROOM_AREA = 4   -- the least area of a room with a role but the big one (a map has rooms of one square: pillars)
 Stage.ROOMY = 12      -- "other" is a room this large first; the hall falls back to the big room when it has none
 
--- The stage data of a mission: its story's (by its option; a revisit's, the story's it goes back to), when its site is
+-- The stage data of a mission: its story's (a revisit's, the story's it goes back to), when its site is
 -- the kind the stage is for; nil otherwise.
 function Stage.defOf(m)
     if not (m and m.story and m.site) then return nil end
-    local key = m.chosen and (m.story .. "_" .. m.chosen) or m.story
+    local key = m.story
     local revisits = OA.StoryData and OA.StoryData.REVISITS
     local back = revisits and revisits[m.story]
     local def = OA.StageData[key] or (back and back.from and OA.StageData[back.from])

@@ -314,35 +314,31 @@ test("every piece of the stage data has hands in the game and goes to a place th
             if p.drop then truthy(p.kind == "board" and p.drop.during and p.drop.at, what .. " drops in a span") end
             n = n + 1
         end
-        -- the stage belongs to a story (or a choice's option) whose site is of its kind
-        local story, option = id:match("^(.-)_(%a)$")
-        local sdef = OA.StoryData.STORIES[option and story or id] or OA.StoryData.REVISITS[id]
+        -- the stage belongs to a story whose site is of its kind
+        local sdef = OA.StoryData.STORIES[id] or OA.StoryData.REVISITS[id]
         truthy(sdef, id .. " is a story's")
-        local site = option and sdef.options[option].site or sdef.site
-        eq(def.ground == true, site.ground == true, id .. ": open ground as its site")
+        eq(def.ground == true, sdef.site.ground == true, id .. ": open ground as its site")
     end
     truthy(n > 0)
-    for _, id in ipairs({ "evidence", "clinic", "observation_a", "observation_b", "cooler", "gym", "ward", "cells",
+    for _, id in ipairs({ "evidence", "clinic", "observation", "journal", "cooler", "gym", "ward", "cells",
         "handover" }) do
         truthy(OA.StageData[id], id .. " has its stage")
     end
 end)
 
-test("the stage is the story's, a choice's by its option, a revisit's the story's it goes back to; of its site's kind", function()
+test("the stage is the story's, a revisit's the story's it goes back to; of its site's kind", function()
     require "OperationAcorn/Story/Data"
     local a, ground = { pieces = {} }, { ground = true, pieces = {} }
-    OA.StageData.t_story, OA.StageData.t_choice_a, OA.StageData.t_ground = a, a, ground
+    OA.StageData.t_story, OA.StageData.t_ground = a, ground
     OA.StoryData.REVISITS.t_revisit = { from = "t_story" }
     local building = { x = 1, y = 1 }
     eq(Stage.defOf({ story = "t_story", site = building }), a)
-    eq(Stage.defOf({ story = "t_choice", chosen = "a", site = building }), a)
-    eq(Stage.defOf({ story = "t_choice", chosen = "b", site = building }), nil, "no stage for the other option")
     eq(Stage.defOf({ story = "t_revisit", site = building }), a)
     eq(Stage.defOf({ story = "t_story", site = { x = 1, y = 1, ground = true } }), nil, "a building's stage on open ground")
     eq(Stage.defOf({ story = "t_ground", site = { x = 1, y = 1, ground = true } }), ground)
     eq(Stage.defOf({ story = "t_ground", site = building }), nil)
     eq(Stage.defOf({ site = building }), nil, "not a story")
-    OA.StageData.t_story, OA.StageData.t_choice_a, OA.StageData.t_ground = nil, nil, nil
+    OA.StageData.t_story, OA.StageData.t_ground = nil, nil
     OA.StoryData.REVISITS.t_revisit = nil
 end)
 

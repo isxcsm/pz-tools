@@ -200,9 +200,7 @@ end)
 
 test("every story mission has its briefing; a briefing fired plays before the calls waiting", function()
     for id, def in pairs(OA.StoryData.STORIES) do
-        if def.kind == "choice" then
-            truthy(Data.BRIEFS[id .. "_a"] and Data.BRIEFS[id .. "_b"], id)
-        elseif def.kind == "soil" then
+        if def.kind == "soil" then
             truthy(Data.BRIEFS.soil_site and Data.BRIEFS.soil_plain, id)
         else
             truthy(Data.BRIEFS[id], id)

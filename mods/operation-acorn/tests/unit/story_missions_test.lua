@@ -55,21 +55,21 @@ local function setup(stage, milestones)
 end
 
 
--- Missions wait to be started (Missions.launch); these tests look at them running: a tick starts what it offered (a
--- choice with `option`, "a" if none), and a story's briefing is over at once.
-local function taken(record, option)
+-- Missions wait to be started (Missions.launch); these tests look at them running: a tick starts what it offered, and
+-- a story's briefing is over at once.
+local function taken(record)
     local m = M.active(record)
     if m and m.state == "waiting" then
-        M.launch(record, option or "a")
+        M.launch(record)
         m = M.active(record)
         if m and m.state == "briefing" then M.briefed(record, m.brief) end
     end
     return M.active(record)
 end
 
-local function tick(record, option)
+local function tick(record)
     M.tick(record)
-    taken(record, option)
+    taken(record)
 end
 
 -- The titles the missions show the player.
@@ -341,7 +341,7 @@ test("a mission item of another mission is not judged", function()
     eq(m.state, "open")
 end)
 
-test("the choice mission offers two and closes the other", function()
+test("the stage-3 story is the weather log, briefed and placed as it starts", function()
     local record = setup(3)
     record.story = nil
     -- Skip the earlier stages' queue.
@@ -351,34 +351,27 @@ test("the choice mission offers two and closes the other", function()
     local m = M.active(record)
     eq(m.story, "observation")
     eq(m.state, "waiting")
-    eq(#M.game.requested, 0, "nothing is placed before the choice")
-    eq(M.launch(record, "c"), false, "no such option")
-    local ok, brief = M.launch(record, "b")
+    eq(#M.game.requested, 0, "nothing is placed before it is started")
+    local ok, brief = M.launch(record)
     truthy(ok)
     eq(brief, "brief")
     eq(m.state, "briefing")
-    eq(m.brief, "B3b")
-    eq(OA.Comms.next(record, "terminal").id, "B3b", "the option's briefing plays")
-    eq(#M.game.requested, 0, "nothing placed before the briefing is over")
-    M.briefed(record, "S2")
-    eq(M.active(record), m, "another call does not start it")
-    OA.Comms.played(record, "B3b", 3)
-    Story.callPlayed(record, "B3b")
+    eq(m.brief, "B3a")
+    eq(OA.Comms.next(record, "terminal").id, "B3a", "its briefing plays")
+    OA.Comms.played(record, "B3a", 3)
+    Story.callPlayed(record, "B3a")
     m = M.active(record)
     eq(m.state, "open")
-    eq(m.chosen, "b")
-    eq(s.chosen.observation, "b")
-    eq(m.items[1].type, "OperationAcorn.FarmJournal")
+    eq(m.items[1].type, "OperationAcorn.WeatherLog")
     eq(#M.game.requested, 1)
     near(m.deadline - m.issued, 21 * 24, 1e-6, "a story's days")
-    eq(M.launch(record, "a"), false, "no second choice")
 end)
 
-test("the choice's far option is a house far in the band, at the farm facility", function()
+test("the weather log's house is far in the band, at the farm facility", function()
     local record = setup(3)
     local s = Story.section(record)
     s.seenStage = 2
-    tick(record, "a")
+    tick(record)
     local m = M.active(record)
     eq(m.facility, "farm")
     eq(m.items[1].type, "OperationAcorn.WeatherLog")

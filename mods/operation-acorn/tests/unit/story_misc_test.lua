@@ -232,8 +232,6 @@ local function storyIds()
     local ids = {}
     for id in pairs(Data.STORIES) do if id ~= "soil" then ids[#ids + 1] = id end end
     for id in pairs(Data.REVISITS) do ids[#ids + 1] = id end
-    ids[#ids + 1] = "observation_a"
-    ids[#ids + 1] = "observation_b"
     ids[#ids + 1] = "soil_site"
     ids[#ids + 1] = "soil_plain"
     return ids

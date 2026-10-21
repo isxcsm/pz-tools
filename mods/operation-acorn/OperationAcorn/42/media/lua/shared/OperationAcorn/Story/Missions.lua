@@ -422,21 +422,6 @@ local function createField(record, def, id, level)
     return m
 end
 
--- A choice: the option it was started with (Missions.launch) becomes the mission, the other closes for good.
-local function createChoice(record, def, id, level, option)
-    local opt = def.options and def.options[option]
-    if not opt then return nil end
-    local m = storyMission(record, def, id, level)
-    local site = storySite(record, def, id, level, opt.site)
-    if not site then return nil end
-    m.chosen = option
-    m.facility = opt.facility or def.facility
-    placeAtSite(m, opt.item, "A", site, { OA_Variant = m.facility })
-    m.title = id .. "_" .. option
-    Story.section(record).chosen[id] = option
-    return m
-end
-
 -- Two copies, one original: the original's serial is what the terminal copy shows. A contract mission, or `kind`.
 local function createCompare(record, entry, level, kind)
     local m = newMission(record, kind or "contract", level, nil)
@@ -696,34 +681,28 @@ local function createPlain(record, level)
 end
 
 local STORY_BUILDERS = {
-    fetch = createFetch, carry = createFetch, swap = createSwap, field = createField,
-    choice = createChoice, soil = createSoil,
+    fetch = createFetch, carry = createFetch, swap = createSwap, field = createField, soil = createSoil,
 }
 
 local function storyDef(id)
     return Data.STORIES[id] or Data.REVISITS[id]
 end
 
-local function createStoryMission(record, id, level, option)
+local function createStoryMission(record, id, level)
     local def = storyDef(id)
     local build = def and STORY_BUILDERS[def.kind]
     if not build then return nil end
-    return unburnt(build, record, def, id, level, option)
+    return unburnt(build, record, def, id, level)
 end
 
 -- A story mission offered: what the card tells of it (its title, place and base reward) until it is started. It is
--- made when its briefing call is over (Missions.briefed), and its site picked then. A choice offers the options not
--- closed yet (one, when it is offered again after it was missed).
+-- made when its briefing call is over (Missions.briefed), and its site picked then.
 local function storyOffer(record, entry, level)
     local def = storyDef(entry.id)
     if not (def and STORY_BUILDERS[def.kind]) then return nil end
     local m = newMission(record, "story", level, entry.id)
     m.title = entry.id
     m.facility = def.facility
-    if def.kind == "choice" then
-        local chosen = Story.section(record).chosen[entry.id]
-        m.options = chosen and { [chosen] = true } or { a = true, b = true }
-    end
     return m
 end
 
@@ -814,14 +793,12 @@ function Missions.start(record, quiet)
     return m
 end
 
--- The briefing call of a story mission (CommsData.BRIEFS): by the story's id, a choice's option, the soil sample's
+-- The briefing call of a story mission (CommsData.BRIEFS): by the story's id, the soil sample's by its
 -- place (a drop site the player has been to, or any bare ground).
-function Missions.briefOf(record, m, option)
+function Missions.briefOf(record, m)
     local def = storyDef(m.story)
     local key = m.story
-    if def and def.kind == "choice" then
-        key = m.story .. "_" .. tostring(option)
-    elseif def and def.kind == "soil" then
+    if def and def.kind == "soil" then
         key = #seenSites(record) > 0 and "soil_site" or "soil_plain"
     end
     return OA.CommsData.BRIEFS[key]
@@ -831,7 +808,7 @@ end
 -- yet: a site is always found once there is one) it goes back to the queue and comes again after a regular mission.
 local function buildStory(record, offer)
     local s = Missions.state(record)
-    local m = createStoryMission(record, offer.story, offer.level, offer.option)
+    local m = createStoryMission(record, offer.story, offer.level)
     if not m then
         s.active = nil
         Story.queueStory(record, offer.story, false)
@@ -849,11 +826,11 @@ local function buildStory(record, offer)
     return m
 end
 
--- The player starts the mission offered (the card's 착수 button; a choice with one of its options). A regular or
+-- The player starts the mission offered (the card's 착수 button). A regular or
 -- contract one is on its way at once, its days from now. A story one has its briefing call fired: the terminal plays it
 -- in the comms tab, and the mission begins when the call is over or skipped (Missions.briefed). Returns true, and
 -- "brief" when a call is to play.
-function Missions.launch(record, option)
+function Missions.launch(record)
     local s = Missions.state(record)
     local m = s.active
     if not (m and m.state == "waiting") then return false end
@@ -867,9 +844,7 @@ function Missions.launch(record, option)
         OA.log("mission", m.id, m.title, "started by", record.number)
         return true
     end
-    if m.options and not m.options[option] then return false end
-    m.option = m.options and option or nil
-    local brief = Missions.briefOf(record, m, option)
+    local brief = Missions.briefOf(record, m)
     -- a briefing played before (the mission went back to the queue) is not played again
     if not brief or OA.Comms.done(record, brief) then return buildStory(record, m) ~= nil end
     m.state = "briefing"
@@ -1397,7 +1372,7 @@ function Missions.found(record, m, it, item)
     -- A story's item first in hands: its monologue (CommsData "say:<story>:pickup") and what waits at its stage (not
     -- for what the player does not fetch: an exchange's drop case, the record inside it is the item).
     if m.story and View.fetched(m, it) then
-        if OA.Story then OA.Story.monologue(record, m.chosen and (m.story .. "_" .. m.chosen) or m.story, "pickup") end
+        if OA.Story then OA.Story.monologue(record, m.story, "pickup") end
         if OA.Stage then OA.Stage.event(record, m, "pickup") end
     end
     Missions.lookWhere(record, m)
@@ -1835,7 +1810,6 @@ local function describeMission(m, now)
     info.span = m.span
     info.credits = (m.pay and m.pay.credits) or m.credits
     info.trust = (m.pay and m.pay.trust) or m.trust
-    info.options = m.options
     info.swap = m.swap and m.swap.stage
     info.field = m.field and m.field.stage
     info.compare = m.compare and m.compare.serial
@@ -1870,7 +1844,7 @@ local function describeMission(m, now)
         info.item = Data.itemName(first.type)
     else
         local story = m.story and Data.STORIES[m.story]
-        info.item = (story and not story.options and story.item) or (Data.ITEMS[tostring(m.title)] and m.title) or nil
+        info.item = (story and story.item) or (Data.ITEMS[tostring(m.title)] and m.title) or nil
     end
     -- a sample the player takes, not finds (the soil)
     local def = m.story and Data.STORIES[m.story]

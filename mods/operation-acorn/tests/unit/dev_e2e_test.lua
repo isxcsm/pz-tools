@@ -58,7 +58,7 @@ local function logIds(r)
     return table.concat(ids, " ")
 end
 
-local BRIEFED = { B1 = "evidence", B4 = "cooler", BS1 = "soil" }
+local BRIEFED = { B1 = "evidence", B3b = "journal", B4 = "cooler", BS1 = "soil" }
 
 test("every story beat: the calls before its first played, its own not, the level and what is offered", function()
     for _, beat in ipairs(E2E.BEATS) do
@@ -112,20 +112,19 @@ test("every story beat: the calls before its first played, its own not, the leve
     end
 end)
 
-test("the story missions before a beat are done, a choice's option kept, their field lines said", function()
+test("the story missions before a beat are done, their field lines said", function()
     local r = setup()
     E2E.set("09", { place = false })
     local s = Story.section(r)
     eq(s.done.evidence, "done")
     eq(s.done.clinic, "done")
     eq(s.done.observation, "done")
-    eq(s.chosen.observation, "a")
+    eq(s.done.journal, "done")
     eq(s.done.cooler, "done")
     eq(s.done.gym, nil, "its own to come")
     truthy(Comms.done(r, "S2F_put"))
     truthy(Comms.done(r, "P3a_enter"))
-    eq(Comms.done(r, "P3b_enter"), false, "the other option's not")
-    truthy(Comms.section(r).dropped.B3b, "the other briefing dropped")
+    truthy(Comms.done(r, "P3b_enter"))
     eq(Comms.done(r, "P5_enter"), false)
     -- the papers of the levels before are read, none waits for a crate again
     truthy(s.sent.reply_first)

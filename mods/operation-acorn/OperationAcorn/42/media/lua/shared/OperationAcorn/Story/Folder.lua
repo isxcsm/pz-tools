@@ -65,12 +65,8 @@ local function tierMap()
     for _, story in pairs(Data.STORIES) do
         local trigger = story.trigger or {}
         local tier = trigger.stage or (trigger.milestone and Data.LAST_STAGE + trigger.milestone) or nil
-        local items = { story.item }
-        for _, option in pairs(story.options or {}) do items[#items + 1] = option.item end
-        for _, item in ipairs(items) do
-            local def = Data.ITEMS[item]
-            for _, doc in ipairs(def and def.docs or {}) do put(doc, tier) end
-        end
+        local def = Data.ITEMS[story.item]
+        for _, doc in ipairs(def and def.docs or {}) do put(doc, tier) end
     end
     return TIERS
 end

@@ -1,7 +1,8 @@
 -- P4: starts the story mission of a stage, walks to its place, and checks the item is put there once, with its tag.
 -- CHANGES THE RECORD (stage, active mission): use a throwaway save. Header setup: a character with a record.
 -- The base is taken to be where the character stands now (Story.setAnchor), so stand where the terminal would be.
--- Usage: set STAGE before RUN (1 evidence, 2 clinic swap, 3 observation, 4 cooler, 5 gym), default 1.
+-- Usage: set STAGE before RUN (1 evidence, 2 clinic swap, 3 observation, 4 cooler, 5 gym), default 1; P4_STORY
+-- "journal" with STAGE 3 takes the farm journal (the weather log counted as delivered).
 -- After it teleports, wait a few seconds for the chunks and run p4_missions_after.lua.
 RUN("p4_lib.lua")
 local OA = OperationAcorn
@@ -20,11 +21,16 @@ P4T.setStage(record, stage, 0)
 local ss = OA.Story.section(record)
 ss.queue = {}
 local own = OA.StoryData.STAGES[stage] and OA.StoryData.STAGES[stage].stories or {}
+if P4_STORY then
+    own = { P4_STORY }
+    local after = OA.StoryData.STORIES[P4_STORY].trigger.after
+    if after then ss.done[after] = "done" end
+end
 for i = #own, 1, -1 do
     ss.done[own[i]] = nil
     OA.Story.queueStory(record, own[i], true)
 end
-local m = P4T.takeMission(record, P4_OPTION)
+local m = P4T.takeMission(record)
 if not P4T.check(say, "a mission started", m ~= nil) then return end
 say("mission", m.id, m.kind, m.story or m.title, "level", m.level, "credits", m.credits, "trust", m.trust)
 P4T.check(say, "a story mission first at a new stage", m.kind == "story", m.story)

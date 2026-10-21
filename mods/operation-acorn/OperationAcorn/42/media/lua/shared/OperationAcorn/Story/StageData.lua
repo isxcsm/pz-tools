@@ -116,9 +116,9 @@ StageData.clinic = { pieces = {
     { kind = "zombies", at = "inner", outfit = "Nurse", count = 2 },
 } }
 
--- 3 (a): the far house of the weather log. Upstairs a chair at the window, a sheet with a barometer drawn on it, the
+-- 3: the far house of the weather log. Upstairs a chair at the window, a sheet with a barometer drawn on it, the
 -- log in the room's desk; a window open; the owner shut in a bedroom upstairs.
-StageData.observation_a = { pieces = {
+StageData.observation = { pieces = {
     { kind = "item", at = "big", up = true, names = { "office", "livingroom", "bedroom" }, type = "Base.SheetPaper2" },
     { kind = "piece", at = "big", up = true, names = { "office", "livingroom", "bedroom" }, key = "A" },
     { kind = "window", at = "big", up = true, names = { "office", "livingroom", "bedroom" }, chair = CHAIR },
@@ -126,10 +126,10 @@ StageData.observation_a = { pieces = {
     { kind = "zombies", at = "other", up = true, names = { "bedroom", "kidsbedroom" }, outfit = "Farmer" },
 } }
 
--- 3 (b): the near house of the farm journal. Garden chairs turned to the fields; a pickup loaded and left with no fuel,
+-- 3, after it: the near house of the farm journal. Garden chairs turned to the fields; a pickup loaded and left with no fuel,
 -- its door open and its key in the glove box; a window open upstairs; one lying fake dead in the garage or the shed. The journal is
 -- in any container of the house (the usual placing).
-StageData.observation_b = { pieces = {
+StageData.journal = { pieces = {
     { kind = "set", at = "yard", tiles = { { 0, 0, GARDEN_CHAIR_S }, { 1, 0, GARDEN_CHAIR_S }, { 2, 0, GARDEN_CHAIR_S } } },
     { kind = "vehicle", at = "entrance", script = "Base.PickUpTruck", zones = { "farm", "trades" }, open = "DoorFrontLeft",
       fuel = 0, key = true, load = { "Base.Suitcase", "Base.Bag_DuffelBag", "Base.Suitcase" } },

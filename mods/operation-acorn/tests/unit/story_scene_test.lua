@@ -153,9 +153,9 @@ test("a story mission's circle has the story's own monologue, once; a regular on
     id, ctx = Scene.arrivalLine(record, {}, false)
     eq(id, "Arrive")
     eq(ctx.night, false)
-    -- the choice's option names its monologue
+    -- the story names its monologue
     record.trade.stage = 3
-    eq(Scene.arrivalLine(record, { story = "observation", chosen = "b" }, false), nil)
+    eq(Scene.arrivalLine(record, { story = "journal" }, false), nil)
     truthy(OA.Comms.section(record).played.P3b_enter)
     eq(OA.Comms.section(record).played.P3a_enter, nil)
     eq(OA.Say.fits("Arrive", 1, { night = false }), false, "a night line by day")
@@ -265,7 +265,7 @@ test("a staged story mission's own line waits on entering until its building is 
     local record = OA.Store.ensure("p1", "P")
     record.trade = { stage = 3, milestones = 0, credits = 0, trust = 0 }
     local m = mission(record, "farm")
-    m.story, m.chosen = "observation", "b"
+    m.story = "journal"
     m.stage = { kept = true, placed = false }
     m.site = { x = 100, y = 100, x1 = 95, y1 = 95, x2 = 105, y2 = 105 }
     m.scene = Scene.plan(record, m, 0, seq({}))

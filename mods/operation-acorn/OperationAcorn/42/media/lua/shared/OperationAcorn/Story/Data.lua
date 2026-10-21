@@ -114,9 +114,10 @@ Data.FIELD_NOTES = 12
 Data.FIELD_NOTE_CHANCE = 60
 
 -- Story missions. `kind`: fetch (find an item in a building), swap (leave the sealed case, wait, take the record),
--- choice (the terminal offers two, the other closes for good), carry (the sample cooler), field (seal on the spot
--- with the field call device), soil (take a soil sample). `trigger`: a stage, or a milestone count. `facility`: what
--- the site was taken for (Data.FACILITIES); `site`: how it is picked (Missions.pickSite: want "public", "largest",
+-- carry (the sample cooler), field (seal on the spot with the field call device), soil (take a soil sample).
+-- `trigger`: a stage, or a milestone count; `after`: offered only once that story has been delivered, with a regular
+-- mission between. `facility`: what the site was taken for (Data.FACILITIES); `site`: how it is picked
+-- (Missions.pickSite: want "public", "largest",
 -- "near", "far"; ground = open ground; up = of more than one floor first). `condition`: "locked" (the key room is locked, the key lies in the same
 -- building). `optional`: not offered again when missed.
 Data.STORIES = {
@@ -129,11 +130,12 @@ Data.STORIES = {
         facility = "medical", site = { want = "public" },
     },
     observation = {
-        trigger = { stage = 3 }, kind = "choice", facility = "farm",
-        options = {
-            a = { item = "WeatherLog", site = { want = "far", up = true } },
-            b = { item = "FarmJournal", site = { want = "near" } },
-        },
+        trigger = { stage = 3 }, kind = "fetch", item = "WeatherLog",
+        facility = "farm", site = { want = "far", up = true },
+    },
+    journal = {
+        trigger = { stage = 3, after = "observation" }, kind = "fetch", item = "FarmJournal",
+        facility = "farm", site = { want = "near" },
     },
     cooler = {
         trigger = { stage = 4 }, kind = "carry", item = "SampleCooler",
@@ -206,9 +208,9 @@ Data.STAGES = {
     [2] = { stories = { "clinic" }, notes = { "socks", "box_corner" },
             supply = { { "AnalysisReply", "reply_first" }, { "AnalysisReply", "reply_correction", "sent:reply_first" },
                        { "AnalysisReply", "reply_evidence", "done:evidence" } } },
-    [3] = { stories = { "observation" }, notes = { "cards", "count_off", "dunnigan_pen" },
+    [3] = { stories = { "observation", "journal" }, notes = { "cards", "count_off", "dunnigan_pen" },
             supply = { { "AnalysisReply", "reply_nomatch" }, { "AnalysisReply", "reply_fragment", "fragment" },
-                       { "AnalysisReply", "reply_relapse" }, { "AnalysisReply", "reply_logs", "done:observation" } } },
+                       { "AnalysisReply", "reply_relapse" }, { "AnalysisReply", "reply_logs", "done:journal" } } },
     [4] = { stories = { "cooler" }, notes = { "proxy_signature", "old_form", "short_notice" },
             supply = { { "Appendix", "pending_list" } } },
     [5] = { stories = { "gym" }, notes = { "late_appendix", "no_greeting", "empty_slot" },
