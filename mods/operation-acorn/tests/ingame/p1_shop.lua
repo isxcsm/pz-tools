@@ -41,11 +41,11 @@ for _, e in ipairs(catalog) do
 end
 P1T.check(say, "every entry has a translated name", #noName == 0, table.concat(noName, " "))
 
--- Serum curve (NUMBERS 6): first 8000, 26th 8000 * 1.15^25 to the nearest 100, then straight up.
+-- Serum curve (NUMBERS 6): first 8000, 26th 8000 * 1.12^25 to the nearest 100, then straight up.
 P1T.check(say, "first serum 8000", OA.Shop.serumPriceAt(1) == 8000, OA.Shop.serumPriceAt(1))
 say("serum 2, 10, 26, 27:", OA.Shop.serumPriceAt(2), OA.Shop.serumPriceAt(10), OA.Shop.serumPriceAt(26),
     OA.Shop.serumPriceAt(27))
-P1T.check(say, "serum 2 = 9200", OA.Shop.serumPriceAt(2) == 9200, OA.Shop.serumPriceAt(2))
+P1T.check(say, "serum 2 = 9000", OA.Shop.serumPriceAt(2) == 9000, OA.Shop.serumPriceAt(2))
 P1T.check(say, "the curve rises", OA.Shop.serumPriceAt(27) > OA.Shop.serumPriceAt(26))
 
 if not record then say("no record yet: the per-record rows were skipped"); return end

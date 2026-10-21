@@ -38,7 +38,7 @@
     "Sandbox_OperationAcorn_UpgradeSerumPriceMultiplier": "시험 혈청 가격 배율",
     "Sandbox_OperationAcorn_UpgradeSerumPriceMultiplier_tooltip": "시험 혈청 값에 곱합니다. 1이면 계열마다 첫 혈청이 8,000 크레딧입니다.",
     "Sandbox_OperationAcorn_UpgradeSerumGrowthMultiplier": "시험 혈청 가격 증가 배율",
-    "Sandbox_OperationAcorn_UpgradeSerumGrowthMultiplier_tooltip": "같은 계열의 혈청을 살 때마다 오르는 폭에 곱합니다. 1이면 15%%씩 오르고, 0이면 오르지 않습니다. 27번째부터는 일정한 금액씩 오릅니다.",
+    "Sandbox_OperationAcorn_UpgradeSerumGrowthMultiplier_tooltip": "같은 계열의 혈청을 살 때마다 오르는 폭에 곱합니다. 1이면 12%%씩 오르고, 0이면 오르지 않습니다. 27번째부터는 일정한 금액씩 오릅니다.",
     "Sandbox_OperationAcorn_UpgradeEffectMultiplier": "적응 효과 크기",
     "Sandbox_OperationAcorn_UpgradeEffectMultiplier_tooltip": "수치가 있는 적응 효과의 배율입니다.",
     "Sandbox_OperationAcorn_SharedSerumMilestones": "범용 혈청 이정표 간격",

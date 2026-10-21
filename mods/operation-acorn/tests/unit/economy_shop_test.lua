@@ -187,18 +187,18 @@ test("serums and the box ignore the multiplier and the discount", function()
     eq(S.price(find("box_reissue"), r), 7000)
 end)
 
-test("upgrade serum price: 8,000 times 1.15 per serum, to the nearest 100", function()
-    local want = { [1] = 8000, [2] = 9200, [3] = 10600, [5] = 14000, [10] = 28100, [15] = 56600, [20] = 113900,
-        [25] = 229000, [26] = 263400 }
+test("upgrade serum price: 8,000 times 1.12 per serum, to the nearest 100", function()
+    local want = { [1] = 8000, [2] = 9000, [3] = 10000, [5] = 12600, [10] = 22200, [15] = 39100, [20] = 68900,
+        [25] = 121400, [26] = 136000 }
     for n, price in pairs(want) do eq(S.serumPriceAt(n), price, "serum " .. n) end
 end)
 
-test("after the 26th the price goes straight up by 30,000", function()
-    eq(S.serumPriceAt(27), 263400 + 30000)
-    eq(S.serumPriceAt(30), 263400 + 120000)
+test("after the 26th the price goes straight up by 16,000", function()
+    eq(S.serumPriceAt(27), 136000 + 16000)
+    eq(S.serumPriceAt(30), 136000 + 64000)
     SandboxVars.OperationAcorn.UpgradeSerumPriceMultiplier = 2
     eq(S.serumPriceAt(1), 16000)
-    eq(S.serumPriceAt(27) - S.serumPriceAt(26), 60000, "the straight part scales with the base")
+    eq(S.serumPriceAt(27) - S.serumPriceAt(26), 32000, "the straight part scales with the base")
 end)
 
 test("each tree counts its own serums", function()
@@ -206,7 +206,7 @@ test("each tree counts its own serums", function()
     local scout = find("serum_scout")
     eq(S.price(scout, r), 8000)
     S.bought(scout, r, 1)
-    eq(S.price(scout, r), 9200)
+    eq(S.price(scout, r), 9000)
     eq(S.price(find("serum_load"), r), 8000, "another tree is still at the first")
     S.bought(scout, r, 3)
     eq(S.price(scout, r), S.serumPriceAt(5))
@@ -221,7 +221,7 @@ test("a cart line of serums adds up each unit's own price, as the helicopter cha
     local Orders, Rules = OA.Trade.Orders, OA.Trade.Rules
     local svc = Orders.shopService(r)
     local want = S.serumPriceAt(1) + S.serumPriceAt(2) + S.serumPriceAt(3)
-    eq(Orders.lineCost(svc, scout, { id = "serum_scout", count = 3 }), want, "8000 + 9200 + ...")
+    eq(Orders.lineCost(svc, scout, { id = "serum_scout", count = 3 }), want, "8000 + 9000 + ...")
     local _, spent = Rules.payOrders(1000000, { { id = "serum_scout", count = 3 } }, svc)
     eq(spent, want, "the cart showed what was paid")
 end)

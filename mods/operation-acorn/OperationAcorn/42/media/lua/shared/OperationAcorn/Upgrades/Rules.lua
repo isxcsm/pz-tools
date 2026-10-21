@@ -318,14 +318,14 @@ local function round100(x)
     return OA.round(x / 100) * 100
 end
 
-Rules.SERUM_LINEAR_FROM = 26      -- the 26th serum of a tree costs 8000 * 1.15^25; after it the price is linear
-Rules.SERUM_LINEAR_STEP = 30000   -- per serum after the 26th, at the default base price
+Rules.SERUM_LINEAR_FROM = 26      -- the 26th serum of a tree costs 8000 * 1.12^25; after it the price is linear
+Rules.SERUM_LINEAR_STEP = 16000   -- per serum after the 26th, at the default base price
 
--- The price of the n-th serum bought in a tree (NUMBERS 6): 8,000 * 1.15^(n-1) to the nearest 100; past the 26th, a
--- straight line up by 30,000 a serum (scaled with the base price option). The shop sells the serums and asks this.
+-- The price of the n-th serum bought in a tree (NUMBERS 6): 8,000 * 1.12^(n-1) to the nearest 100; past the 26th, a
+-- straight line up by 16,000 a serum (scaled with the base price option). The shop sells the serums and asks this.
 function Rules.serumPrice(n)
     local base = OA.scaled(8000, "UpgradeSerumPriceMultiplier")
-    local growth = 1 + OA.scaled(0.15, "UpgradeSerumGrowthMultiplier")
+    local growth = 1 + OA.scaled(0.12, "UpgradeSerumGrowthMultiplier")
     local limit = Rules.SERUM_LINEAR_FROM
     if n <= limit then return round100(base * growth ^ (n - 1)) end
     local last = round100(base * growth ^ (limit - 1))

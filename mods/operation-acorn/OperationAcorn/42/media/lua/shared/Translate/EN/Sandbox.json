@@ -38,7 +38,7 @@
     "Sandbox_OperationAcorn_UpgradeSerumPriceMultiplier": "Upgrade serum price multiplier",
     "Sandbox_OperationAcorn_UpgradeSerumPriceMultiplier_tooltip": "Multiplies the price of upgrade serums. At 1 a tree's first serum is 8,000 credits.",
     "Sandbox_OperationAcorn_UpgradeSerumGrowthMultiplier": "Upgrade serum price growth multiplier",
-    "Sandbox_OperationAcorn_UpgradeSerumGrowthMultiplier_tooltip": "Multiplies how much each serum of a tree costs over the one before. At 1 it is 15%% more; at 0 the price does not rise. From the 27th on, the price rises by a fixed amount.",
+    "Sandbox_OperationAcorn_UpgradeSerumGrowthMultiplier_tooltip": "Multiplies how much each serum of a tree costs over the one before. At 1 it is 12%% more; at 0 the price does not rise. From the 27th on, the price rises by a fixed amount.",
     "Sandbox_OperationAcorn_UpgradeEffectMultiplier": "Upgrade effect size",
     "Sandbox_OperationAcorn_UpgradeEffectMultiplier_tooltip": "Multiplies enhancement effects that have a number.",
     "Sandbox_OperationAcorn_SharedSerumMilestones": "Shared serum every N milestones",
