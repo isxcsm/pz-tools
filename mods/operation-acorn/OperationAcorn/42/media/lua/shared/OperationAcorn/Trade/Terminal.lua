@@ -14,7 +14,7 @@ Terminal.ORDER = { "heli", "shop", "delivery", "support", "missions", "comms", "
 -- tab's progress screen: the trust level whose entry it has shown (11.1); `support` the trust level the support
 -- requests were last looked at, at a field terminal.
 Terminal.SEEN_KEYS = { mission = true, week = true, tier = true, docs = true, market = true, road = true,
-    support = true }
+    support = true, fieldTerminal = true }
 
 local tabs = {}
 

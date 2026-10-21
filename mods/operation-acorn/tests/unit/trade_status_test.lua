@@ -468,6 +468,8 @@ test("the progress sub-tab's dot: the field terminal to buy, a level not shown y
     OA.Terminal.setSeen(r, "road", 2)
     eq(M.progressMark(r, false, "records"), "new", "the crude terminal: the field terminal can be bought")
     eq(M.progressMark(r, true, "records"), nil, "the field terminal is the one")
+    OA.Terminal.setSeen(r, "fieldTerminal", 1)
+    eq(M.progressMark(r, false, "records"), nil, "once the screen has shown it")
     r = newRecord(3, 0)
     eq(M.progressMark(r, true, "records"), "new", "a level not shown yet")
     eq(M.progressMark(r, true, "progress"), nil, "not while the screen is on show")

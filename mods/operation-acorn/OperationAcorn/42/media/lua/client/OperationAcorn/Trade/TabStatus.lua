@@ -111,12 +111,15 @@ OATabStatus.RECORDS = {
 -- The tabs ---------------------------------------------------------------------------------------------------------
 
 -- The record tab's dot: a new level (priority 4), until the progress screen has shown it (ui.seen.road). (The crude
--- terminal's hint that the field terminal can be bought stays on the progress's sub-tab: it is no news to blink for.)
+-- terminal's hint that the field terminal can be bought stays on the progress's sub-tab, until the screen has shown
+-- it once (ui.seen.fieldTerminal): it is no news to blink for.)
 OA.Terminal.addTab("records", OATabGroup.factory("records", OATabStatus.RECORDS), {
     mark = function(record) return M.roadFresh(record) and "new" or nil end,
     seen = function(record, window)
-        if window and window:subOn("records") == "progress" then return "road", Trust.tier(record) end
-        return nil
+        if not (window and window:subOn("records") == "progress") then return nil end
+        local seen = { road = Trust.tier(record) }
+        if window.tier ~= "field" and M.fieldTerminalBuyable(record) then seen.fieldTerminal = 1 end
+        return seen
     end,
 })
 

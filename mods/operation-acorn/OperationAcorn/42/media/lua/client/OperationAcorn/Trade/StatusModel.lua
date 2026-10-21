@@ -532,9 +532,12 @@ function M.roadFresh(record)
 end
 
 -- The record tab's progress sub-tab dot (priority 4), worked out when the record changes (the sub-tab on show is
--- `sub`): a new level not shown yet, or on the crude terminal the field terminal can be bought.
+-- `sub`): a new level not shown yet, or on the crude terminal the field terminal can be bought and the screen has not
+-- shown that yet (ui.seen.fieldTerminal).
 function M.progressMark(record, field, sub)
-    if (not field and M.fieldTerminalBuyable(record)) or (sub ~= "progress" and M.roadFresh(record)) then
+    local buyable = not field and sub ~= "progress" and M.fieldTerminalBuyable(record)
+        and not Terminal.seenValue(record, "fieldTerminal")
+    if buyable or (sub ~= "progress" and M.roadFresh(record)) then
         return "new"
     end
     return nil
