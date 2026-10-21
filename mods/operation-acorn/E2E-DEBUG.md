@@ -54,7 +54,7 @@ F8 디버그 창 → OA → **E2E** 페이지. 모든 버튼은 `OperationAcorn.
 | 03 | 증거 봉투 | S1 끝, evidence 제안 | 착수 → [임무지 밖으로] → 원 진입 → 열쇠 → 봉투 → [기지로] → 납품 | B1, '임무 착수', 원 진입 혼잣말, 무대(죽은 척 좀비), S1F_pickup, '확보', 정산, S1F |
 | 04 | 시험 혈청 | 1단계, S1F 끝. 강화 혈청 한 개를 준다 | 투여 → 단말 → [S2B 직전] → 단말 | S2, 반나절 뒤 S2B |
 | 05 | 진료소 바꿔치기 | 2단계, S2B 끝. clinic 제안 | 착수 → 보급(시료함)으로 [헬기 즉시] → 임무지 → 시료함 넣기 → [대기 직전] → 기록철 | s2_filter, B2, S2F_put, S2F_waited, S2F_pickup, S2F, 회신서 서류 |
-| 06 | 두 집 (택 1) | 3단계. observation 제안 | 둘 중 하나 착수 (가/나 각각) | S3, s3_meteor, B3a/B3b, P3a/P3b 혼잣말, 일지 |
+| 06 | 두 집 (택 1) | 3단계. observation 제안 | 둘 중 하나 착수 (가/나 각각) | S3, B3a/B3b, P3a/P3b 혼잣말, 일지 |
 | 07 | 끊긴 날 | 4단계 진입 직후 | 단말 → 헬기 호출 → [S4B 직전] → 단말 | S4, 호출 알림 '(자동)', S4B, s4_committee, 대리 날인 |
 | 08 | 아이스박스 | 4단계, S4B 끝. cooler 제안 | 착수 → 임무지 → 아이스박스 들기 → [온도 직전] → 납품 | B4, P4 혼잣말, 온도 표시, S4F_pickup, S4F |
 | 09 | 대피소 헬기 | 5단계 진입 직후. gym 제안 | 단말 → 착수 → 보급(호출기) → 임무지 → 현장 호출 → [헬기 도착 직전] | S5, B5, P5 혼잣말, S5F 자막, 헬기 |
@@ -92,7 +92,7 @@ F8 디버그 창 → OA → **E2E** 페이지. 모든 버튼은 `OperationAcorn.
 7. **자리.** 단말이 필요한 구간은 기지 단말 옆에 세운다 (`heli.terminal`; 없으면 곁에 둔다). 단말에 전기를 준다(세션 동안). 기지에 서 있는 상자가 활성 상자가 되고, 없으면 단말 옆에 새 상자를 내려놓는다 (`Things.placeBox`, 플레이어가 놓는 길).
 8. **소음 켜기**, 바뀐 구역 알림(`Sync.changed`), 패널 줄 갱신.
 
-교신 순서표 (팀 시대): S0, S1, B1, S1F, S2, S2B, s2_filter, s2_correction, B2, S2F, S3, s3_meteor, s3_fragment, B3a, B3b, S4, S4B, s4_committee, B4, S4F, S5, B5, S5F, S6, s6_list, B6, S6F, S7, s7_list, B7, S7F, BS1, BS2, s8_handover, B8, S8F, S8, S9, K1, BR1, K2, BR2, K3, BR3, K4. 현장 혼잣말(say)은 해당 임무를 지난 것으로 할 때 같이 '재생됨'으로 둔다.
+교신 순서표 (팀 시대): S0, S1, B1, S1F, S2, S2B, s2_filter, s2_correction, B2, S2F, S3, s3_fragment, B3a, B3b, S4, S4B, s4_committee, B4, S4F, S5, B5, S5F, S6, s6_list, B6, S6F, S7, s7_list, B7, S7F, BS1, BS2, s8_handover, B8, S8F, S8, S9, K1, BR1, K2, BR2, K3, BR3, K4. 현장 혼잣말(say)은 해당 임무를 지난 것으로 할 때 같이 '재생됨'으로 둔다.
 
 ## 7. 타이머
 

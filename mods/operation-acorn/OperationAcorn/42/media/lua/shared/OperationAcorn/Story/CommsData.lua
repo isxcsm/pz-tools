@@ -107,7 +107,6 @@ Data.ENTRIES = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
     { id = "S3", kind = "scene", trigger = "tier:3", tier = 3, waits = "S2B", greet = true, sign = "oak", lines = {
         { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" }, { "me" }, { "oak" } } },
-    { id = "s3_meteor", kind = "short", trigger = "tier:3", tier = 3, waits = "S3", greet = true, sign = "oak" },
     { id = "s3_fragment", kind = "short", trigger = "sent:reply_fragment", tier = 3, waits = "S3", greet = true, sign = "oak" },
     { id = "S4", kind = "scene", trigger = "tier:4", tier = 4, waits = "S3", world = 4, sign = "oak", lines = {
         { "noise", s = 5 }, { "me" }, { "noise", s = 3 }, { "me" }, { "mute", s = 4 },

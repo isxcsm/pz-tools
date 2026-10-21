@@ -217,7 +217,7 @@
     "IGUI_OADev_E2E_See_03": "B1, 임무 착수, 원 진입 혼잣말, 무대(죽은 척 좀비), S1F_pickup, 확보, 정산, S1F",
     "IGUI_OADev_E2E_See_04": "S2, 반나절 뒤 S2B",
     "IGUI_OADev_E2E_See_05": "s2_filter, B2, S2F_put, S2F_waited, S2F_pickup, S2F, 회신서",
-    "IGUI_OADev_E2E_See_06": "S3, s3_meteor, B3a 또는 B3b, 원 진입 혼잣말",
+    "IGUI_OADev_E2E_See_06": "S3, B3a 또는 B3b, 원 진입 혼잣말",
     "IGUI_OADev_E2E_See_07": "S4, 호출 알림 (자동), S4B, s4_committee, 대리 날인",
     "IGUI_OADev_E2E_See_08": "B4, 원 진입 혼잣말, 온도 표시, S4F_pickup, S4F",
     "IGUI_OADev_E2E_See_09": "S5, B5, 원 진입 혼잣말, S5F 자막, 헬기",

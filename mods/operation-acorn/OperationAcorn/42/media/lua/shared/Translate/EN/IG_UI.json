@@ -2196,7 +2196,6 @@
     "IGUI_OA_Comms_K0_8_late": "Initial issue. The supply schedule was delayed.",
     "IGUI_OA_Comms_s2_filter": "%1, 분석반 긴급 요청입니다. 방독면 필터를 최우선으로 보내 주십시오. 이상.",
     "IGUI_OA_Comms_s2_correction": "%1, 앞서 보낸 분석 회신서의 기준일 정정 통보문을 다음 보급 상자에 동봉합니다. 이상.",
-    "IGUI_OA_Comms_s3_meteor": "%1, 출처 표식 없는 대형 운석은 접수하지 않습니다. 낙하 지점에서 수거한 파편은 그대로 접수합니다. 이상.",
     "IGUI_OA_Comms_s3_fragment": "%1, 파편 성분 회신. 잔류물과 부분 일치. 동일성 미확인. 이상.",
     "IGUI_OA_Comms_s4_committee": "%1, 위원회 회신 지연. 거래는 그대로 진행합니다. 이상.",
     "IGUI_OA_Comms_C_survival": "%1, to clear the last stage of the survival line we need a fragment to check against. A meteorite came down around the time it all started. We'll mark the estimated fall zone on your map; find the fragment there and send it to us. Over.",
