@@ -544,7 +544,6 @@ function OATabShop:drawSerums(p, m)
     local k, f = UI.placeLevels(self, "serums")
     UI.fill(self, 0, 0, catw, sb, p.sel, (on and 0.24 or 0.08) + 0.08 * k + 0.3 * f)
     UI.frame(self, 0, 0, catw, sb, p.sel, on and 1 or 0.7 + 0.3 * k)
-    if on then UI.fill(self, 0, 0, 3, sb, p.sel) end
     UI.text(self, UI.str("IGUI_OA_Terminal_Shop_Serum"), 10, 3, on and p.bright or p.head, UIFont.Medium)
     drawIcon(self, m.serumEntry, catw - 30, 4, 24, p)
     UI.text(self, m.shelfSubFit, 10, 3 + UI.fontHeight(UIFont.Medium) + 1, on and p.text or p.dim)
@@ -556,12 +555,10 @@ function OATabShop:drawCat(p, cat, i)
     local chosen = cat.id == self.cat
     if chosen then
         UI.fill(self, 0, y, catw, ShopView.CAT_ROW, p.sel, 0.22)
-        UI.fill(self, 0, y, 2, ShopView.CAT_ROW, p.sel)
     end
     local k, f = UI.placeLevels(self, cat.id)
     if k > 0 or f > 0 then
         UI.fill(self, 0, y, catw, ShopView.CAT_ROW, p.sel, 0.1 * k + 0.3 * f)
-        UI.fill(self, 0, y, 2, ShopView.CAT_ROW, p.sel, 0.6 * k)
     end
     if cat.locked then UI.lock(self, 8, y + 6, p.warn, 0.8) end
     UI.text(self, cat.name, cat.locked and 22 or 10, y + 3, chosen and p.bright or (cat.locked and p.dim or p.text))

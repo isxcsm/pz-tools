@@ -872,7 +872,6 @@ function ISBUPanelWindow:drawBody(body)
         local c, x = banner.colour, self.bannerX or PAD
         local w = (self.listW or body.width) - PAD - x
         UI.fill(body, x, self.actionY, w, ROW, c, a)
-        UI.fill(body, x, self.actionY, 3, ROW, P.bright, 0.8)
         UI.text(body, UI.fitMemo(banner.text, w - PAD * 2), x + PAD, self.actionY + (ROW - FONT_HGT_SMALL) / 2, P.bright)
     end
 end

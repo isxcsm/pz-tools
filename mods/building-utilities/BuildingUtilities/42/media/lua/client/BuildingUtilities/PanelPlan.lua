@@ -1445,7 +1445,8 @@ local function drawStripCell(plan, cell)
     local k = PZUIKit.taping and 0 or cell.k or 0
     UI.fill(plan, cell.x, cell.y, cell.w, cell.h, current and P.sel or P.panel, current and 0.55 or 0.5 + 0.3 * k)
     UI.frame(plan, cell.x, cell.y, cell.w, cell.h, current and P.value or P.border, 1)
-    if cell.on then plan:drawRect(cell.x + 1, cell.y + 1, 3, cell.h - 2, 1, 0.4, 0.9, 0.4) end
+    -- A floor with a device on: a green mark at its top left (the box's and the producers' are at its right).
+    if cell.on then plan:drawRect(cell.x + 2, cell.y + 2, 3, 3, 1, 0.4, 0.9, 0.4) end
     -- Water: a floor with a fixture no tank reaches (red), along its foot.
     if cell.supply == "dry" then plan:drawRect(cell.x + 5, cell.y + cell.h - 3, cell.w - 12, 2, 1, 0.9, 0.3, 0.25) end
     -- The box's floor, so the player finds the way back.

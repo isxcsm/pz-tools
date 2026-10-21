@@ -120,14 +120,13 @@ local function plate(L, m, x, y, w)
     return y + h
 end
 
--- What it does, or what to do next, against a bar of the state's colour (broken at spaces to the width).
+-- What it does, or what to do next, in a box of the state's colour (broken at spaces to the width).
 local function strip(L, s, x, y, w)
     local p, fh = L.p, L.fh
     local c = colour(p, s.tone)
     local lines = Draw.wrap(s.text, w - 16)
     local h = math.max(1, #lines) * fh + 6
-    Draw.rect(L, x, y, w, h, c, 0.10)
-    Draw.rect(L, x, y, 3, h, c)
+    Draw.box(L, x, y, w, h, c, 0.10, c, 0.5)
     for i, line in ipairs(lines) do Draw.fit(L, line, x + 10, y + 3 + (i - 1) * fh, w - 16, p.text) end
     return y + h
 end
@@ -436,13 +435,12 @@ end
 
 -- A kind's row: its icon, its name (bright when some of it is chosen) with a chip when it was never shredded, the
 -- weight of one, and on the right how many to shred between [-] and [+]. A click on the row picks all of it, or none
--- when all is picked. A chosen row is tinted, a bar on its left.
+-- when all is picked. A chosen row is tinted.
 local function benchRow(L, r, x, y, w, h, locked)
     local p, fh = L.p, L.fh
     local btn = Layout.buttonHeight()
     if r.chosen > 0 then
         Draw.rect(L, x, y, w, h, p.value, 0.08)
-        Draw.rect(L, x, y, 2, h, p.value)
     end
     local row = Draw.hit(L, x, y, w, h, "row", nil, not locked)
     row.index, row.hover = r.index, not locked

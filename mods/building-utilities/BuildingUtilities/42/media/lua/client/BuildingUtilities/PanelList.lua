@@ -259,14 +259,12 @@ local function drawItem(self, y, item, alt)
     y = yd
     local textY = y + (ROW - FONT_HGT_SMALL) / 2
     local index = item.index
-    -- The row under the mouse lit, coming in and fading as the mouse moves on (UI.placeLight), an accent at its left;
-    -- a click flashes it; its buttons light as the mouse goes over them. The row chosen (clicked, or found from the
+    -- The row under the mouse lit, coming in and fading as the mouse moves on (UI.placeLight); a click flashes it; its buttons light as the mouse goes over them. The row chosen (clicked, or found from the
     -- plan) stays lit.
     local lit, flash = UI.placeLevels(self, index)
     if self.selected == index then lit = math.max(lit, 1) end
     if lit > 0.01 or flash > 0.01 then
         UI.fill(c, 0, y, width, ROW, P.sel, 0.1 * lit + 0.22 * flash)
-        UI.fill(c, 0, y + 1, 3, ROW - 2, P.sel, 0.9 * math.max(lit, flash))
     end
     self.rowMouseX = (index == self.hoverIndex or row.options and index == self.overIndex) and self.mouseDX or nil
     -- What the mouse is over on the plan.

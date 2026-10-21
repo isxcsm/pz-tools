@@ -173,7 +173,6 @@ function ISBUManual:prerender()
         local k = UI.hoverLight(self, key, not on and mx >= 0 and mx < w and my >= y and my < y + ROW)
         if on then
             UI.fill(self, 0, y, w, ROW, P.sel, 0.2)
-            UI.fill(self, 0, y, 2, ROW, P.value)
         elseif k > 0 then
             UI.fill(self, 0, y, w, ROW, P.sel, 0.1 * k)
         end

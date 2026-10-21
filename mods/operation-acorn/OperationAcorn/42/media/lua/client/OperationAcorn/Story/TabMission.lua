@@ -618,7 +618,6 @@ function OATabMission:drawCard(p)
     end
     local fh = UI.fontHeight()
     local c = card.colour
-    UI.fill(self, 0, 0, 3, cardH, c, 0.9)
     UI.text(self, card.titleText, 12, 4, p.bright, UIFont.Medium)
     local bx = 12 + card.titleW + 8
     for _, badge in ipairs(card.badges) do

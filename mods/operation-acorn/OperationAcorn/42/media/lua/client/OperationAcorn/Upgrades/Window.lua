@@ -2111,7 +2111,6 @@ function View:paintPlanBar(el)
     UI.fill(el, x, y, w, h, P.panel)
     paintGrit(el, x, y, w, h)
     UI.frame(el, x, y, w, h, has and CYAN or P.border, has and 0.55 or 1)
-    if has then UI.fill(el, x, y, 3, h, CYAN) end
     local fh = UI.fontHeight()
     local ty = y + (h - fh) / 2
     if has then
