@@ -1064,12 +1064,24 @@ function View:onMode(button)
     self:setMode(button.internal, Motion.SWITCH_PACE)
 end
 
--- Shows the trees or the board, coming up at `pace` (a share of the opening's time).
+-- Shows the trees or the board, coming up at `pace` (a share of the opening's time). Each keeps its own selection
+-- (stepsBy, the other's put aside while one shows): approving takes only the one on the screen, where its take plays;
+-- the one put aside comes back with its page, what no longer fits dropped as on any refresh.
 function View:setMode(mode, pace)
+    if self.mode ~= mode then
+        self.stepsBy = self.stepsBy or {}
+        self.stepsBy[self.mode or mode] = self.steps
+        self.steps = self.stepsBy[mode] or {}
+        self.stepsBy[mode] = nil
+        self.refusal = nil
+    end
     self.mode = mode
     self.hover = nil
-    self:layout()
-    if self.sim then self:workOut() end
+    if self.sim then
+        self:refresh()
+    else
+        self:layout()
+    end
     if self.joypad then self.cursor = (self:firstNode() or {}).key or self.cursor end
     self:changed()
     self:startOpen(pace)

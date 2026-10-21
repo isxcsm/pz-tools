@@ -278,8 +278,8 @@ local function shown(view)
     return body, flow, pulse
 end
 
--- A tab on a section of the upgrades, its refresh done here (no player): the selection simulated, the states worked
--- out.
+-- A tab on a section of the upgrades, its refresh done here (no player): the selection simulated, the tab laid out
+-- and the states worked out, as View.refresh does.
 local function onSection(u)
     local Plan = OA.Upgrades.Plan
     local view = laidOut("trees")
@@ -288,6 +288,7 @@ local function onSection(u)
         local sim, kept = Plan.simulate(v.u, v.steps)
         v.sim, v.steps, v.counts, v.revealed = sim, kept, Plan.counts(kept), {}
         v.spentPlan = Plan.spent(v.u, sim)
+        View.layout(v)
         View.workOut(v)
     end
     view:refresh()
@@ -1251,4 +1252,27 @@ test("the open 2nd board shows each tree's points left at the right of its band'
     end
     for _, k in ipairs(stubbed) do UI[k] = real[k] end
     Rules.boardOpen = real.open
+end)
+
+test("each page keeps its own selection: approving takes only the one on the screen", function()
+    local view = onSection(scoutSection())
+    shown(view)
+    view.playerNum = 0
+    view.lockedOnRecord = function() return {} end
+    View.plan(view, "sight")
+    eq(#view.steps, 1)
+    View.onMode(view, { internal = "board" })
+    eq(#view.steps, 0, "the trees' selection put aside on the board")
+    local sent = {}
+    local realSend = OA.Sync.send
+    OA.Sync.send = function(_, command, args) sent[#sent + 1] = { command = command, args = args } end
+    View.approve(view)
+    eq(#sent, 0, "nothing of the trees' approved from the board")
+    View.onMode(view, { internal = "trees" })
+    eq(#view.steps, 1, "back with its page")
+    eq(view.steps[1].id, "sight")
+    View.approve(view)
+    eq(#sent, 1)
+    eq(#sent[1].args.steps, 1)
+    OA.Sync.send = realSend
 end)
