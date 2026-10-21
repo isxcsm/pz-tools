@@ -419,3 +419,44 @@ test("a brief title that comes with a large one (a settlement's level and its no
     eq(specs[5].after, nil)
     PZExtAPI = nil
 end)
+
+test("a title's band follows a window opened under it and closed again, while it is up", function()
+    world()
+    local up, moves = {}, {}
+    PZExtAPI = {
+        version = OA.API_VERSION,
+        client = function() return "handle" end,
+        text = {
+            status = function() return "applied" end,
+            styles = function() return { "stamp", "seal", "brief" } end,
+            title = function() up[#up + 1] = true; return #up end,
+            shown = function(_, key) return up[key] == true end,
+            move = function(_, key, spec) moves[#moves + 1] = { key = key, backdrop = spec.backdrop } end,
+        },
+    }
+    local Kit = PZUIKit.Titles
+    local window = nil
+    local list = { size = function() return window and 1 or 0 end, get = function() return window end }
+    UIManager = { getUI = function() return list end }
+    getCore = function() return { getScreenWidth = function() return 1920 end, getScreenHeight = function() return 1080 end } end
+    local function open()
+        window = { isVisible = function() return true end, getTable = function() return {} end, getX = function() return 600 end,
+            getY = function() return 200 end, getWidth = function() return 800 end, getHeight = function() return 600 end }
+    end
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_StageNamed", style = "seal" })
+    Kit.look(10000)
+    eq(#moves, 0, "no window: as it was put")
+    open()
+    Kit.look(10000 + Kit.LOOK_MS)
+    eq(moves[1].backdrop, Kit.OVER_WINDOW, "a window opened under it: the dark band")
+    Kit.look(10000 + 2 * Kit.LOOK_MS)
+    eq(#moves, 1, "once")
+    window = nil
+    Kit.look(10000 + 3 * Kit.LOOK_MS)
+    eq(moves[2].backdrop, Kit.BACKDROP.seal, "closed: its style's own")
+    up[1] = false
+    open()
+    Kit.look(10000 + 4 * Kit.LOOK_MS)
+    eq(#moves, 2, "gone: no longer followed")
+    UIManager, PZExtAPI = nil, nil
+end)

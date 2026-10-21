@@ -88,7 +88,9 @@ function Titles.show(api, handle, spec, log)
     -- (an emblem is its style's plate's: a style the API lacks goes without it)
     if style ~= spec.style then spec.emblem = nil end
     spec.style = style
-    if spec.backdrop == nil and Titles.overWindow(style == "brief") then spec.backdrop = Titles.OVER_WINDOW end
+    local follow = spec.backdrop == nil
+    local over = follow and Titles.overWindow(style == "brief")
+    if over then spec.backdrop = Titles.OVER_WINDOW end
     spec.sounds, spec.subtitleSounds = PZUIKit.Sound.titleSounds(style)
     if not spec.subtitle then spec.subtitleSounds = nil end
     local ok, err = pcall(t.title, handle, spec)
@@ -108,8 +110,54 @@ function Titles.show(api, handle, spec, log)
         ok, err = pcall(t.title, handle, spec)
     end
     if not ok and log then log("title:", tostring(err)) end
+    if ok and follow and err then Titles.follow(api, handle, err, style, over) end
     return ok, ok and err or nil
 end
+
+-- A title's band follows the windows while it is up or waiting: a window opened under it (the terminal opened as it
+-- plays, or before a queued one comes) gives it the dark band, one closed gives back its style's own (BACKDROP: the
+-- API's styles' own, BACKDROP_ELSE for the rest). Looked at every LOOK_MS of real time while there is one to follow.
+Titles.LOOK_MS = 250
+Titles.BACKDROP, Titles.BACKDROP_ELSE = { seal = 0.38, brief = 0.36 }, 0.3
+local followed, followedN, lookedAt = {}, 0, 0
+
+function Titles.follow(api, handle, key, style, over)
+    if followed[key] == nil then followedN = followedN + 1 end
+    followed[key] = { api = api, handle = handle, brief = style == "brief", over = over == true,
+        base = Titles.BACKDROP[style] or Titles.BACKDROP_ELSE }
+end
+
+-- (each tick: at once while none is followed)
+function Titles.look(now)
+    if followedN == 0 then return end
+    now = now or getTimestampMs()
+    if now >= lookedAt and now - lookedAt < Titles.LOOK_MS then return end
+    lookedAt = now
+    local gone, over = {}, {}
+    for key, f in pairs(followed) do
+        if not Titles.shown(f.api, f.handle, key) then
+            gone[#gone + 1] = key
+        else
+            local o = over[f.brief]
+            if o == nil then
+                o = Titles.overWindow(f.brief)
+                over[f.brief] = o
+            end
+            if o ~= f.over then
+                f.over = o
+                local t = Titles.textApi(f.api)
+                if t and type(t.move) == "function" then
+                    pcall(t.move, f.handle, key, { backdrop = o and Titles.OVER_WINDOW or f.base, time = 0.3 })
+                end
+            end
+        end
+    end
+    for _, key in ipairs(gone) do
+        followed[key] = nil
+        followedN = followedN - 1
+    end
+end
+Events.OnTick.Add(function() Titles.look() end)
 
 -- Whether a title (its key, as Titles.show gave it) is on the screen or waiting to be.
 function Titles.shown(api, handle, key)
