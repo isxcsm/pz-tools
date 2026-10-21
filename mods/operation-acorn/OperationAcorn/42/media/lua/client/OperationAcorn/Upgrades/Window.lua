@@ -165,68 +165,26 @@ local INVISIBLE = 0.002
 -- middle, a few pixels across, it is not seen either.
 local GLOW_INVISIBLE = 0.012
 
--- The rectangles of the flow's and the pulse's frames (View:paintFlow, View:paintPulses: a line's dashes and lights are
--- dozens a frame) go to the extension API's rects call as one list of numbers (8 each: x, y, w, h, r, g, b, a) instead of
--- a drawRect for each, in the order they were asked: a picture asked between (texPx) has the rectangles before it
--- drawn first. The list is kept between frames. An API without the call, or one whose call failed (said once, and not
--- tried again: the frame's rectangles are drawn one by one), leaves every rectangle a drawRect.
-local rectList, rectCount, rectEl, rectDraw = {}, 0, nil, nil
-local rectsFailed = false
-
-local function drawRects()
-    local n = rectCount
-    if n == 0 then return end
-    rectCount = 0
-    local list = rectList
-    local ok, err = pcall(rectDraw, rectEl, list, n)
-    if ok then return end
-    rectsFailed = true
-    OA.log("research flow: the API's rects failed, drawn one by one:", tostring(err))
-    for i = 0, n - 1 do
-        local at = i * 8
-        ISUIElement.drawRect(rectEl, list[at + 1], list[at + 2], list[at + 3], list[at + 4], list[at + 8], list[at + 5],
-            list[at + 6], list[at + 7])
-    end
-end
-
--- Starts a frame's batch for the element `el` (every rectangle of the frame is drawn on it), and ends it (what is left
--- is drawn). Nothing is batched outside a frame, or without the API's call.
-local function beginRects(el)
-    rectCount = 0
-    rectDraw = not rectsFailed and OA.drawCall("rects") or nil
-    rectEl = rectDraw and el or nil
-end
-
-local function endRects()
-    if rectEl then drawRects() end
-    rectEl, rectDraw = nil, nil
-end
-
+-- The pixel draws go to the element's javaObject itself: a frame of the flow's lights is a few hundred of them, and
+-- ISUIElement's wrappers cost a Lua call and lookups each. (The extension API's rects batch measured slower than
+-- plain draws, the lights' pictures breaking it into small ones besides.) A tape's stand-in has a javaObject that keeps
+-- the calls, so these are recorded as any draw.
 local function rectPx(el, x, y, w, h, c, a)
     if w <= 0 or h <= 0 or (a and a < INVISIBLE) then return end
-    if el == rectEl then
-        local l, at = rectList, rectCount * 8
-        l[at + 1], l[at + 2], l[at + 3], l[at + 4] = x, y, w, h
-        l[at + 5], l[at + 6], l[at + 7], l[at + 8] = c[1], c[2], c[3], a or 1
-        rectCount = rectCount + 1
-        return
-    end
-    ISUIElement.drawRect(el, x, y, w, h, a or 1, c[1], c[2], c[3])
+    el.javaObject:DrawTextureScaledColor(nil, x, y, w, h, c[1], c[2], c[3], a or 1)
 end
 
 local function texPx(el, tex, x, y, w, h, c, a)
     if not tex or (a and a < INVISIBLE) then return end
     c = c or WHITE
-    if el == rectEl then drawRects() end
-    ISUIElement.drawTextureScaled(el, tex, x, y, w, h, a or 1, c[1], c[2], c[3])
+    el.javaObject:DrawTextureScaledColor(tex, x, y, w, h, c[1], c[2], c[3], a or 1)
 end
 
--- A texture tiled at its own pixels over a rectangle (pixels), after the rectangles waiting before it.
+-- A texture tiled at its own pixels over a rectangle (pixels).
 local function tiledPx(el, tex, x, y, w, h, c, a)
     if not tex or w <= 0 or h <= 0 or (a and a < INVISIBLE) then return end
     c = c or WHITE
-    if el == rectEl then drawRects() end
-    ISUIElement.drawTextureTiled(el, tex, x, y, w, h, c[1], c[2], c[3], a or 1)
+    el.javaObject:DrawTextureTiled(tex, x, y, w, h, c[1], c[2], c[3], a or 1)
 end
 
 -- A steady pseudo-random number in [0, 1) for a whole number (the same number, the same answer): what picks a
@@ -2782,11 +2740,7 @@ function View:paintFlow(el)
     local now = UI.frameNow(el)
     NOW, CLOCK = now, now - self.t0
     self:frameState(now)
-    -- (the batch of rectangles is ended whatever happens in the frame)
-    beginRects(el)
-    local ok, err = pcall(flowLines, self, el, CLOCK / 1000)
-    endRects()
-    if not ok then error(err, 0) end
+    flowLines(self, el, CLOCK / 1000)
 end
 
 -- The pulse panel's frame: the pulse of the nodes that can be taken (the body has drawn their frames at the pulse's
@@ -2840,10 +2794,7 @@ function View:paintPulses(el)
         playPart(tapes, self.pulseLevel, el, drawPulses, self)
         return
     end
-    beginRects(el)
-    local ok, err = pcall(pulseFrames, self, el, now)
-    endRects()
-    if not ok then error(err, 0) end
+    pulseFrames(self, el, now)
 end
 
 -- ---- the body taking an applied selection -------------------------------------------------------------------------
