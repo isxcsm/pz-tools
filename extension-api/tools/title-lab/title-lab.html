@@ -914,15 +914,21 @@ function alongAt(x, y, W, H, sweep) {
     default: return ((W - x) + y) / (W + H);
   }
 }
+// A burn's front crosses a text at one pace whatever its length (Looks.frontShare): FRONT for a box REF_W by REF_H lines
+// (this page's first title and its margins), a shorter one's less, down to MIN_FRONT of it; a longer one's no more.
+const REF_W = 4.9, REF_H = 1.4, MIN_FRONT = 0.5;
+const span = (w, h, sweep) => sweep === "right" || sweep === "left" ? w : sweep === "up" || sweep === "down" ? h : w + h;
+const frontShare = (W, H, line, sweep) => line > 0
+  ? P.FRONT * clamp(span(W / line, H / line, sweep) / span(REF_W, REF_H, sweep), MIN_FRONT, 1) : P.FRONT;
 // The burn map: the sweep, clumps a few cells wide (holes open ahead of the front), and fine fibres that make the edge ragged.
-function burnMap(W, H, cell, seed) {
+function burnMap(W, H, cell, seed, front = P.FRONT) {
   const map = new Float32Array(W * H), s = Number(seed & 0xFFFFFFn) | 0;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     // a warp of the place, so the edge curls instead of following the noise's grid
     const wx = x + (vnoise(x / 23, y / 23, s + 5) - 0.5) * P.CURL * cell * 4, wy = y + (vnoise(x / 23, y / 23, s + 6) - 0.5) * P.CURL * cell * 4;
     const clump = 0.7 * vnoise(wx / (PATCH * cell), wy / (PATCH * cell), s) + 0.3 * vnoise(wx / (FINE_PATCH * cell), wy / (FINE_PATCH * cell), s + 1);
     const fibre = 0.6 * vnoise(wx / 3, wy / 3, s + 2) + 0.4 * vnoise(wx / 1.4, wy / 1.4, s + 3);
-    map[y * W + x] = P.FRONT * alongAt(x, y, W, H, P.sweep) + P.SPREAD * clump + P.RAGGED * (fibre - 0.5);
+    map[y * W + x] = front * alongAt(x, y, W, H, P.sweep) + P.SPREAD * clump + P.RAGGED * (fibre - 0.5);
   }
   return map;
 }
@@ -1088,7 +1094,8 @@ function piece(text, line, colour, centreY, seed, spec) {
   const cellSide = Math.max(MIN_CELL, line * CELL * P.dustSize);
   const cells = p.cells = cut(data, w, h, cellSide, P.sweep, seed);
   // Paper: each spot burns at its time on the map; a cell's flake leaves as its middle burns.
-  const map = burnMap(w, h, cellSide, seed);
+  // (a flare's pace is its own: its burn's end)
+  const map = burnMap(w, h, cellSide, seed, SWEEPS.includes(P.sweep) ? frontShare(w, h, line, P.sweep) : P.FRONT);
   // (the last of its ink to burn, and a little more for its edge and char to pass: where a paced burn ends)
   let last = 0;
   for (let i = 0; i < w * h; i++) if (data[i * 4 + 3] >= INK && map[i] > last) last = map[i];

@@ -66,6 +66,12 @@ final class Looks {
      * the flame's edge, the char and the scorch ahead of it, as shares of the leave.
      */
     static final double FRONT = 0.52, SPREAD = 0.07, RAGGED = 0.03, CURL = 0.6, EDGE_W = 0.012, CHAR_W = 0.02, SCORCH_W = 0.07;
+    /**
+     * Burn: its front crosses a text at one pace whatever its length (its sound is loudest at once): FRONT is the share for a
+     * box REF_W by REF_H lines (the title lab's first title, 4.5 lines wide, and its margins), a shorter box's less, down to
+     * MIN_FRONT of it; a longer one's no more.
+     */
+    static final double REF_W = 4.9, REF_H = 1.4, MIN_FRONT = 0.5;
     /** Burn's ash: the share of the cells that leave as shards, their size, how fast they spin, how soon they grey, and to what. */
     static final double FLAKES = 0.5, FLAKE_SIZE = 1.1, SPIN = 7, GREYING = 0.35, PAPER_ASH = 0.55;
     /**
@@ -186,6 +192,11 @@ final class Looks {
     static float[] burnMap(int w, int h, double cell, long seed, Dust.Sweep sweep) { return burnMap(w, h, cell, seed, sweep, false); }
 
     static float[] burnMap(int w, int h, double cell, long seed, Dust.Sweep sweep, boolean round) {
+        return burnMap(w, h, cell, seed, sweep, round, FRONT);
+    }
+
+    /** ... its front taking {@code frontShare} of the leave to cross it ({@link #frontShare}). */
+    static float[] burnMap(int w, int h, double cell, long seed, Dust.Sweep sweep, boolean round, double frontShare) {
         float[] map = new float[w * h];
         int s = (int)(seed & 0xFFFFFF);
         double warp = CURL * cell * 4, patch = Dust.PATCH * cell, fine = Dust.FINE_PATCH * cell;
@@ -195,9 +206,27 @@ final class Looks {
                 double clump = 0.7 * vnoise(wx / patch, wy / patch, s) + 0.3 * vnoise(wx / fine, wy / fine, s + 1);
                 double fibre = 0.6 * vnoise(wx / 3, wy / 3, s + 2) + 0.4 * vnoise(wx / 1.4, wy / 1.4, s + 3);
                 double front = round ? round(x, y, w, h) : along(x, y, w, h, sweep);
-                map[y * w + x] = (float)(FRONT * front + SPREAD * clump + RAGGED * (fibre - 0.5));
+                map[y * w + x] = (float)(frontShare * front + SPREAD * clump + RAGGED * (fibre - 0.5));
             }
         return map;
+    }
+
+    /**
+     * The share of the leave a burn's front takes to cross a picture {@code w} by {@code h} for lines {@code line} pixels high:
+     * {@link #FRONT} by how far the front goes against the same for the REF_W by REF_H box, MIN_FRONT to 1 of it.
+     */
+    static double frontShare(double w, double h, double line, Dust.Sweep sweep) {
+        if (!(line > 0)) return FRONT;
+        return FRONT * clamp(span(w / line, h / line, sweep) / span(REF_W, REF_H, sweep), MIN_FRONT, 1);
+    }
+
+    /** How far a sweep's front goes across a box {@code w} by {@code h}: a side's across it, a corner's both ways. */
+    private static double span(double w, double h, Dust.Sweep sweep) {
+        return switch (sweep) {
+            case RIGHT, LEFT -> w;
+            case UP, DOWN -> h;
+            default -> w + h;
+        };
     }
 
     /** The map as a texture's pixels, its rows from the top: each value in 16 bits, high in red, low in green. */

@@ -2385,7 +2385,9 @@ final class Texts implements Hooks.Text {
                 Dust.Cells cells = Dust.Cells.of(alpha, width, height, size, sweep, piece.seed, Dust.MAX_CELLS);
                 if (cells == null) { piece.phase = Dust.FAILED; return; }
                 // A flare's from its spot, at its pace (its ash flying its own time, as it is drawn).
-                float[] map = Looks.burnMap(width, height, size, piece.seed, sweep, flare);
+                // (a flare's pace is its own: its burn's end)
+                float[] map = Looks.burnMap(width, height, size, piece.seed, sweep, flare,
+                    flare ? Looks.FRONT : Looks.frontShare(width, height, piece.line, sweep));
                 if (flare) piece.burnEnd = Looks.burnEnd(map, alpha, width, height);
                 Looks.startsFromMap(cells, map, width, height, flare ? piece.burnEnd : 0);
                 piece.cells = cells;

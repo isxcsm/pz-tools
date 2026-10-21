@@ -76,6 +76,15 @@ final class LooksTest {
         for (float value : map) sum += value;
         check(near(map[0], 0.4053019881248474) && near(map[57], 0.1239451915025711) && near(map[179], 0.19854091107845306) && Math.abs(sum - 53.17510087043047) < 1e-4,
             "The burn map is not the page's: " + map[0] + ", " + map[57] + ", " + map[179] + ", " + sum);
+        // A burn's front at one pace: the lab title's box takes FRONT, a shorter one less (to half), a longer one no more.
+        var downleft = Dust.Sweep.DOWNLEFT;
+        check(near(Looks.frontShare(4.9 * 72, 1.4 * 72, 72, downleft), Looks.FRONT) && near(Looks.frontShare(10 * 72, 1.4 * 72, 72, downleft), Looks.FRONT)
+            && near(Looks.frontShare(3.1 * 72, 1.4 * 72, 72, downleft), Looks.FRONT * 4.5 / 6.3)
+            && near(Looks.frontShare(1 * 72, 1.4 * 72, 72, downleft), Looks.FRONT * Looks.MIN_FRONT)
+            && near(Looks.frontShare(3.675 * 72, 1.4 * 72, 72, Dust.Sweep.RIGHT), Looks.FRONT * 0.75)
+            && Looks.frontShare(100, 50, 0, downleft) == Looks.FRONT, "A burn's front does not keep its pace");
+        float[] quick = Looks.burnMap(20, 9, 2.5, 0x123456789L, downleft, false, Looks.FRONT / 2);
+        check(near(quick[0] - map[0], -Looks.FRONT / 2 * Looks.along(0, 0, 20, 9, downleft)), "A quicker front's map is not the sweep's share less");
         // A flare's: from its spot at the middle's foot, round; fast and then slowing, its spots reached at that pace.
         check(near(Looks.round(3, 2, 20, 9), 0.7349293798778876) && Math.abs(Looks.round(10, 7.65, 20, 9)) < 1e-12 && near(Looks.round(0, 0, 20, 9), 1),
             "A flare's distance from its spot is not the page's");
