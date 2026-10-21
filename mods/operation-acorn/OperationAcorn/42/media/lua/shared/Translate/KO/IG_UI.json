@@ -456,7 +456,7 @@
     "IGUI_OA_Tree_Why_debt": "빚이 있으면 초기화할 수 없습니다.",
     "IGUI_OA_Tree_Why_credits": "크레딧이 모자랍니다.",
     "IGUI_OA_Tree_TabName": "적응",
-    "IGUI_OA_Tree_ModeTrees": "세 계열",
+    "IGUI_OA_Tree_ModeTrees": "초기 투여",
     "IGUI_OA_Tree_OwnLeft": "남은 여력 %1",
     "IGUI_OA_Tree_BoardShare": "연장 투여 +%1",
     "IGUI_OA_Tree_BadgeShared": "범용 여력 %1",
