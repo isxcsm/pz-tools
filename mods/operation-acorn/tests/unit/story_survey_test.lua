@@ -67,7 +67,7 @@ test("the tiers and a join drop no branch call", function()
     truthy(Comms.ready(r, "C_scout", 50), "still waits to be played")
 end)
 
-test("the call played marks the site's zone: the site inside, away from the middle; the fragment takes it away", function()
+test("the call played marks the site's zone: the site well inside; the fragment takes it away", function()
     local r = record(true)
     Branches.look(r, "approved")
     eq(#Survey.zones(r), 0, "not before it is heard")
@@ -78,8 +78,7 @@ test("the call played marks the site's zone: the site inside, away from the midd
     eq(z.tree, "scout")
     eq(z.r, Survey.R)
     local d = OA.Places.distance(site.x, site.y, z.x, z.y)
-    truthy(d >= Survey.R * Survey.OFFSET_MIN - 1 and d <= Survey.R * Survey.OFFSET_MAX + 1, d)
-    truthy(d < z.r)
+    truthy(d < z.r - Survey.GAP, d)
     local again = Survey.zone(site)
     eq(again.x, z.x); eq(again.y, z.y)
     -- on the maps: a dim circle, never where the way leads
@@ -128,8 +127,7 @@ test("walked into, the zone narrows stage by stage: its title and line each time
     Survey.minute(r, x, y, function() return true end)
     local z = Survey.zones(r)[1]
     eq(z.stage, 2); eq(z.r, Survey.STAGES[2])
-    local d = OA.Places.distance(site.x, site.y, z.x, z.y)
-    truthy(d >= z.r * Survey.OFFSET_MIN - 1 and d <= z.r * Survey.OFFSET_MAX + 1, d)
+    truthy(OA.Places.distance(site.x, site.y, z.x, z.y) < z.r - Survey.GAP, "the site well inside")
     eq(#titles, 1)
     eq(titles[1].key, "IGUI_OA_Title_SurveyIn"); eq(titles[1].style, "unveil")
     eq(lines[1].id, "SurveyIn"); eq(lines[1].delay, Survey.SAY)
@@ -148,26 +146,15 @@ test("walked into, the zone narrows stage by stage: its title and line each time
     done()
 end)
 
-test("a smaller zone that reaches out of the one the maps show is not entered from outside the shown one", function()
-    local r = record(true)
-    Branches.look(r, "approved")
-    local titles, lines, done = caught()
-    play(r, "C_scout")
-    local site = Survey.siteOf("scout")
-    local wide, next = Survey.zone(site, 1), Survey.zone(site, 2)
-    -- a point of the next zone outside the wide one (the sites are placed so that one exists; else this checks nothing)
-    local px, py
-    for deg = 0, 359, 5 do
-        local a = deg * math.pi / 180
-        local x, y = math.floor(next.x + math.cos(a) * (next.r - 2)), math.floor(next.y + math.sin(a) * (next.r - 2))
-        if OA.Places.distance(x, y, wide.x, wide.y) > wide.r + 2 then px, py = x, y break end
+test("each zone lies inside the one before, its rim GAP inside that one's whichever way it is come to", function()
+    for i = 0, 199 do
+        local site = { x = 9000 + i * 37, y = 6000 + i * 53 }
+        for stage = 1, #Survey.STAGES - 1 do
+            local outer, inner = Survey.zone(site, stage), Survey.zone(site, stage + 1)
+            local gap = outer.r - inner.r - OA.Places.distance(outer.x, outer.y, inner.x, inner.y)
+            truthy(gap >= Survey.GAP - 1.5, "stage " .. stage .. ": " .. gap)
+        end
     end
-    if px then
-        Survey.minute(r, px, py, day)
-        eq(Survey.zones(r)[1].stage, 1, "still the wide zone")
-        eq(#titles, 0)
-    end
-    done()
 end)
 
 test("walked straight to the site: the last stage at once, its title and line alone; the site's own title kept quiet", function()
@@ -200,21 +187,22 @@ test("a site stood near before tells so on walking into its zone", function()
     done()
 end)
 
-test("the site lies at different shares of the radius and ways from the middle, the next stage's its own", function()
+test("the site lies at different shares of the last zone's radius and ways from its middle, the stage before's its own", function()
     local shares, same = {}, 0
     for i = 0, 199 do
         local site = { x = 9000 + i * 37, y = 6000 + i * 53 }
-        local z, n = Survey.zone(site), Survey.zone(site, 2)
+        local z, n = Survey.zone(site, #Survey.STAGES), Survey.zone(site, #Survey.STAGES - 1)
         local share = OA.Places.distance(site.x, site.y, z.x, z.y) / z.r
-        truthy(share >= Survey.OFFSET_MIN - 0.01 and share <= Survey.OFFSET_MAX + 0.01, share)
+        truthy(share >= Survey.OFFSET_MIN - 0.03 and share <= Survey.OFFSET_MAX + 0.03, share)
         shares[math.floor(share * 10)] = true
-        -- the next stage's middle on the same side of the site as the first one's
+        -- the stage before's middle on the same side of the site as the last one's
         local a = math.atan2(z.y - site.y, z.x - site.x)
         local b = math.atan2(n.y - site.y, n.x - site.x)
         if math.abs(math.cos(a - b) - 1) < 0.05 then same = same + 1 end
     end
     for tenth = 2, 6 do truthy(shares[tenth], "a share near " .. tenth / 10) end
-    truthy(same < 40, "the next stage's way is its own: " .. same)
+    -- (the stage before is moved from the last one's middle: its way leans on the last one's, a quarter of the time)
+    truthy(same < 70, "the stage before's way is mostly its own: " .. same)
 end)
 
 test("the clearing: all of it within CLEAR_IN, thinning out to CLEAR_OUT, trees most and grass least", function()

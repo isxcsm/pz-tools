@@ -20,10 +20,12 @@ local OA = OperationAcorn
 local Survey = {}
 OA.StorySurvey = Survey
 
--- The zones' radii (squares), stage by stage, and how far from the site a zone's middle lies, a share of its radius
--- from OFFSET_MIN to OFFSET_MAX that the site's place picks: the site is inside, never at the middle nor always as far
--- from it. R: the first.
-Survey.STAGES = { 150, 90, 25 }
+-- The zones' radii (squares), stage by stage. Each lies inside the one before, its rim at least GAP inside that one's,
+-- so walked into, a zone's next is that far on whichever way the player came (its title read on the way, before the
+-- next one's). The last zone's middle lies a share of its radius from the site, OFFSET_MIN to OFFSET_MAX, that the
+-- site's place picks: the site is inside, never at the middle nor always as far from it. R: the first.
+Survey.STAGES = { 170, 100, 25 }
+Survey.GAP = 50
 Survey.R = Survey.STAGES[1]
 Survey.OFFSET_MIN, Survey.OFFSET_MAX = 0.2, 0.7
 -- Real seconds from a title to its line (the title is read first, as Scene.ARRIVE_SAY).
@@ -56,18 +58,32 @@ function Survey.siteOf(tree)
     return found
 end
 
--- The zone of a site at a stage (1 by default): { x, y, r }, its middle a share of its radius (OFFSET_MIN ..
--- OFFSET_MAX) from the site in a direction, both picked by the site's place and the stage (the same every time it is
--- asked; where one stage's middle lay tells nothing of where in the next the site is).
-function Survey.zone(site, stage)
-    stage = stage or 1
+-- A direction and a share (0 to 1) a site's place picks for a stage.
+local function pick(site, stage)
     local salt = stage - 1
     local turn = OA.remainder(site.x * 31 + site.y * 17 + salt * 157, 360) * math.pi / 180
     local share = OA.remainder(site.x * 13 + site.y * 7 + salt * 389, 1000) / 1000
-    local r = Survey.STAGES[stage]
+    return turn, share
+end
+
+-- The zone of a site at a stage (1 by default): { x, y, r }. The last one's middle a share of its radius (OFFSET_MIN ..
+-- OFFSET_MAX) from the site; each before it moved from the next one's middle as far as its room allows (its radius less
+-- the next one's and GAP) times a share, in a direction: all picked by the site's place and the stage (the same every
+-- time it is asked; where one stage's middle lies tells little of where in the next the site is).
+function Survey.zone(site, stage)
+    stage = stage or 1
+    local last = #Survey.STAGES
+    local turn, share = pick(site, last)
+    local r = Survey.STAGES[last]
     local d = r * (Survey.OFFSET_MIN + share * (Survey.OFFSET_MAX - Survey.OFFSET_MIN))
-    return { x = math.floor(site.x + d * math.cos(turn) + 0.5), y = math.floor(site.y + d * math.sin(turn) + 0.5),
-        r = r }
+    local x, y = site.x + d * math.cos(turn), site.y + d * math.sin(turn)
+    for s = last - 1, stage, -1 do
+        local outer = Survey.STAGES[s]
+        turn, share = pick(site, s)
+        local e = math.max(0, outer - r - Survey.GAP) * share
+        x, y, r = x + e * math.cos(turn), y + e * math.sin(turn), outer
+    end
+    return { x = math.floor(x + 0.5), y = math.floor(y + 0.5), r = r }
 end
 
 -- Whether a tree's capstone waits only for its fragment.
@@ -127,7 +143,7 @@ function Survey.minute(record, x, y, isNight)
     for _, tree in ipairs(data().TREES) do
         local site = surveyed(record, tree)
         local at = site and not site.taken and stageOf(record, tree, site)
-        -- only inside the zone the maps show: a smaller one may reach out of it, and the player has not seen that one
+        -- only inside the zone the maps show (the player has not seen the smaller ones)
         local shown = at and at < last and Survey.zone(site, at)
         if shown and OA.Places.distance(x, y, shown.x, shown.y) <= shown.r then
             local to = at
