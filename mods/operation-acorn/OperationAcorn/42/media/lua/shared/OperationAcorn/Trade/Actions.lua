@@ -197,7 +197,7 @@ function ISOAUnseal:new(character, square, withCrowbar)
     local o = ISBaseTimedAction.new(self, character)
     o.x, o.y, o.z = square:getX(), square:getY(), square:getZ()
     o.withCrowbar = withCrowbar
-    o.maxTime = character:isTimedActionInstant() and 1 or (withCrowbar and 120 or 450)
+    o.maxTime = character:isTimedActionInstant() and 1 or (withCrowbar and 60 or 225)
     return o
 end
 
