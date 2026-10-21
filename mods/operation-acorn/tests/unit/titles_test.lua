@@ -5,6 +5,7 @@ require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Titles"
 local OA = OperationAcorn
+local clock
 
 local function world()
     local said = {}
@@ -14,7 +15,15 @@ local function world()
     HaloTextHelper = nil
     getNumActivePlayers = function() return 1 end
     getSpecificPlayer = function() return character end
+    clock = 1000000
+    getTimestampMs = function() return clock end
     return said
+end
+
+-- The beat a brief title from the world waits (Titles.BEAT_MS) gone by: the held ones come.
+local function beat()
+    clock = clock + OA.Titles.BEAT_MS
+    OA.Titles.showHeld(true)
 end
 
 test("without the API's text a title is said by the character", function()
@@ -163,7 +172,9 @@ test("a brief title the API does not have is said by the character, not a big on
         styles = function() return { "stamp", "dust", "brief" } end,
         title = function(_, spec) called[#called + 1] = spec end,
     }
-    OA.Titles.show("p1", { key = "IGUI_OA_Title_SearchedBonus", args = { "170" }, style = "brief" })
+    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_SearchedBonus", args = { "170" }, style = "brief" }), "held",
+        "a beat first")
+    beat()
     eq(called[1].style, "brief")
     PZExtAPI = nil
 end)
@@ -277,6 +288,8 @@ test("a notice as a brief title in its tone, or said; a refusal of the character
         },
     }
     OA.Titles.brief("p1", "IGUI_OA_Trade_Reason_far", nil, "red")
+    eq(#called, 0, "a beat first")
+    beat()
     eq(#called, 1)
     eq(called[1].style, "brief")
     eq(called[1].text, "IGUI_OA_Trade_Reason_far")
@@ -375,4 +388,34 @@ test("a brief title held for a window, the window closed at once, comes after th
     eq(specs[3].after, nil, "it has left: at once")
     eq(Titles.bigUp(), nil)
     OATerminalWindow, PZExtAPI = nil, nil
+end)
+
+test("a brief title that comes with a large one (a settlement's level and its notices) comes after it, whichever came first", function()
+    world()
+    local up, specs = {}, {}
+    PZExtAPI = {
+        version = OA.API_VERSION,
+        client = function() return "handle" end,
+        text = {
+            status = function() return "applied" end,
+            styles = function() return { "stamp", "dust", "brief" } end,
+            title = function(_, spec) specs[#specs + 1] = spec; up[#specs] = true; return #specs end,
+            shown = function(_, key) return up[key] == true end,
+        },
+    }
+    local Titles = OA.Titles
+    eq(Titles.brief("p1", "IGUI_OA_Machine_PartWorn"), "held", "a beat first")
+    Titles.show("p1", { key = "IGUI_OA_Title_StageNamed", size = "major" })
+    beat()
+    eq(specs[2].style, "brief")
+    eq(specs[2].after, 1, "after the large title that came in its beat")
+    -- the large one first
+    Titles.show("p1", { key = "IGUI_OA_Title_Capstone" })
+    Titles.brief("p1", "IGUI_OA_Tree_FirstEffect")
+    beat()
+    eq(specs[4].after, 3)
+    -- an answer comes at once
+    eq(Titles.brief("p1", "IGUI_OA_Story_RerollFail", nil, "red", nil, true), "title")
+    eq(specs[5].after, nil)
+    PZExtAPI = nil
 end)

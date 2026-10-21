@@ -74,19 +74,22 @@ function Titles.windowOpen(playerNum)
     return Window ~= nil and Window.onScreen(playerNum) == true
 end
 
--- The brief titles held while a window is open (Titles.show): { playerId, detail, noSay, playerNum, text }, in the
--- order they came; one the same as one held already is not held twice. Looked at every HELD_LOOK_MS of real time
--- while there are some.
+-- The brief titles held (Titles.show): { playerId, detail, noSay, playerNum, text, due }, in the order they came; one
+-- the same as one held already is not held twice. Held while a window is open, and every one a beat (BEAT_MS) as it
+-- comes: what came with it (a settlement's large title) is known then, and the brief comes after that one rather than
+-- under it. Looked at every HELD_LOOK_MS of real time while there are some.
 Titles.HELD_LOOK_MS = 250
+Titles.BEAT_MS = 300
 local held = {}
 local heldLook = 0
 
 -- Shows a title (detail as OA.Sync.title takes it) for the player of that id; returns how it was shown: "title",
 -- "said" (the API cannot draw it: the character says it), "held" or nil, and the key of a title drawn (a later one's
 -- `after`). With `noSay` a title the API cannot draw is not shown at all (the caller has its own way then). The small
--- text over the character is never used. A brief title is news from the world, and while the player works in a window
--- (Titles.windowOpen) it waits for the window to close; one that answers what was done in the window (detail.answer: a
--- button's refusal, a call taken) comes over it at once.
+-- text over the character is never used. A brief title is news from the world: it waits a beat (Titles.BEAT_MS), and
+-- while the player works in a window (Titles.windowOpen) for the window to close, then comes after the large title
+-- still up (Titles.bigUp); one that answers what was done in the window (detail.answer: a button's refusal, a call
+-- taken) comes over it at once.
 function Titles.show(playerId, detail, noSay)
     if type(detail) ~= "table" then return nil end
     local title = text(detail.key, detail.args)
@@ -96,20 +99,24 @@ function Titles.show(playerId, detail, noSay)
     if sub then sub = OA.Markup.strip(sub) end
     local characters = charactersOf(playerId)
     if #characters == 0 then return nil end
-    if detail.style == "brief" and not detail.answer and not Titles.now then
+    local api = OA.api()
+    local handle = Kit.textApi(api) and OA.handle()
+    if handle and not Kit.styleFor(Kit.textApi(api), detail.style) then handle = nil end
+    if detail.style == "brief" and not detail.answer and not Titles.now and not detail.beat then
         local playerNum = characters[1]:getPlayerNum()
-        if Titles.windowOpen(playerNum) then
+        -- (one the API cannot draw is said at once: no title to wait for)
+        if handle or Titles.windowOpen(playerNum) then
             local whole = title .. "|" .. (sub or "")
             for _, h in ipairs(held) do
                 if h.playerNum == playerNum and h.text == whole then return "held" end
             end
-            held[#held + 1] = { playerId = playerId, detail = detail, noSay = noSay, playerNum = playerNum, text = whole }
+            -- (one held for a window has had its beat when the window closes)
+            local due = Titles.windowOpen(playerNum) and 0 or getTimestampMs() + Titles.BEAT_MS
+            held[#held + 1] = { playerId = playerId, detail = detail, noSay = noSay, playerNum = playerNum, text = whole,
+                due = due }
             return "held"
         end
     end
-    local api = OA.api()
-    local handle = Kit.textApi(api) and OA.handle()
-    if handle and not Kit.styleFor(Kit.textApi(api), detail.style) then handle = nil end
     if noSay and not handle then return nil end
     local shown, key
     for _, character in ipairs(characters) do
@@ -185,7 +192,10 @@ function Titles.showHeld(now)
     for _, h in ipairs(waiting) do
         if Titles.windowOpen(h.playerNum) then
             held[#held + 1] = h
+        elseif now < h.due then
+            held[#held + 1] = h
         else
+            h.detail.beat = true
             if h.detail.after == nil then h.detail.after = Titles.bigUp() end
             OA.try("title held for a window", Titles.show, h.playerId, h.detail, h.noSay)
         end
