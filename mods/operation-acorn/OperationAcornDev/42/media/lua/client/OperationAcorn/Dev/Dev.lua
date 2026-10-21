@@ -6,6 +6,7 @@ if not isDebugEnabled() then return end
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
+require "OperationAcorn/Chunks"
 require "OperationAcorn/Economy/Trust"
 local OA = OperationAcorn
 local Dev = {}
@@ -84,11 +85,120 @@ local function forgetCalls(record, ids)
     OA.Sync.changed("comms", record.id)
 end
 
+-- ---- a meteor site laid again --------------------------------------------------------------------------------------
+
+-- How far from a site's middle what it put down lies (scorch 1, stake 2, things left 2 to 4).
+local SITE_REACH = 5
+
+-- What a site put down, by sprite name.
+local function siteSprites()
+    local S = OA.Sprites
+    local set = { [S.SCORCHED_GROUND] = true, [S.METEOR_ROCKS] = true, [S.SITE_STAKE] = true }
+    for _, name in pairs(OA.Sites.PROP_SPRITES) do set[name] = true end
+    return set
+end
+
+-- Takes from the square what a site put down and the fragments of `fullType` lying there. Returns how many.
+local function unbuildSquare(sq, sprites, fullType)
+    local n = 0
+    local objects = sq:getObjects()
+    for i = objects:size() - 1, 0, -1 do
+        local o = objects:get(i)
+        local item = instanceof(o, "IsoWorldInventoryObject") and o:getItem()
+        if (item and item:getFullType() == fullType) or (not item and sprites[o:getSprite() and o:getSprite():getName()]) then
+            sq:transmitRemoveItemFromSquare(o)
+            n = n + 1
+        end
+    end
+    return n
+end
+
+-- The squares of x1..x2, y1..y2 at the ground unbuilt; the chunks not loaded get the work when they load. Returns how
+-- many things were taken.
+local function unbuildIn(fullType, x1, y1, x2, y2)
+    local size, cell, sprites = OA.Chunks.SIZE, getCell(), siteSprites()
+    local taken, later = 0, {}
+    for x = x1, x2 do
+        for y = y1, y2 do
+            local sq = cell and cell:getGridSquare(x, y, 0)
+            if sq and sq:getChunk() then
+                taken = taken + unbuildSquare(sq, sprites, fullType)
+            else
+                local cx, cy = math.floor(x / size) * size, math.floor(y / size) * size
+                later[cx .. "," .. cy] = { x = cx, y = cy }
+            end
+        end
+    end
+    for _, at in pairs(later) do
+        OA.Chunks.add({ kind = "oa_dev_unbuild", x = at.x, y = at.y, z = 0, fullType = fullType,
+            x1 = x1, y1 = y1, x2 = x2, y2 = y2 })
+    end
+    return taken
+end
+
+OA.Chunks.handle("oa_dev_unbuild", function(entry)
+    local size = OA.Chunks.SIZE
+    unbuildIn(entry.fullType, math.max(entry.x1, entry.x), math.max(entry.y1, entry.y),
+        math.min(entry.x2, entry.x + size - 1), math.min(entry.y2, entry.y + size - 1))
+    return true
+end)
+
+-- Every site of a fragment kind taken down (its props, its fragment, the kind's fragments the character carries or
+-- left where the maps last saw one), and the kind's site laid again near where it was (Sites.replace), to be built
+-- when its place loads: as a fall the record never saw. A site lost before (relaid) stays in the list, bare.
+function Dev.resetSite(record, kind)
+    local Sites = OA.Sites
+    local fullType = OA.StoryData.fullType(Sites.FRAGMENT[kind])
+    local seen = OA.Story.section(record).sitesSeen
+    local taken = 0
+    for _, site in ipairs(Sites.list()) do
+        if site.kind == kind then
+            if site.state == "placed" then
+                taken = taken + unbuildIn(fullType, site.x - SITE_REACH, site.y - SITE_REACH, site.x + SITE_REACH,
+                    site.y + SITE_REACH)
+            end
+            local at = site.at
+            if at and not at.carried then taken = taken + unbuildIn(fullType, at.x, at.y, at.x, at.y) end
+            if seen then seen[site.n] = nil end
+        end
+    end
+    local p = OA.StoryGame.character(record)
+    local api = OA.api()
+    if p and api and api.items then
+        for _, item in ipairs(api.items.find(p:getInventory(), { type = { fullType } }, { depth = 8 })) do
+            local container = item:getContainer()
+            if container then
+                container:Remove(item)
+                taken = taken + 1
+            end
+        end
+    end
+    local story = OA.Story.section(record)
+    if story.fragmentsTaken then story.fragmentsTaken[kind] = nil end
+    local site = Sites.current(kind)
+    if site then
+        OA.Chunks.remove(function(e) return (e.kind == "oa_site" or e.kind == "oa_clear") and e.site == site.n end)
+        Sites.replace(site)
+        site.state, site.tries, site.reachable = "pending", 0, nil
+        site.taken, site.left, site.at = nil, nil, nil
+        local sq = getCell() and getCell():getGridSquare(site.x, site.y, 0)
+        if sq and sq:getChunk() then
+            Sites.kick()
+        else
+            OA.Chunks.add({ kind = "oa_site", site = site.n, x = site.x, y = site.y, z = 0 })
+        end
+        OA.Sync.changed("sites", nil)
+    end
+    say("meteor site of", kind, "laid again", site and site.x, site and site.y, "things taken", taken)
+    return site
+end
+
 -- The capstones' fragment calls as never heard: the survey calls (C_<tree>, dropped for good once a capstone opened)
 -- forgotten, their map zones gone, and a capstone opened but not taken sealed again, with all that its fragment left:
--- the team's word on it (C_got_, C_had_), the record's fragmentsGot, and the world's note that the team has that kind
--- (Sites.received: else the next plan opens it again at once, as a fragment had before). A capstone that waits for its
--- fragment now brings its call at once (the branch looked at as after a plan applied).
+-- the team's word on it (C_got_, C_had_), the record's fragmentsGot, the world's note that the team has that kind
+-- (Sites.received: else the next plan opens it again at once, as a fragment had before), and its site (Dev.resetSite:
+-- laid again, the fragment in the world again). A capstone that waits for its fragment now brings its call at once (the
+-- branch looked at as after a plan applied).
 function Dev.resetSurvey(record)
     record = record or select(2, upgrades())
     local u = OA.Upgrades.Rules.section(record)
@@ -104,6 +214,7 @@ function Dev.resetSurvey(record)
             if story.fragmentsGot then story.fragmentsGot[tree] = nil end
             local kind = OA.Sites.kindOf(OA.Upgrades.Data.FRAGMENTS[tree])
             if received and kind then received[kind] = nil end
+            if kind then Dev.resetSite(record, kind) end
         end
     end
     forgetCalls(record, ids)

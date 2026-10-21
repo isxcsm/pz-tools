@@ -417,7 +417,31 @@ test("the dev reset of the fragment calls: a dropped call forgotten, the capston
     Branches.look(r, "approved")
     eq(Comms.section(r).dropped.C_scout, true)
     notices = {}
+    -- (the sites laid again: a near point drawn for each, none of their places loaded)
+    PZExtAPI = { version = OA.API_VERSION, client = function() return {} end,
+        zones = { points = function(x, y, lo) return { { x = x + lo, y = y, zones = {} } } end } }
+    getWorld = function() return { getMetaGrid = function() return { getCellData = function() return {} end } end } end
+    getCell = function() return { getGridSquare = function() return nil end } end
+    local specific = getSpecificPlayer
+    getSpecificPlayer = function() return nil end
+    local site = Survey.siteOf("scout")
+    local ox = site.x
+    site.state, site.taken, site.left = "placed", true, 3
+    OA.Story.section(r).sitesSeen[site.n] = true
+    OA.Story.section(r).fragmentsTaken = { [site.kind] = true }
     local fired = Dev.resetSurvey(r)
+    eq(site.state, "pending", "its site laid again")
+    eq(site.x, ox + Sites.NEAR_LO, "near where it was")
+    eq(site.taken, nil)
+    eq(site.left, nil)
+    eq(OA.Story.section(r).sitesSeen[site.n], nil, "never seen")
+    eq(OA.Story.section(r).fragmentsTaken[site.kind], nil, "its first pick-up to come")
+    local waits = 0
+    for _, e in ipairs(OA.Chunks.list("oa_site")) do
+        if e.site == site.n then waits = waits + 1 truthy(e.x == site.x and e.y == site.y) end
+    end
+    eq(waits, 1, "built when its new place loads")
+    truthy(#OA.Chunks.list("oa_dev_unbuild") > 0, "the old one taken down when its place loads")
     eq(Rules.unsealed(u, "scout"), false, "sealed again: its capstone was not taken")
     eq(Comms.section(r).dropped.C_scout, nil)
     eq(fired[1], "C_scout", "the call at once")
@@ -432,7 +456,8 @@ test("the dev reset of the fragment calls: a dropped call forgotten, the capston
     eq((OA.Story.section(r).fragmentsGot or {}).scout, nil)
     eq(Comms.section(r).fired.C_had_scout, nil, "not opened again as a fragment had")
     truthy(Comms.section(r).fired.C_scout ~= nil, "the search's call again")
-    PZExtDev = nil
+    OA.Chunks.remove(function(e) return e.kind == "oa_dev_unbuild" end)
+    PZExtDev, PZExtAPI, getWorld, getCell, getSpecificPlayer = nil, nil, nil, nil, specific
 end)
 
 test("the survey calls know their order, the same when played again from the record", function()

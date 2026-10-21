@@ -76,12 +76,12 @@ test("a refused big meteorite carries the story receipt note and a mark", functi
     eq(OA.Value.markKeys(line.marks)[1], "STORY_BIG_RECEIPT")
 end)
 
-test("each drop site fragment carries the fragment note and pays nothing: it goes to the research team", function()
+test("each drop site fragment carries the fragment note and is paid as a stage-3 mission: it goes to the research team", function()
     fakeStory()
     for _, own in ipairs({ "MeteorFragment", "MeteorFragmentIron", "MeteorFragmentStonyIron" }) do
         local fragment = info("OperationAcorn." .. own, "Junk", 0.5, { own = own })
         local line = OA.Value.appraiseLine(fragment, 1, { rate = 1, trustAccel = 1 })
-        eq(line.credits, 0, own)
+        eq(line.credits, 30000, own)
         eq(line.note, "STORY_FRAGMENT_RECEIPT", own)
         eq(OA.Value.markKeys(line.marks)[1], "STORY_FRAGMENT_RECEIPT", own)
     end
