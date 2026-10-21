@@ -20,8 +20,8 @@ local Data, Places, Rewards, Missions = OA.StoryData, OA.Places, OA.Rewards, OA.
 OATabMission = OATab:derive("OATabMission")
 
 -- The card's least height, and the height of the tab under which it is the small one. The special request's panel is as
--- tall as what it says and the card takes the rest (a short offer card is as tall as what it says, and the panel takes
--- the rest then).
+-- tall as what it says and the card takes the rest (a short offer card is as tall as what it says, the panel under it
+-- too, and what is left of the tab stays empty below them).
 OATabMission.CARD_H, OATabMission.CARD_H_SMALL, OATabMission.SMALL_BELOW = 196, 172, 350
 OATabMission.CARD_H_MIN = 110
 
@@ -514,7 +514,8 @@ function OATabMission:layout()
     local specialH = self:layoutSpecial(w)
     -- an offer (nothing at a place yet) is as tall as what it says, not a card with a hole in the middle; any other card
     -- takes what the special request's panel leaves
-    if card and not card.empty and self.info.state == "waiting" then
+    local short = card and not card.empty and self.info.state == "waiting"
+    if short then
         local fh = UI.fontHeight()
         local need = 32 + #wrapLines(card.brief, w - 24) * fh + 6 + (card.item and 28 or 0) + #card.lines * fh
             + (card.bonus and 18 or 0) + 44
@@ -582,6 +583,8 @@ function OATabMission:layout()
     end
     local sy = cardH + 8
     local sh = h - sy
+    -- (under a short card the panel is as tall as what it says too)
+    if short and specialH then sh = math.min(sh, specialH) end
     self.slot = { y = sy, h = sh }
     local special = self.special
     if special and special.kind == "offer" then
