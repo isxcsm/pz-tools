@@ -195,7 +195,7 @@ test("a seal confirmation says a meteorite fragment goes to the research team, o
     eq(n, 1)
 end)
 
-test("breaking a crate's seal is on top, its tip does not depend on a crowbar being carried", function()
+test("breaking a crate's seal is on top: by hand with a tip of the crowbar, with one carried named so", function()
     setup()
     loadFile("OperationAcorn/Trade/ContextMenu")
     local menu = newMenu()
@@ -204,6 +204,19 @@ test("breaking a crate's seal is on top, its tip does not depend on a crowbar be
     TEST.fire("OnFillWorldObjectContextMenu", 0, menu, { crate }, false)
     eq(menu:names(), "ContextMenu_OA_Trade_Unseal,Vanilla")
     eq(menu.options[1].toolTip.description, "ContextMenu_OA_Trade_UnsealTip")
+    -- (the API's kept count: no search of the inventory)
+    local carried = {}
+    PZExtAPI = { version = OA.API_VERSION, client = function() return {} end,
+        items = { count = function(_, name) return carried[name] or 0 end } }
+    menu = newMenu()
+    TEST.fire("OnFillWorldObjectContextMenu", 0, menu, { crate }, false)
+    eq(menu:names(), "ContextMenu_OA_Trade_Unseal")
+    carried["Base.CrowbarForged"] = 1
+    menu = newMenu()
+    TEST.fire("OnFillWorldObjectContextMenu", 0, menu, { crate }, false)
+    eq(menu:names(), "ContextMenu_OA_Trade_UnsealPry")
+    eq(menu.options[1].toolTip, nil)
+    PZExtAPI = nil
 end)
 
 test("the manifest is read from the top of the inventory menu", function()

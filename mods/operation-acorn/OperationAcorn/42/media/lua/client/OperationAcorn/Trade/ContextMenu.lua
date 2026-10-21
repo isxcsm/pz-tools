@@ -1,7 +1,7 @@
 -- The right-click menus of the trade part: on the terminal, the delivery box and the supply crate in the world, and on
 -- their items, the manifest and the manual in the inventory. Each option goes on top of the game's menu (the thing the
--- player clicked comes first); nothing here searches the inventory to build a menu (what a crowbar would change is
--- told in the tooltip, and the box's nearby items are looked for when the player picks the option).
+-- player clicked comes first); nothing here searches the inventory to build a menu (whether a crowbar is carried is
+-- the API's kept count, items.count; the box's nearby items are looked for when the player picks the option).
 require "ISUI/ISContextMenu"
 require "OperationAcorn/Trade/Actions"
 require "OperationAcorn/Trade/Reader"
@@ -168,8 +168,17 @@ end
 local function crateOptions(context, object, player)
     local md = object:getModData()
     if md[Objects.SEALED] then
-        local option = context:addOptionOnTop(getText("ContextMenu_OA_Trade_Unseal"), object, Menus.unseal, player)
-        tooltip(option, getText("ContextMenu_OA_Trade_UnsealTip"))
+        -- with a crowbar the option says so (the quick way); by hand its tip tells what a crowbar would do
+        local api = OA.api()
+        local pry = false
+        if api and api.items then
+            for _, name in ipairs(CROWBARS) do
+                pry = pry or api.items.count(getSpecificPlayer(player), "Base." .. name) > 0
+            end
+        end
+        local option = context:addOptionOnTop(getText(pry and "ContextMenu_OA_Trade_UnsealPry" or "ContextMenu_OA_Trade_Unseal"),
+            object, Menus.unseal, player)
+        if not pry then tooltip(option, getText("ContextMenu_OA_Trade_UnsealTip")) end
     end
 end
 
