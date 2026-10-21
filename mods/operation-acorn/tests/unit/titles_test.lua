@@ -345,3 +345,34 @@ test("a great title is known to be up while the API shows it: what plays in a wi
     eq(Titles.majorKey, nil)
     PZExtAPI = nil
 end)
+
+test("a brief title held for a window, the window closed at once, comes after the large title still up", function()
+    world()
+    local up, specs = {}, {}
+    PZExtAPI = {
+        version = OA.API_VERSION,
+        client = function() return "handle" end,
+        text = {
+            status = function() return "applied" end,
+            styles = function() return { "stamp", "dust", "brief" } end,
+            title = function(_, spec) specs[#specs + 1] = spec; up[#specs] = true; return #specs end,
+            shown = function(_, key) return up[key] == true end,
+        },
+    }
+    local Titles = OA.Titles
+    Titles.show("p1", { key = "IGUI_OA_Title_TreeOpened", style = "dust" })
+    OATerminalWindow = { instances = { [0] = {} } }
+    eq(Titles.brief("p1", "IGUI_OA_Tree_FirstEffect"), "held")
+    OATerminalWindow.instances[0] = nil
+    Titles.showHeld(true)
+    eq(specs[2].after, 1, "after the opening title, still up")
+    eq(Titles.bigUp(), 1)
+    up[1] = false
+    OATerminalWindow.instances[0] = {}
+    eq(Titles.brief("p1", "IGUI_OA_Machine_PartWorn"), "held")
+    OATerminalWindow.instances[0] = nil
+    Titles.showHeld(true)
+    eq(specs[3].after, nil, "it has left: at once")
+    eq(Titles.bigUp(), nil)
+    OATerminalWindow, PZExtAPI = nil, nil
+end)

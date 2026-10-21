@@ -258,7 +258,9 @@ function Hooks.showHint()
         hint.aside = true
         return
     end
-    local _, key = OA.Titles.brief(hint.playerId, "IGUI_OA_Tree_WhereHint", nil, nil, hint.after, true)
+    -- (after the opening title, or what large title is still up as the terminal closes)
+    local _, key = OA.Titles.brief(hint.playerId, "IGUI_OA_Tree_WhereHint", nil, nil, hint.after or OA.Titles.bigUp(),
+        true)
     hint.key, hint.after, hint.aside = key, nil, nil
 end
 

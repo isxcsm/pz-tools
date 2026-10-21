@@ -124,6 +124,7 @@ function Titles.show(playerId, detail, noSay)
         if drawn then
             shown, key = "title", key or drawnKey
             if detail.size == "major" and drawnKey then Titles.majorKey = drawnKey end
+            if detail.style ~= "brief" and drawnKey then Titles.bigKey = drawnKey end
         elseif not noSay then
             character:Say(sub and (title .. " - " .. sub) or title)
             shown = shown or "said"
@@ -157,8 +158,19 @@ function Titles.brief(playerId, key, args, tone, after, answer)
         key, args)
 end
 
--- The titles held for a window: each shown once its player's windows are closed (the handler stays, and returns at
--- once while none is held). `now` true: looked at at once (the terminal closed).
+-- The key of the last title in a large style drawn while it is on the screen or waiting to be, else nil: a brief title
+-- that was held, or put aside, for a window comes after it (on its own, the brief's lane runs beside the large one).
+function Titles.bigUp()
+    local key = Titles.bigKey
+    if not key then return nil end
+    if Kit.shown(OA.api(), OA.handle(), key) then return key end
+    Titles.bigKey = nil
+    return nil
+end
+
+-- The titles held for a window: each shown once its player's windows are closed, after a large title still up
+-- (Titles.bigUp: the player closed the window at once, as it came). The handler stays, and returns at once while none
+-- is held. `now` true: looked at at once (the terminal closed).
 function Titles.showHeld(now)
     if held[1] == nil then return end
     if now ~= true then
@@ -174,6 +186,7 @@ function Titles.showHeld(now)
         if Titles.windowOpen(h.playerNum) then
             held[#held + 1] = h
         else
+            if h.detail.after == nil then h.detail.after = Titles.bigUp() end
             OA.try("title held for a window", Titles.show, h.playerId, h.detail, h.noSay)
         end
     end
