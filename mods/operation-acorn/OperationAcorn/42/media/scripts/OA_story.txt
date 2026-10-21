@@ -6,10 +6,11 @@ module OperationAcorn
     }
 
     /* The meteorite fragments, one at each drop site (Story/Sites.lua): sent to the research team, each opens one
-       tree's capstone. MeteorFragment is the stony one. */
+       tree's capstone. MeteorFragment is the stony one. A memento, as the game's own meteorite: no building
+       material (the load tree's lighter materials leave its weight alone). */
     item MeteorFragment
     {
-        DisplayCategory = Material,
+        DisplayCategory = Memento,
         ItemType = base:normal,
         Weight = 0.5,
         Icon = OA_MeteorFragment,
@@ -19,7 +20,7 @@ module OperationAcorn
 
     item MeteorFragmentIron
     {
-        DisplayCategory = Material,
+        DisplayCategory = Memento,
         ItemType = base:normal,
         Weight = 0.8,
         Icon = OA_MeteorFragmentIron,
@@ -29,7 +30,7 @@ module OperationAcorn
 
     item MeteorFragmentStonyIron
     {
-        DisplayCategory = Material,
+        DisplayCategory = Memento,
         ItemType = base:normal,
         Weight = 0.6,
         Icon = OA_MeteorFragmentStonyIron,
